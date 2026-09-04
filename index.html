@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM — Gregório | Meu Lar</title>
+<script>try{var t=localStorage.getItem('crm-tema');if(t==='claro'||t==='escuro')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<link rel="icon" type="image/png" href="assets/logo-icon.png">
+<link rel="apple-touch-icon" href="assets/logo-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============ TELA DE LOGIN ============ -->
+<div class="login-screen" id="loginScreen">
+  <form class="login-card" id="loginForm">
+    <div class="login-logo">
+      <img src="assets/logo-icon.png" alt="Gregório | Meu Lar" class="logo-mark-img">
+      <span class="logo-text">Gregório <strong>| Meu Lar</strong></span>
+    </div>
+    <p class="login-sub">CRM interno — acesso restrito à equipe</p>
+    <div class="form-row">
+      <label for="login-email">E-mail</label>
+      <input required type="email" id="login-email" placeholder="voce@gregoriomeular.com.br">
+    </div>
+    <div class="form-row">
+      <label for="login-senha">Senha</label>
+      <input required type="password" id="login-senha" placeholder="••••••••">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Entrar</button>
+    <p class="login-error" id="loginError" hidden></p>
+    <button type="button" class="link-btn" id="forgotBtn">Esqueci minha senha</button>
+  </form>
+
+  <form class="login-card" id="forgotForm" hidden>
+    <div class="login-logo">
+      <img src="assets/logo-icon.png" alt="Gregório | Meu Lar" class="logo-mark-img">
+      <span class="logo-text">Gregório <strong>| Meu Lar</strong></span>
+    </div>
+    <p class="login-sub">Digite seu e-mail para receber o link de redefinição de senha</p>
+    <div class="form-row">
+      <label for="forgot-email">E-mail</label>
+      <input required type="email" id="forgot-email" placeholder="voce@gregoriomeular.com.br">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block" id="forgotBtnSubmit">Enviar link</button>
+    <p class="login-feedback" id="forgotFeedback" hidden></p>
+    <button type="button" class="link-btn" id="backToLoginBtn">Voltar para o login</button>
+  </form>
+</div>
+
+<!-- ============ APP (após login) ============ -->
+<div class="app-shell" id="appShell" hidden>
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <img src="assets/logo-icon.png" alt="Gregório | Meu Lar" class="logo-mark-img">
+      <span class="logo-text">Meu Lar</span>
+    </div>
+
+    <nav class="topnav">
+      <button class="nav-item topnav-item active" data-view="dashboard">📊 Dashboard</button>
+
+      <button class="nav-item topnav-item nav-aprovacoes" data-view="aprovacoes" hidden>📋 Aprovações</button>
+
+      <div class="topnav-group">
+        <button class="topnav-trigger" data-group-trigger="vendas">🎯 Vendas <span class="caret">▾</span></button>
+        <div class="topnav-dropdown" data-group-panel="vendas">
+          <button class="nav-item" data-view="leads">🎯 Leads</button>
+          <button class="nav-item" data-view="oferta_ativa">📇 Oferta Ativa</button>
+          <button class="nav-item" data-view="funil">🗂️ Funil de Vendas</button>
+          <button class="nav-item" data-view="captacao">🏗️ Funil de Captação</button>
+          <button class="nav-item" data-view="visitas">📅 Visitas</button>
+          <a class='nav-item' href='/simulador' rel='noopener' target='_blank'>🧮 Simulador de Parcelas</a>
+          <a class='nav-item' href='/consultor' rel='noopener' target='_blank'>🧭 Consultor de Produto</a>
+        </div>
+      </div>
+
+      <div class="topnav-group">
+        <button class="topnav-trigger" data-group-trigger="imoveis-pessoas">🏠 Imóveis &amp; Pessoas <span class="caret">▾</span></button>
+        <div class="topnav-dropdown" data-group-panel="imoveis-pessoas">
+          <button class="nav-item" data-view="imoveis">🏠 Imóveis</button>
+          <button class="nav-item" data-view="pessoas">👤 Pessoas</button>
+          <button class="nav-item" data-view="vistorias">🔍 Vistorias</button>
+        </div>
+      </div>
+
+      <div class="topnav-group">
+        <button class="topnav-trigger" data-group-trigger="negocios">📄 Negócios <span class="caret">▾</span></button>
+        <div class="topnav-dropdown" data-group-panel="negocios">
+          <button class="nav-item" data-view="gerador">📝 Gerar Documentos</button>
+          <button class="nav-item nav-financeiro" data-view="contratos" hidden>📄 Contratos</button>
+          <button class="nav-item nav-financeiro" data-view="financeiro" hidden>💰 Financeiro</button>
+        </div>
+      </div>
+
+      <div class="topnav-group nav-financeiro" hidden>
+        <button class="topnav-trigger" data-group-trigger="gestao">⚙️ Gestão <span class="caret">▾</span></button>
+        <div class="topnav-dropdown" data-group-panel="gestao">
+          <button class="nav-item nav-financeiro" data-view="relatorios" hidden>📈 Relatórios</button>
+          <button class="nav-item nav-financeiro" data-view="historico_docs" hidden>🗂️ Histórico de Documentos</button>
+          <button class="nav-item nav-financeiro" data-view="auditoria" hidden>🕵️ Auditoria</button>
+          <button class="nav-item nav-financeiro" data-view="site" hidden>🌐 Conteúdo do Site</button>
+        </div>
+      </div>
+
+      <div class="topnav-group">
+        <button class="topnav-trigger" data-group-trigger="equipe-site">🧑‍💼 Equipe &amp; Site <span class="caret">▾</span></button>
+        <div class="topnav-dropdown" data-group-panel="equipe-site">
+          <button class="nav-item" data-view="equipe">🧑‍💼 Equipe</button>
+          <button class="nav-item" data-view="depoimentos">💬 Depoimentos</button>
+          <button class="nav-item" data-view="hero">🖼️ Fotos do Site</button>
+          <button class="nav-item" data-view="momentos">📸 Momentos (clientes)</button>
+        </div>
+      </div>
+
+      <button class="nav-item topnav-item" data-view="tutorial">❓ Ajuda</button>
+      <button class="nav-item topnav-item" data-view="treinamento">🎓 Treinamento</button>
+      <button class="nav-item topnav-item" id="avaliacaoRapidaBtn">📊 Avaliação</button>
+    </nav>
+
+    <div class="topbar-right">
+      <a class="btn-ver-site" href="https://gregoriomeular-site.netlify.app/" target="_blank" rel="noopener">🌐 Ver o site</a>
+      <p id="userEmail"></p>
+      <button class="btn btn-ghost btn-sm" id="temaToggle" type="button" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
+    </div>
+  </header>
+
+  <main class="main-area">
+
+    <!-- ===== DASHBOARD ===== -->
+    <section class="view" id="view-dashboard">
+      <div class="view-head"><h1>Dashboard</h1><p>Visão geral da operação</p></div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="panel">
+        <div class="panel-head panel-head-flex">
+          <div><h2>✅ Minhas Tarefas</h2><p style="margin:0;">Lembretes e follow-ups — marque como feito ao concluir</p></div>
+          <div class="panel-head-actions">
+            <select id="tarefasFiltroEscopo" class="nav-financeiro" hidden>
+              <option value="minhas">Minhas tarefas</option>
+              <option value="todas">Toda a equipe</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="novaTarefaBtn">+ Nova tarefa</button>
+          </div>
+        </div>
+        <div id="tarefasLista"></div>
+      </div>
+
+      <div class="panel" id="dashLeadsPanel">
+        <div class="panel-head"><h2>Leads recentes</h2></div>
+        <div class="table-wrap"><table id="dashLeadsTable"><tbody></tbody></table></div>
+      </div>
+      <div class="panel nav-financeiro" id="rankingPanel" hidden>
+        <div class="panel-head"><h2>Ranking de corretores</h2><p style="margin:0;">Negócios fechados e comissão gerada no mês</p></div>
+        <div class="table-wrap">
+          <table id="rankingTable">
+            <thead><tr><th>#</th><th>Corretor</th><th>Negócios fechados</th><th>Comissão no mês</th><th>Meta</th><th>% da meta</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== PAINEL EXECUTIVO DE LOCAÇÃO (só gerente/admin) ===== -->
+      <div class="nav-financeiro" id="painelExecutivoLocacao" hidden>
+        <div class="view-head" style="margin-top:30px;">
+          <div><h1 style="font-size:1.25rem;">Painel de Locação &amp; Financeiro</h1><p>Contratos, recebimentos, repasses e carteira de imóveis — visão executiva</p></div>
+        </div>
+
+        <div class="stats-grid" id="painelExecStats"></div>
+
+        <div class="dash-cols-2">
+          <div class="panel">
+            <div class="panel-head"><h2>📅 Recebimentos de inquilinos</h2><p style="margin:0;">Cobranças em aberto, por vencimento</p></div>
+            <div id="painelRecebimentos"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>💸 Repasses aos proprietários</h2><p style="margin:0;">Contratos ativos, pelo dia fixo de repasse — valor estimado após taxa de administração</p></div>
+            <div id="painelRepasses"></div>
+          </div>
+        </div>
+
+        <div class="dash-cols-2">
+          <div class="panel">
+            <div class="panel-head"><h2>🏠 Carteira — Locação</h2></div>
+            <div class="dash-donut-wrap">
+              <canvas id="chartImoveisLocacao"></canvas>
+              <div class="dash-legenda" id="legendaImoveisLocacao"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>🏷️ Carteira — Venda</h2></div>
+            <div class="dash-donut-wrap">
+              <canvas id="chartImoveisVenda"></canvas>
+              <div class="dash-legenda" id="legendaImoveisVenda"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:20px;">
+          <div class="panel-head"><h2>🔔 Alertas Operacionais</h2><p style="margin:0;">Pontos de atenção detectados automaticamente na base</p></div>
+          <div id="painelAlertas"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== LEADS ===== -->
+    <section class="view" id="view-leads" hidden>
+      <div class="view-head">
+        <div><h1>Leads</h1><p>Funil de atendimento</p></div>
+        <button class="btn btn-primary" id="newLeadBtn">+ Novo lead</button>
+      </div>
+      <div class="filters-bar">
+        <input type="search" id="leadsSearch" placeholder="Buscar por nome ou telefone...">
+        <select id="leadStatusFilter">
+          <option value="">Todos os status</option>
+          <option value="novo">Novo</option>
+          <option value="em_atendimento">Em atendimento</option>
+          <option value="qualificado">Qualificado</option>
+          <option value="visita_agendada">Visita agendada</option>
+          <option value="proposta">Proposta</option>
+          <option value="fechado">Fechado</option>
+          <option value="perdido">Perdido</option>
+        </select>
+      </div>
+      <div id="leadsAlertaBanner" class="alerta-filtro-banner" hidden></div>
+      <div class="table-wrap">
+        <table id="leadsTable">
+          <thead><tr><th>Nome</th><th>Telefone</th><th>Origem</th><th>Interesse</th><th>Status</th><th>Corretor</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== OFERTA ATIVA ===== -->
+    <section class="view" id="view-oferta_ativa" hidden>
+      <div class="view-head">
+        <div><h1>Oferta Ativa</h1><p>Pegue contatos da fila para prospecção — limite de 10 por dia</p></div>
+        <div id="ofertaAtivaContador" class="status-pill status-novo">Carregando...</div>
+      </div>
+
+      <div class="panel nav-financeiro" id="ofertaAtivaAdminPanel" hidden>
+        <div class="panel-head"><h2>Adicionar contatos à fila</h2></div>
+        <form class="modal-form" id="ofertaAtivaAddForm">
+          <div class="form-row"><label>Nome</label><input required id="oa-nome"></div>
+          <div class="form-row"><label>Telefone</label><input required id="oa-telefone"></div>
+          <div class="form-row"><label>E-mail</label><input type="email" id="oa-email"></div>
+          <div class="modal-actions"><button type="submit" class="btn btn-primary btn-sm">Adicionar</button></div>
+        </form>
+        <div class="form-row full" style="margin-top:14px;">
+          <label>Importar lista em massa — uma linha por contato, formato <code>nome;telefone;email</code> (email opcional)</label>
+          <textarea id="ofertaAtivaImportText" rows="5" placeholder="Maria da Silva;41999998888;maria@email.com"></textarea>
+        </div>
+        <div class="modal-actions"><button type="button" class="btn btn-ghost btn-sm" id="ofertaAtivaImportBtn">Importar lista</button></div>
+      </div>
+
+      <div class="filters-bar">
+        <input type="search" id="ofertaAtivaSearch" placeholder="Buscar por nome ou telefone...">
+      </div>
+      <div class="table-wrap">
+        <table id="ofertaAtivaTable">
+          <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== FUNIL DE VENDAS (KANBAN) ===== -->
+    <section class="view" id="view-funil" hidden>
+      <div class="view-head">
+        <div><h1>Funil de Vendas</h1><p>Acompanhamento do lead até a assinatura</p></div>
+      </div>
+      <div class="filters-bar nav-financeiro" id="funilFiltroCorretorWrap" hidden>
+        <select id="funilFiltroCorretor">
+          <option value="">Todos os corretores</option>
+        </select>
+      </div>
+      <div class="kanban-board" id="kanbanBoard"></div>
+    </section>
+
+    <!-- ===== FUNIL DE CAPTAÇÃO (KANBAN) ===== -->
+    <section class="view" id="view-captacao" hidden>
+      <div class="view-head">
+        <div><h1>Funil de Captação</h1><p>Captação de imóveis (lançamento, prontos, usados e locação) — não conta como lead</p></div>
+        <button class="btn btn-primary" id="newCaptacaoBtn">+ Nova captação</button>
+      </div>
+      <div class="filters-bar nav-financeiro" id="captacaoFiltroCorretorWrap" hidden>
+        <select id="captacaoFiltroCorretor">
+          <option value="">Todos os corretores</option>
+        </select>
+      </div>
+      <div class="kanban-board" id="kanbanBoardCaptacao"></div>
+    </section>
+
+    <!-- ===== IMÓVEIS ===== -->
+    <section class="view" id="view-imoveis" hidden>
+      <div class="view-head">
+        <div><h1>Imóveis</h1><p>Catálogo completo</p></div>
+        <button class="btn btn-primary" id="newImovelBtn">+ Novo imóvel</button>
+      </div>
+      <div class="filters-bar">
+        <input type="search" id="imoveisSearch" placeholder="Buscar por título, código, bairro ou corretor...">
+        <select id="imoveisFiltroTipo">
+          <option value="">Todos os tipos</option>
+          <option value="casa">Casa</option>
+          <option value="apartamento">Apartamento</option>
+          <option value="kitnet">Kitnet</option>
+          <option value="terreno">Terreno</option>
+        </select>
+        <select id="imoveisFiltroPortal" class="so-gestao-portais">
+          <option value="">Todos os portais</option>
+        </select>
+        <select id="imoveisFiltroDestaque" class="so-gestao-portais">
+          <option value="">Todos os níveis</option>
+          <option value="super_destaque">★★ Super destaque</option>
+          <option value="destaque">★ Destaque</option>
+          <option value="simples">Simples</option>
+          <option value="sem_portal">Sem portal selecionado</option>
+        </select>
+        <select id="imoveisFiltroEntrega">
+          <option value="">Entrega (lançamentos)</option>
+          <option value="__lancamentos__">🏗️ Todos os lançamentos</option>
+          <option value="__sem__">Sem previsão de entrega</option>
+        </select>
+      </div>
+      <div class="imoveis-destaque-resumo so-gestao-portais" id="imoveisDestaqueResumo"></div>
+      <div class="imoveis-xml-toolbar so-gestao-portais" id="imoveisXmlToolbar">
+        <span id="imoveisXmlContagem">Nenhum imóvel selecionado</span>
+        <button type="button" class="btn btn-ghost btn-sm" id="imoveisXmlSelecionarTodos">Selecionar todos os filtrados</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="imoveisXmlLimpar">Limpar seleção</button>
+        <button type="button" class="btn btn-primary btn-sm" id="imoveisXmlGerarBtn" disabled>Gerar XML do portal</button>
+      </div>
+      <div id="imoveisAlertaBanner" class="alerta-filtro-banner" hidden></div>
+      <div id="imoveisCards" class="imoveis-cards"></div>
+    </section>
+
+    <!-- ===== PESSOAS ===== -->
+    <section class="view" id="view-pessoas" hidden>
+      <div class="view-head">
+        <div><h1>Pessoas</h1><p>Proprietários, compradores, inquilinos e mais</p></div>
+        <button class="btn btn-primary" id="newPessoaBtn">+ Nova pessoa</button>
+      </div>
+      <div class="filters-bar"><input type="search" id="pessoasSearch" placeholder="Buscar por nome, telefone, e-mail ou CPF/CNPJ..."></div>
+      <div id="pessoasCards" class="imoveis-cards pessoas-cards"></div>
+    </section>
+
+    <!-- ===== VISITAS ===== -->
+    <section class="view" id="view-visitas" hidden>
+      <div class="view-head">
+        <div><h1>Visitas</h1><p>Agenda de visitas aos imóveis</p></div>
+        <button class="btn btn-primary" id="newVisitaBtn">+ Agendar visita</button>
+      </div>
+      <div class="table-wrap">
+        <table id="visitasTable">
+          <thead><tr><th>Data/Hora</th><th>Imóvel</th><th>Lead</th><th>Corretor</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== VISTORIAS ===== -->
+    <section class="view" id="view-vistorias" hidden>
+      <div class="view-head">
+        <div><h1>Vistorias</h1><p>Entrada, saída, periódica e pré-venda</p></div>
+        <button class="btn btn-primary" id="newVistoriaBtn">+ Nova vistoria</button>
+      </div>
+      <div class="filters-bar"><input type="search" id="vistoriasSearch" placeholder="Buscar por imóvel ou vistoriador..."></div>
+      <div id="vistoriasCards" class="imoveis-cards"></div>
+    </section>
+
+    <!-- ===== CONTRATOS ===== -->
+    <section class="view" id="view-contratos" hidden>
+      <div class="view-head">
+        <div><h1>Contratos</h1><p>Vendas e locações fechadas</p></div>
+        <button class="btn btn-primary" id="newContratoBtn">+ Novo contrato</button>
+      </div>
+      <div class="filters-bar"><input type="search" id="contratosSearch" placeholder="Buscar por imóvel, cliente ou corretor..."></div>
+      <div id="contratosAlertaBanner" class="alerta-filtro-banner" hidden></div>
+      <div id="contratosCards" class="imoveis-cards"></div>
+    </section>
+
+    <!-- ===== GERADOR DE DOCUMENTOS (contratos, fichas e termos em .docx) ===== -->
+    <section class="view" id="view-gerador" hidden>
+      <div class="view-head">
+        <div><h1>Gerar Documentos</h1><p>Contratos, fichas e termos prontos para assinatura — puxe os dados de uma pessoa/imóvel cadastrado ou preencha manualmente</p></div>
+      </div>
+      <div class="doc-modelos-grid" id="docModelosGrid"></div>
+    </section>
+
+    <!-- ===== FINANCEIRO / COBRANÇAS ===== -->
+    <section class="view" id="view-financeiro" hidden>
+      <div class="view-head">
+        <div><h1>Financeiro</h1><p>Locações (aluguel e repasse) e vendas (honorários e comissão)</p></div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" id="gerarCobrancasBtn" title="Cria a cobrança do mês atual pra todo contrato de locação ativo que ainda não tem uma">↻ Gerar cobranças do mês</button>
+          <button class="btn btn-primary" id="newCobrancaBtn">+ Nova cobrança</button>
+        </div>
+      </div>
+      <p class="financeiro-auto-nota" id="financeiroAutoNota">As cobranças de locação são geradas automaticamente todo dia 1. Use o botão "Gerar cobranças do mês" se precisar criar antes disso (ex: contrato novo no meio do mês).</p>
+
+      <div class="financeiro-tabs">
+        <button class="financeiro-tab active" data-financeiro-tab="locacoes">Locações</button>
+        <button class="financeiro-tab" data-financeiro-tab="repasses">Repasses</button>
+        <button class="financeiro-tab" data-financeiro-tab="vendas">Vendas</button>
+        <button class="financeiro-tab" data-financeiro-tab="lucro">Lucro do mês</button>
+      </div>
+
+      <div id="financeiro-locacoes" class="financeiro-painel">
+        <div id="locacoesResumo" class="about-stats"></div>
+        <div id="cobrancasSecao">
+          <div class="filters-bar"><input type="search" id="cobrancasSearch" placeholder="Buscar por imóvel ou cliente..."></div>
+          <div id="cobrancasAlertaBanner" class="alerta-filtro-banner" hidden></div>
+          <div id="cobrancasGrupos"></div>
+        </div>
+      </div>
+
+      <div id="financeiro-repasses" class="financeiro-painel" hidden>
+        <div class="panel" id="repassesSecao">
+          <div class="panel-head"><h2>Repasse ao proprietário</h2><p style="margin:0;">Quanto o proprietário deve receber depois de descontada a taxa de administração</p></div>
+          <div id="repassesAlertaBanner" class="alerta-filtro-banner" hidden></div>
+          <div id="repassesCards" class="imoveis-cards"></div>
+        </div>
+      </div>
+
+      <div id="financeiro-vendas" class="financeiro-painel" hidden>
+        <div class="filters-bar"><input type="search" id="vendasSearch" placeholder="Buscar por imóvel, comprador ou corretor..."></div>
+        <div id="vendasResumo" class="about-stats"></div>
+        <div id="vendasCards" class="imoveis-cards"></div>
+      </div>
+
+      <div id="financeiro-lucro" class="financeiro-painel" hidden>
+        <div class="filters-bar"><input type="month" id="lucroMes"></div>
+        <div id="lucroResumo" class="about-stats"></div>
+
+        <h2 class="portal-section-title-crm">Taxa de administração recebida (locações pagas no mês)</h2>
+        <div id="lucroTaxaAdmCards" class="imoveis-cards"></div>
+
+        <h2 class="portal-section-title-crm">1º aluguel do mês (já descontada a comissão do corretor)</h2>
+        <div id="lucroPrimeiroAluguelCards" class="imoveis-cards"></div>
+
+        <h2 class="portal-section-title-crm">Vendas fechadas no mês (já descontada a comissão do corretor)</h2>
+        <div id="lucroVendasCards" class="imoveis-cards"></div>
+      </div>
+    </section>
+
+    <!-- ===== EQUIPE ===== -->
+    <section class="view" id="view-equipe" hidden>
+      <div class="view-head">
+        <div><h1>Equipe</h1><p>Corretores e administração</p></div>
+        <button class="btn btn-primary nav-financeiro" id="newUsuarioBtn" hidden>+ Novo integrante</button>
+      </div>
+      <div class="table-wrap">
+        <table id="equipeTable">
+          <thead><tr><th></th><th>Nome</th><th>Cargo</th><th>E-mail</th><th>Ativo</th><th>Recebe leads</th><th>No site</th><th>Acesso ao CRM</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== DEPOIMENTOS ===== -->
+    <section class="view" id="view-depoimentos" hidden>
+      <div class="view-head">
+        <div><h1>Depoimentos</h1><p>Avaliações exibidas no site</p></div>
+        <button class="btn btn-primary" id="newDepoimentoBtn">+ Novo depoimento</button>
+      </div>
+      <div class="table-wrap">
+        <table id="depoimentosTable">
+          <thead><tr><th></th><th>Cliente</th><th>Depoimento</th><th>Nota</th><th>Publicado</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== FOTOS DO SITE (HERO) ===== -->
+    <section class="view" id="view-hero" hidden>
+      <div class="view-head">
+        <div><h1>Fotos do Site</h1><p>Imagens que giram na home do site</p></div>
+        <button class="btn btn-primary" id="newHeroBtn">+ Nova foto</button>
+      </div>
+      <div class="hero-gallery" id="heroGallery"></div>
+    </section>
+
+    <!-- ===== MOMENTOS (assinaturas de contrato + entrega de chaves) ===== -->
+    <section class="view" id="view-momentos" hidden>
+      <div class="view-head">
+        <div><h1>Momentos dos clientes</h1><p>Fotos de assinatura de contrato e entrega de chaves exibidas no site</p></div>
+        <button class="btn btn-primary" id="newMomentoBtn">+ Nova foto</button>
+      </div>
+      <div class="filters-bar">
+        <select id="momentosFiltroTipo">
+          <option value="">Todos os tipos</option>
+          <option value="assinatura">✍️ Assinatura de contrato</option>
+          <option value="entrega_chaves">🔑 Entrega de chaves</option>
+        </select>
+      </div>
+      <div class="hero-gallery" id="momentosGallery"></div>
+    </section>
+
+    <!-- ===== CONTEÚDO DO SITE (SOBRE / ALUGAR-VENDER / RODAPÉ / REDES SOCIAIS) ===== -->
+    <section class="view" id="view-site" hidden>
+      <div class="view-head">
+        <div><h1>Conteúdo do Site</h1><p>Textos, rodapé e redes sociais — só gerente/admin edita</p></div>
+      </div>
+      <form class="modal-form config-site-form" id="configSiteForm" style="max-width:900px;">
+        <div class="form-row full"><h2 style="margin:0;">Sobre Nós</h2></div>
+        <div class="form-row full"><label>Texto (parágrafos separados por linha em branco)</label>
+          <textarea id="cs-sobre" rows="8"></textarea>
+        </div>
+
+        <div class="form-row full"><h2 style="margin:12px 0 0;">Alugar ou vender meu imóvel</h2></div>
+        <div class="form-row full"><label>Texto de introdução</label>
+          <textarea id="cs-alugar-texto" rows="4"></textarea>
+        </div>
+        <div class="form-row full"><label>Serviços oferecidos (separe por vírgula)</label>
+          <input id="cs-alugar-servicos" placeholder="Ex: Divulgação do imóvel, Atendimento aos interessados...">
+        </div>
+        <div class="form-row full"><label>Texto de fechamento</label>
+          <textarea id="cs-alugar-fechamento" rows="3"></textarea>
+        </div>
+
+        <div class="form-row full"><h2 style="margin:12px 0 0;">Rodapé e contato</h2></div>
+        <div class="form-row full"><label>Descrição curta (aparece no rodapé)</label>
+          <input id="cs-rodape-descricao">
+        </div>
+        <div class="form-row full"><label>Endereço</label><input id="cs-endereco"></div>
+        <div class="form-row full"><label>Horário de funcionamento</label><input id="cs-horario"></div>
+        <div class="form-row"><label>WhatsApp principal — com bot (só números, DDI+DDD)</label><input id="cs-whatsapp" placeholder="5541999999999"></div>
+        <div class="form-row"><label>WhatsApp secundário — sem bot (só números, DDI+DDD)</label><input id="cs-whatsapp-secundario" placeholder="5541999999999"></div>
+        <div class="form-row"><label>Telefone fixo (só números, DDI+DDD)</label><input id="cs-telefone-fixo" placeholder="554199999999"></div>
+        <div class="form-row"><label>E-mail</label><input id="cs-email" type="email"></div>
+        <div class="form-row"><label>CRECI</label><input id="cs-creci"></div>
+
+        <div class="form-row full"><h2 style="margin:12px 0 0;">Dados jurídicos (usados nos contratos e documentos gerados)</h2></div>
+        <div class="form-row full"><label>Razão social</label><input id="cs-razao-social" placeholder="Ex: Gregório Empreendimentos Imobiliários Ltda"></div>
+        <div class="form-row"><label>CNPJ</label><input id="cs-cnpj" placeholder="00.000.000/0001-00"></div>
+        <div class="form-row"><label>Cidade-sede</label><input id="cs-cidade" placeholder="Fazenda Rio Grande"></div>
+        <div class="form-row"><label>Estado (UF)</label><input id="cs-estado" maxlength="2" style="text-transform:uppercase" placeholder="PR"></div>
+
+        <div class="form-row full"><h2 style="margin:12px 0 0;">Redes sociais</h2></div>
+        <div class="form-row"><label>Instagram (link)</label><input id="cs-instagram" type="url" placeholder="https://www.instagram.com/..."></div>
+        <div class="form-row"><label>Facebook (link)</label><input id="cs-facebook" type="url" placeholder="https://www.facebook.com/..."></div>
+        <div class="form-row"><label>WhatsApp (link)</label><input id="cs-whatsapp-url" type="url" placeholder="https://wa.link/..."></div>
+        <div class="form-row"><label>YouTube (link)</label><input id="cs-youtube" type="url" placeholder="https://www.youtube.com/..."></div>
+
+        <div class="modal-actions full">
+          <button type="submit" class="btn btn-primary">Salvar conteúdo do site</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ===== RELATÓRIOS ===== -->
+    <section class="view" id="view-relatorios" hidden>
+      <div class="view-head">
+        <div><h1>Relatórios</h1><p>Download em Excel (.xlsx) — acesso restrito a gerente e administrador</p></div>
+      </div>
+      <div class="relatorios-grid" id="relatoriosGrid"></div>
+    </section>
+
+    <!-- ===== HISTÓRICO DE DOCUMENTOS ===== -->
+    <section class="view" id="view-historico_docs" hidden>
+      <div class="view-head">
+        <div><h1>Histórico de Documentos</h1><p>Todos os contratos, fichas, termos e recibos gerados pelos corretores — acesso restrito a gerente e administrador <span id="historicoDocsContagem" class="view-head-badge"></span></p></div>
+      </div>
+      <div class="filters-bar">
+        <select id="historicoDocsFiltroCorretor">
+          <option value="">Todos os corretores</option>
+        </select>
+        <select id="historicoDocsFiltroModelo">
+          <option value="">Todos os modelos</option>
+        </select>
+        <label class="filters-bar-label">De <input type="date" id="historicoDocsFiltroDe"></label>
+        <label class="filters-bar-label">Até <input type="date" id="historicoDocsFiltroAte"></label>
+      </div>
+      <div class="table-wrap">
+        <table id="historicoDocsTable">
+          <thead><tr><th>Quando</th><th>Corretor</th><th>Modelo</th><th>Cliente</th><th>Arquivo</th><th>Editado</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== AUDITORIA ===== -->
+    <section class="view" id="view-auditoria" hidden>
+      <div class="view-head">
+        <div><h1>Auditoria</h1><p>Quem alterou o quê e quando — acesso restrito a gerente e administrador</p></div>
+      </div>
+      <div class="filters-bar">
+        <select id="auditoriaFiltroTabela">
+          <option value="">Todas as tabelas</option>
+          <option value="imoveis">Imóveis</option>
+          <option value="pessoas">Pessoas</option>
+          <option value="contratos">Contratos</option>
+          <option value="aprovacoes">Aprovações</option>
+          <option value="usuarios">Equipe</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table id="auditoriaTable">
+          <thead><tr><th>Quando</th><th>Tabela</th><th>Ação</th><th>Usuário</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== TUTORIAL ===== -->
+    <section class="view" id="view-tutorial" hidden>
+      <div class="view-head"><h1>Tutorial de uso do CRM</h1><p>Guia rápido para todos os usuários</p></div>
+      <div class="tutorial-content" id="tutorialContent"></div>
+    </section>
+
+    <!-- ===== TREINAMENTO ===== -->
+    <section class="view" id="view-treinamento" hidden>
+      <div class="view-head">
+        <h1>🎓 Manual de Treinamento</h1>
+        <p>Um guia por função — ache o seu bloco na lateral, siga a rotina passo a passo e marque o checklist.</p>
+      </div>
+<div class="layout">
+  <nav class="nav-card">
+    <h2>Funções</h2>
+    <ul class="nav-list" id="navList">
+      <li><a href="#geral">Primeiros passos <span style="color:var(--gray-text); font-weight:400;">· todos</span></a></li>
+      <li>
+        <a href="#corretor">Corretor de imóveis</a>
+        <div class="nav-people">Elaine · Erick · Guilherme · Raires</div>
+      </li>
+      <li>
+        <a href="#marketing">Marketing</a>
+        <div class="nav-people">André</div>
+      </li>
+      <li>
+        <a href="#documentacao">Documentação &amp; Financeiro</a>
+        <div class="nav-people">Daiane</div>
+      </li>
+      <li>
+        <a href="#locacoes">Administração de Locações</a>
+        <div class="nav-people">Raphael</div>
+      </li>
+      <li>
+        <a href="#gerencia">Gerência</a>
+        <div class="nav-people">Luiz</div>
+      </li>
+    </ul>
+  </nav>
+
+  <main class="content">
+
+    <section class="role" id="geral">
+      <p class="role-kicker">Para todos</p>
+      <h1>Primeiros passos</h1>
+      <p class="role-meta">Vale para qualquer função. Leia uma vez antes de ir para o seu bloco.</p>
+
+      <ol class="routine">
+        <li>
+          <p class="step-title">Entrar</p>
+          <ul>
+            <li>Abra o link do CRM (peça ao Luiz se não tiver). Digite e-mail e senha e clique em <b>Entrar</b>.</li>
+            <li>Esqueceu a senha? <b>Esqueci minha senha</b> envia um link por e-mail.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Escolher o tema</p>
+          <ul>
+            <li>No canto superior direito, o botão <b>🌙 / ☀️</b> alterna entre tema escuro e claro.</li>
+            <li>A escolha fica salva no seu usuário e acompanha você em outro computador.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Se virar sozinho</p>
+          <ul>
+            <li>O botão redondo <b>❓</b> no canto inferior direito abre um ajudante — digite a dúvida em texto normal ("como cadastro um imóvel").</li>
+            <li>A aba <b>Ajuda</b> no topo tem o tutorial completo em tópicos.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Circular pelo sistema</p>
+          <ul>
+            <li>O menu fica no topo. Alguns itens são grupos que abrem submenu: <b>🎯 Vendas</b>, <b>🏠 Imóveis &amp; Pessoas</b>, <b>📄 Negócios</b>, <b>🧑‍💼 Equipe &amp; Site</b>.</li>
+            <li>O que aparece no menu depende do seu cargo.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="callout rule"><b>Regra da casa —</b> Só o gerente (Luiz) vê o botão <b>Excluir</b> em qualquer tela. Todo mundo cria e edita; ninguém apaga registro. Isso também é travado no banco de dados.</div>
+    </section>
+
+    <section class="role" id="corretor">
+      <p class="role-kicker">Vendas · cargo: corretor</p>
+      <h1>Corretor de imóveis</h1>
+      <p class="role-meta"><b>Elaine Ribeiro</b> · <b>Erick Caetano</b> · <b>Guilherme Yuri</b> · <b>Raires Gomes</b></p>
+
+      <h3 class="block-title">Seu papel no CRM</h3>
+      <p>Você trabalha a ponta comercial: recebe e atende leads, prospecta contatos da fila de Oferta Ativa, cadastra imóveis e pessoas, agenda visitas, gera os documentos de proposta e reserva, e acompanha cada negócio no funil até fechar. Cada corretor enxerga só os próprios leads e negócios.</p>
+
+      <h3 class="block-title">Seu acesso</h3>
+      <div class="access-grid">
+        <div class="access-box"><b>Aparece pra você</b>Dashboard, Leads, Oferta Ativa, Funil de Vendas, Funil de Captação, Visitas, Imóveis, Pessoas, Vistorias, Gerar Documentos, Simulador de Parcelas, Consultor de Produto, Equipe (só ver), Depoimentos, Fotos do Site, Momentos, Ajuda.</div>
+        <div class="access-box deny"><b>Não aparece</b>Contratos, Financeiro, Relatórios, Histórico de Documentos, Auditoria, Conteúdo do Site. Isso é de administrador e gerente.</div>
+      </div>
+
+      <h3 class="block-title">Rotina — tarefa por tarefa</h3>
+      <ol class="routine">
+        <li>
+          <p class="step-title">Começo do dia. <span class="path">CRM › Dashboard</span></p>
+          <ul>
+            <li>Veja leads novos, imóveis disponíveis e visitas agendadas.</li>
+            <li>Em <b>Minhas Tarefas</b>, marque como feito o que concluiu e use <b>+ Nova tarefa</b> para follow-ups (com prazo).</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Atender um lead. <span class="path">CRM › Leads</span></p>
+          <ul>
+            <li>Filtre por status. Mude o status direto na lista: <b>novo → em atendimento → qualificado → visita agendada → proposta → fechado / perdido</b>.</li>
+            <li>Ao marcar <b>perdido</b>, o sistema pede o motivo — preencha, é o que mostra por que negócio não fecha.</li>
+            <li><b>Ver</b> abre o histórico de interações. Registre toda ligação, WhatsApp e e-mail ali.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Lead que chegou no balcão ou por ligação. <span class="path">CRM › Leads › + Novo lead</span></p>
+          <ul>
+            <li>Nome, telefone, origem e interesse. Se deixar o corretor em branco, o sistema distribui para quem tem menos leads no mês.</li>
+            <li>Todo lead novo com telefone válido também entra no fim da fila da Oferta Ativa, automático.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Prospectar da fila. <span class="path">CRM › Oferta Ativa</span></p>
+          <ul>
+            <li>Pegue um contato da fila para trabalhar (limite de 10 por dia). Ele fica seu, com exclusividade por um tempo.</li>
+            <li>Não deu retorno? <b>Devolver</b> solta o contato de volta para a fila na hora.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Acompanhar o negócio. <span class="path">CRM › Vendas › Funil de Vendas</span></p>
+          <ul>
+            <li>Quadro Kanban com seus leads por etapa. Arrastar o cartão de coluna move o negócio adiante.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Captar um imóvel com o dono. <span class="path">CRM › Vendas › Funil de Captação › + Nova captação</span></p>
+          <ul>
+            <li>Título, contato, papel (proprietário / locador…), finalidade e endereço. A pessoa é criada ou reaproveitada em Pessoas automático.</li>
+            <li>Nas etapas <b>fotos</b> e <b>site</b> aparece o botão <b>Cadastrar imóvel</b> — transforma a captação num imóvel de verdade, já com os dados preenchidos.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Cadastrar imóvel. <span class="path">CRM › Imóveis › + Novo imóvel</span></p>
+          <ul>
+            <li>Título, tipo, finalidade, endereço, valores e características. Escolha o corretor responsável (depois, só gerente/admin transfere).</li>
+            <li>Envie as fotos e clique na estrela da que vai ser a capa. Vídeo: cole o link do YouTube no campo próprio.</li>
+            <li>Na linha do imóvel, <b>Ficha PDF</b> gera um PDF pronto para mandar no WhatsApp.</li>
+            <li>Espelhar para portais (Imovelweb, ZAP…): só gerente/admin altera essa parte.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Cadastrar pessoa. <span class="path">CRM › Pessoas › + Nova pessoa</span></p>
+          <ul>
+            <li>Nome, telefone, e-mail, CPF/CNPJ e um ou mais papéis (proprietário, inquilino, comprador, vendedor, locador…).</li>
+            <li>O sistema bloqueia se já existir alguém com o mesmo telefone, e-mail ou CPF/CNPJ.</li>
+            <li>Ao editar uma pessoa, aparece <b>Documentos anexados</b> para subir RG, comprovantes etc.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Agendar e fechar visita. <span class="path">CRM › Visitas › + Agendar visita</span></p>
+          <ul>
+            <li>Escolha imóvel, lead e data/hora. Depois marque <b>concluída</b> ou <b>cancelada</b> e escreva o feedback.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Vistoria de pré-venda. <span class="path">CRM › Vistorias › + Nova vistoria</span></p>
+          <ul>
+            <li>Tipo <b>Pré-venda</b> ou <b>Captação locação</b>. Em Abrir: checklist por ambiente, fotos e laudo. <b>Baixar laudo (PDF)</b> para assinatura.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Gerar documento. <span class="path">CRM › Negócios › Gerar Documentos</span></p>
+          <ul>
+            <li>Seus modelos: Proposta de Compra com Sinal de Reserva, Recibo de Sinal / Reserva, Ficha de Visita com Sinal de Reserva, Contrato de Intermediação e Autorização Venda Exclusividade, Autorização de Anúncio SEM Exclusividade, Contrato de Intermediação de Locação.</li>
+            <li>Puxa os dados de uma pessoa/imóvel cadastrado ou você preenche na mão. Sai um PDF pronto para assinar.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Cliente em análise de crédito. <span class="path">CRM › Leads › Ver</span></p>
+          <ul>
+            <li>Se o cliente está em financiamento/loteadora/cartório, o status do processo aparece na ficha do lead — só leitura. Quem conduz é a Daiane.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="callout dont"><b>Não faça —</b> Não mexa em Contratos nem Financeiro (não aparece pra você). Não troque o corretor responsável de imóvel ou lead de colega. Não altere os portais XML de um imóvel sem o gerente. Não tente apagar registro — o botão não vai existir.</div>
+
+      <h3 class="block-title">Checklist "eu sei fazer"</h3>
+      <ul class="checklist">
+        <li>Entrar e trocar o tema</li>
+        <li>Mudar o status de um lead e registrar uma interação</li>
+        <li>Criar um lead manual</li>
+        <li>Pegar um contato na Oferta Ativa e devolver</li>
+        <li>Criar uma captação</li>
+        <li>Cadastrar um imóvel e definir a foto de capa</li>
+        <li>Colar um vídeo do YouTube no imóvel</li>
+        <li>Gerar a Ficha PDF de um imóvel</li>
+        <li>Cadastrar uma pessoa com papéis</li>
+        <li>Agendar e concluir uma visita</li>
+        <li>Gerar uma Proposta de Compra em PDF</li>
+        <li>Achar o status de aprovação na ficha de um lead</li>
+      </ul>
+
+      <div class="exercise">
+        <b>Exercício prático</b>
+        <p class="prompt">"Chegou um lead pelo WhatsApp: família procurando casa de 3 quartos até R$ 350 mil em Fazenda Rio Grande."</p>
+        <p class="flow">Cadastre o lead → registre a primeira interação → encontre dois imóveis que batem com o pedido → gere a Ficha PDF de um deles → agende a visita → depois da visita, mude o status para proposta → gere a Proposta de Compra com Sinal de Reserva em PDF.</p>
+      </div>
+    </section>
+
+    <section class="role" id="marketing">
+      <p class="role-kicker">Imagem da marca · cargo: corretor</p>
+      <h1>Marketing</h1>
+      <p class="role-meta"><b>André Neves Pereira</b> · aprendiz</p>
+
+      <h3 class="block-title">Seu papel no CRM</h3>
+      <p>Você cuida de como a imobiliária aparece no site e nas redes: fotos e vídeos dos imóveis, fotos de clientes (assinaturas de contrato e entrega de chaves), depoimentos, e as imagens que giram na home do site. Seu login é de corretor — você tem as mesmas telas de um corretor, e usa principalmente quatro delas.</p>
+
+      <h3 class="block-title">Seu acesso</h3>
+      <div class="access-grid">
+        <div class="access-box"><b>Suas telas</b>Fotos do Site, Momentos (clientes), Depoimentos e Imóveis (fotos e vídeo).</div>
+        <div class="access-box deny"><b>Não aparece</b>Conteúdo do Site (textos do "Sobre", rodapé, links de Instagram/Facebook/WhatsApp/YouTube) — isso é de administrador/gerente. Quando precisar mudar texto ou rede social do site, mande para o Luiz publicar. Também não vê Financeiro, Contratos nem Auditoria.</div>
+      </div>
+
+      <h3 class="block-title">Rotina — tarefa por tarefa</h3>
+      <ol class="routine">
+        <li>
+          <p class="step-title">Foto que gira na home do site. <span class="path">CRM › Equipe & Site › Fotos do Site › + Nova foto</span></p>
+          <ul>
+            <li>Envie a imagem e escreva uma legenda. O botão <b>Ativa no site</b> liga e desliga cada foto do carrossel da home.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Foto de cliente (assinatura ou chaves). <span class="path">CRM › Equipe & Site › Momentos (clientes) › + Nova foto</span></p>
+          <ul>
+            <li>Escolha o tipo: <b>✍️ Assinatura de contrato</b> ou <b>🔑 Entrega de chaves</b>.</li>
+            <li>Envie a foto, marque <b>Publicada no site</b> e ajuste o campo <b>Ordem</b> para posicionar na galeria.</li>
+            <li>Aparecem na seção Momentos do site, em duas galerias separadas.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Depoimento de cliente. <span class="path">CRM › Equipe & Site › Depoimentos › + Novo depoimento</span></p>
+          <ul>
+            <li>Nome do cliente, texto, nota em estrelas, foto opcional. Marque <b>Publicado</b> para aparecer no site.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Fotos e vídeo de um imóvel. <span class="path">CRM › Imóveis › (abrir o imóvel)</span></p>
+          <ul>
+            <li>Envie as fotos e clique na estrela da capa. A marca d'água é aplicada automática no navegador — dá para escolher posição e transparência.</li>
+            <li>Vídeo: cole o link do YouTube no campo de vídeo.</li>
+            <li><b>Ficha PDF</b> na linha do imóvel gera um material pronto para post e story.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="callout dont"><b>Não faça —</b> Não edite cadastros de leads/pessoas dos corretores sem necessidade. Textos do site e redes sociais são do Luiz — mande para ele. Não tente apagar imóvel, foto ou depoimento (some do site na hora, e o botão nem aparece pra você).</div>
+
+      <h3 class="block-title">Checklist "eu sei fazer"</h3>
+      <ul class="checklist">
+        <li>Subir uma foto na home e deixá-la ativa</li>
+        <li>Publicar um Momento do tipo Assinatura</li>
+        <li>Publicar um Momento do tipo Entrega de chaves</li>
+        <li>Ordenar as fotos de Momentos</li>
+        <li>Publicar um depoimento com nota</li>
+        <li>Trocar a foto de capa de um imóvel</li>
+        <li>Colar um vídeo do YouTube num imóvel</li>
+        <li>Baixar a Ficha PDF de um imóvel</li>
+      </ul>
+
+      <div class="exercise">
+        <b>Exercício prático</b>
+        <p class="prompt">"A imobiliária entregou as chaves de um apartamento hoje e o cliente autorizou a foto e mandou um elogio no WhatsApp."</p>
+        <p class="flow">Publique a foto em Momentos (tipo Entrega de chaves) → suba a mesma foto na home (Fotos do Site) e deixe ativa → cadastre o elogio em Depoimentos com a nota do cliente.</p>
+      </div>
+    </section>
+
+    <section class="role" id="documentacao">
+      <p class="role-kicker">Retaguarda · cargo: admin</p>
+      <h1>Documentação &amp; Financeiro</h1>
+      <p class="role-meta"><b>Daiane Neves</b></p>
+
+      <h3 class="block-title">Seu papel no CRM</h3>
+      <p>Você conduz a documentação dos clientes em aprovação — financiamento bancário, aprovação com loteadora e cartório/registro —, confere CPF e restrição, e cuida do financeiro das locações: o repasse aos proprietários e a conferência do que os inquilinos pagaram na conta da empresa.</p>
+
+      <h3 class="block-title">Seu acesso</h3>
+      <div class="access-grid">
+        <div class="access-box"><b>Cargo admin</b>Você enxerga o CRM inteiro, menos as exclusões (que são só do gerente). Suas telas centrais: Aprovações, Financeiro e Relatórios.</div>
+      </div>
+
+      <h3 class="block-title">Rotina — Aprovações</h3>
+      <ol class="routine">
+        <li>
+          <p class="step-title">Cadastrar os órgãos que vocês usam. <span class="path">CRM › Aprovações › botão Instituições</span></p>
+          <ul><li>Cadastre os correspondentes bancários, as loteadoras e os cartórios. Depois é só escolher da lista em cada processo.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Abrir um processo. <span class="path">CRM › Aprovações › + Novo processo</span></p>
+          <ul>
+            <li>Tipo (Financiamento bancário / Aprovação com loteadora / Aprovação com incorporadora / Cartório-Registro), status inicial, cliente (comprador).</li>
+            <li>Se o cliente ainda não está cadastrado, escolha <b>➕ Cadastrar cliente novo…</b> e preencha nome e telefone ali mesmo. O mesmo vale para o vendedor, nos processos de cartório.</li>
+            <li>Vincule o imóvel, o corretor que colheu os documentos, a instituição e as observações. Data prevista de assinatura só aparece em Cartório-Registro.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Andar com o status. <span class="path">CRM › Aprovações › (abrir o processo)</span></p>
+          <ul>
+            <li>Sequência: documentação em coleta → enviado p/ verificação de CPF → CPF aprovado ou CPF com restrição → enviado p/ correspondente / loteadora → em análise → aprovado ou reprovado → encaminhado p/ cartório → aguardando assinaturas → concluído.</li>
+            <li>Ao trocar o status, escreva a observação da mudança (ex.: "nome no Serasa, cliente regulariza até dia 10"). O histórico grava sozinho, com data e autor.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Anexar documentos. <span class="path">CRM › Aprovações › (processo) › Documentos anexados</span></p>
+          <ul><li>RG/CPF, comprovante de renda, comprovante de residência, extrato, certidão. Guardado em área privada — o corretor não baixa esses arquivos.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Não deixar parar. <span class="path">CRM › Aprovações</span></p>
+          <ul><li>Processo parado tempo demais numa etapa ganha o selo vermelho <b>parado há X dias</b>. Use o filtro <b>só paradas/atrasadas</b> para varrer.</li></ul>
+        </li>
+      </ol>
+
+      <h3 class="block-title">Rotina — Financeiro (locações)</h3>
+      <ol class="routine">
+        <li>
+          <p class="step-title">Cobranças do aluguel. <span class="path">CRM › Negócios › Financeiro › aba Locações</span></p>
+          <ul>
+            <li>As cobranças mensais aparecem agrupadas por dia de vencimento. Multa e juros de atraso são calculados sozinhos.</li>
+            <li>Quando o inquilino paga, lance a data de pagamento (baixa). Para lançamentos avulsos, <b>+ Nova cobrança</b>.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Desconto ou acréscimo numa cobrança. <span class="path">CRM › Financeiro › (cobrança) › ajuste</span></p>
+          <ul><li>Escolha o tipo (desconto / acréscimo), de quem debita (proprietário / imobiliária) e para quem credita (inquilino / proprietário / imobiliária), o valor, a descrição, e quantas parcelas repetir se for recorrente.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Repasse ao proprietário. <span class="path">CRM › Financeiro › tabela Repasse ao proprietário</span></p>
+          <ul><li>Logo abaixo das cobranças: o valor líquido já com a taxa de administração descontada, por dia fixo (02, 12 ou 22). É a base do pagamento aos proprietários.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Prestação de contas ao proprietário. <span class="path">CRM › Negócios › Gerar Documentos › Prestação de Contas — Repasse de Aluguel</span></p>
+          <ul>
+            <li>Puxe o proprietário e o imóvel cadastrados (ou preencha na mão). Informe a competência, a data do repasse, o valor bruto do aluguel e a taxa de administração.</li>
+            <li>Em <b>Descontos aplicados no repasse</b>, uma linha por desconto: Descrição | Valor | Parcela (ex.: Sanepar | 114,16 | 1/6). Em <b>Outros gastos</b> e <b>Lançamentos previstos para os próximos meses</b>, Descrição | Valor.</li>
+            <li>O sistema calcula sozinho a taxa, os totais e o valor líquido repassado, e monta as tabelas. Sai o PDF pronto para enviar ao proprietário; fica também no Histórico de Documentos.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Fechar o mês. <span class="path">CRM › Gestão › Relatórios</span></p>
+          <ul><li>O card <b>Financeiro</b> baixa a planilha de cobranças (Excel). O card <b>Backup — Gestão Locatícia</b> baixa contratos e cobranças em JSON. Cruze as baixas com o extrato da conta da empresa.</li></ul>
+        </li>
+      </ol>
+
+      <div class="callout rule"><b>Onde tirar os números —</b> Os valores da prestação de contas vêm da tabela Repasse ao proprietário e das cobranças do mês (valor bruto, taxa, descontos e ajustes lançados). O modelo Prestação de Contas — Repasse de Aluguel só formata e calcula o líquido — você digita os lançamentos.</div>
+
+      <div class="callout dont"><b>Não faça —</b> Não apague contrato nem cobrança — o botão é do gerente. Não edite o Conteúdo do Site nem mexa nos cargos da Equipe sem combinar com o Luiz.</div>
+
+      <h3 class="block-title">Checklist "eu sei fazer"</h3>
+      <ul class="checklist">
+        <li>Cadastrar uma instituição</li>
+        <li>Abrir um processo cadastrando o cliente na hora</li>
+        <li>Anexar um documento ao processo</li>
+        <li>Mover o status e conferir o histórico</li>
+        <li>Filtrar por "só paradas/atrasadas"</li>
+        <li>Dar baixa numa cobrança de aluguel</li>
+        <li>Lançar um desconto ao inquilino debitado do proprietário</li>
+        <li>Ler a tabela de Repasse ao proprietário</li>
+        <li>Gerar a Prestação de Contas — Repasse de Aluguel em PDF</li>
+        <li>Baixar o relatório Financeiro em Excel</li>
+        <li>Baixar o Backup — Gestão Locatícia</li>
+      </ul>
+
+      <div class="exercise">
+        <b>Exercício prático</b>
+        <p class="prompt">"Comprador entrou em financiamento pela Caixa. A consulta de CPF voltou com restrição."</p>
+        <p class="flow">Abra o processo (Financiamento, cliente novo) → anexe RG/CPF e comprovante de renda → mova para CPF com restrição com a observação → quando regularizar, mova para enviado p/ correspondente → em análise → aprovado.<br><br>Depois, no Financeiro: dê baixa na cobrança do mês de um contrato de locação, confira quanto vai de repasse para o proprietário e gere a Prestação de Contas — Repasse de Aluguel desse proprietário em PDF.</p>
+      </div>
+    </section>
+
+    <section class="role" id="locacoes">
+      <p class="role-kicker">Carteira de aluguéis · cargo: admin</p>
+      <h1>Administração de Locações</h1>
+      <p class="role-meta"><b>Raphael Nicolas</b></p>
+
+      <h3 class="block-title">Seu papel no CRM</h3>
+      <p>Você é o dono da carteira de locações: cria e corrige os contratos de aluguel, dá baixa nos pagamentos, lança descontos e créditos para proprietário e inquilino, prepara o relatório de repasses para o financeiro, e faz os laudos de vistoria de entrada e de saída, o contrato de locação e o distrato.</p>
+
+      <h3 class="block-title">Seu acesso</h3>
+      <div class="access-grid">
+        <div class="access-box"><b>Cargo admin</b>Contratos, Financeiro, Vistorias, Gerar Documentos, Imóveis, Pessoas e o resto do CRM. Exclusões continuam só com o gerente.</div>
+      </div>
+
+      <h3 class="block-title">Rotina — tarefa por tarefa</h3>
+      <ol class="routine">
+        <li>
+          <p class="step-title">Novo contrato de aluguel. <span class="path">CRM › Negócios › Contratos › + Novo contrato</span></p>
+          <ul>
+            <li>Imóvel; tipo Locação; comprador/locatário; vendedor/locador; corretor do negócio.</li>
+            <li>Valor, datas de início e fim, dia de vencimento do aluguel, dia do repasse ao proprietário (02/12/22), multa por atraso %, juros diário %, taxa de administração %, comissão do corretor.</li>
+            <li>Status: ativo / encerrado / cancelado / inadimplente.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Corrigir um contrato. <span class="path">CRM › Contratos › Editar (no card)</span></p>
+          <ul><li>Ajuste valores, taxa de administração, dia de vencimento ou de repasse.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Anexar documentos do contrato. <span class="path">CRM › Contratos › (contrato aberto) › Documentos anexados</span></p>
+          <ul><li>Contrato assinado, documentação do proprietário e do inquilino, vistoria. Área privada.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Baixa de pagamento. <span class="path">CRM › Negócios › Financeiro › aba Locações</span></p>
+          <ul><li>As cobranças do mês são geradas automaticamente. Ao receber, lance a data de pagamento. Multa e juros entram sozinhos no atraso.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Descontos e créditos. <span class="path">CRM › Financeiro › (cobrança) › ajuste</span></p>
+          <ul>
+            <li>Tipo desconto ou acréscimo; de quem debita (proprietário / imobiliária); para quem credita (inquilino / proprietário / imobiliária); valor; descrição; repetir por N parcelas.</li>
+            <li>É por aqui que entram <b>desconto ao proprietário</b>, <b>desconto ao inquilino</b>, <b>crédito ao proprietário</b> e <b>crédito ao inquilino</b>.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Relatório de repasses para o financeiro. <span class="path">CRM › Financeiro › tabela Repasse ao proprietário</span></p>
+          <ul><li>Mostra o líquido por proprietário e por dia fixo — é a base para a Daiane enviar os pagamentos. Para arquivar o mês: Gestão › Relatórios › Backup — Gestão Locatícia.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Vistoria de entrada e de saída. <span class="path">CRM › Imóveis & Pessoas › Vistorias › + Nova vistoria</span></p>
+          <ul>
+            <li>Tipo Entrada ou Saída, imóvel, vistoriador, data.</li>
+            <li>Em Abrir: checklist por ambiente (condição ótimo / bom / regular / ruim + observação), fotos, estado geral e laudo final.</li>
+            <li><b>Baixar laudo (PDF)</b> para assinatura gera o laudo de entrada ou de saída já com linhas de assinatura para o locatário e a imobiliária.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Documentos de locação. <span class="path">CRM › Negócios › Gerar Documentos</span></p>
+          <ul>
+            <li>Contrato de Locação Residencial (modelo próprio, 28 cláusulas), Contrato de Locação Comercial, Contrato de Intermediação de Locação, Distrato Consensual de Locação, Termo de Entrega de Chaves.</li>
+            <li>Puxa os dados de pessoa/imóvel ou você preenche. Sai o PDF para assinar. Todo documento gerado fica registrado no Histórico de Documentos.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Prestação de contas ao proprietário. <span class="path">CRM › Negócios › Gerar Documentos › Prestação de Contas — Repasse de Aluguel</span></p>
+          <ul>
+            <li>Puxe o proprietário e o imóvel. Informe competência, data do repasse, valor bruto do aluguel e taxa de administração.</li>
+            <li>Descontos aplicados no repasse: uma linha por item, Descrição | Valor | Parcela. Outros gastos e Lançamentos previstos para os próximos meses: Descrição | Valor.</li>
+            <li>O sistema calcula a taxa, os totais e o valor líquido repassado e monta as tabelas. Use no lugar de mandar o repasse "no texto do WhatsApp".</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="callout dont"><b>Não faça —</b> Não apague contratos nem cobranças — só o gerente. Não troque o corretor responsável de um negócio de colega sem combinar. Não edite Conteúdo do Site nem cargos da Equipe.</div>
+
+      <h3 class="block-title">Checklist "eu sei fazer"</h3>
+      <ul class="checklist">
+        <li>Criar um contrato de locação completo</li>
+        <li>Editar a taxa de administração de um contrato</li>
+        <li>Anexar o contrato assinado ao contrato</li>
+        <li>Dar baixa numa cobrança de aluguel</li>
+        <li>Lançar crédito ao proprietário</li>
+        <li>Lançar desconto ao inquilino debitado da imobiliária</li>
+        <li>Ler a tabela de Repasse ao proprietário</li>
+        <li>Fazer uma vistoria de entrada com checklist e fotos</li>
+        <li>Baixar o laudo de vistoria em PDF</li>
+        <li>Gerar um Contrato de Locação Residencial em PDF</li>
+        <li>Gerar um Distrato Consensual de Locação</li>
+        <li>Gerar a Prestação de Contas — Repasse de Aluguel de um proprietário</li>
+      </ul>
+
+      <div class="exercise">
+        <b>Exercício prático</b>
+        <p class="prompt">"Locação nova fechada: apartamento, R$ 1.800/mês, vencimento dia 5, repasse ao proprietário dia 12, taxa de administração 10%."</p>
+        <p class="flow">Cadastre o contrato → gere o Contrato de Locação Residencial em PDF → agende e faça a vistoria de entrada (checklist + fotos) e baixe o laudo → no mês seguinte, dê baixa na primeira cobrança → lance um desconto de R$ 50 ao inquilino, debitado da imobiliária (compensação por manutenção atrasada) → confira o valor de repasse do proprietário e gere a Prestação de Contas — Repasse de Aluguel em PDF.</p>
+      </div>
+    </section>
+
+    <section class="role" id="gerencia">
+      <p class="role-kicker">Direção · cargo: gerente</p>
+      <h1>Gerência</h1>
+      <p class="role-meta"><b>Luiz Gregório</b></p>
+
+      <h3 class="block-title">Seu papel no CRM</h3>
+      <p>Você administra a empresa e o sistema, treina a equipe, e é o único que exclui registros. Enxerga tudo o que corretor e admin fazem, mais o que está abaixo.</p>
+
+      <h3 class="block-title">Só você faz</h3>
+      <ol class="routine">
+        <li>
+          <p class="step-title">Ler o Dashboard executivo. <span class="path">CRM › Dashboard</span></p>
+          <ul>
+            <li>Ranking de corretores no mês: negócios fechados, comissão gerada, % da meta cadastrada em Equipe.</li>
+            <li>Painel de locação: recebimentos por vencimento, repasses estimados por dia fixo, carteira de imóveis por status.</li>
+            <li>Alertas operacionais: contratos sem dia de repasse, leads parados, imóveis sem foto, recebimentos e repasses em atraso, e imóveis com problema no feed do Imovelweb (foto, preço, CEP, bairro, cidade ou área). Os alertas são clicáveis e filtram a lista de Imóveis — <b>Limpar filtro</b> desfaz.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Gerir a equipe. <span class="path">CRM › Equipe & Site › Equipe › + Novo integrante</span></p>
+          <ul>
+            <li>Nome, e-mail, cargo, meta mensal, foto. <b>Criar acesso</b> gera ou vincula o login (senha mínima de 6). <b>Redefinir senha</b> troca a senha de alguém. <b>Excluir</b> — só você.</li>
+            <li>Cargos: corretor · admin · gerente · atendente · analista de documentação. <b>Recebe leads na roleta</b> inclui ou tira a pessoa do rodízio automático de novos leads.</li>
+          </ul>
+        </li>
+        <li>
+          <p class="step-title">Relatórios. <span class="path">CRM › Gestão › Relatórios</span></p>
+          <ul><li>Excel de financeiro; pessoas por papel (proprietários, locadores, locatários, compradores, vendedores, construtores, incorporadoras); e o Backup — Gestão Locatícia em JSON.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Auditoria. <span class="path">CRM › Gestão › Auditoria</span></p>
+          <ul><li>Quem criou, editou ou excluiu imóveis, pessoas, contratos, aprovações e integrantes — com o "antes" e o "depois". Filtro por tabela.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Histórico de Documentos. <span class="path">CRM › Gestão › Histórico de Documentos</span></p>
+          <ul><li>Todo PDF que a equipe gerou no Gerar Documentos, para acompanhamento e conferência.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Conteúdo do Site. <span class="path">CRM › Gestão › Conteúdo do Site</span></p>
+          <ul><li>Textos do "Sobre", da página "Alugar ou vender", rodapé e redes sociais (Instagram, Facebook, WhatsApp, YouTube). Também dá para editar o texto de qualquer modelo de documento pelo botão <b>Editar texto</b>.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Excluir. <span class="path">qualquer tela › Excluir</span></p>
+          <ul><li>Só você vê esse botão — em imóveis, pessoas, contratos, integrantes, fotos, depoimentos, instituições e processos de aprovação. A regra também é garantida pelo banco.</li></ul>
+        </li>
+        <li>
+          <p class="step-title">Treinar a equipe. <span class="path">terminal do Claude Code › /treinamento &lt;nome&gt;</span></p>
+          <ul><li>Gera ou atualiza o guia de uso de cada colaborador, com base no CRM que está no ar. Use <b>/treinamento todos</b> para a equipe inteira.</li></ul>
+        </li>
+      </ol>
+
+      <div class="callout rule"><b>Regra crítica —</b> O feed do Imovelweb (netlify/functions/feed-imovelweb.mts) é produção calibrada com o suporte da Imovelweb. Nunca alterar esse arquivo sem ler o cabeçalho dele, e nunca fazer deploy direto pelo PC — a versão de produção é gerenciada à parte.</div>
+
+      <h3 class="block-title">Checklist "eu sei fazer"</h3>
+      <ul class="checklist">
+        <li>Ler o Dashboard executivo inteiro</li>
+        <li>Cadastrar um integrante e criar o acesso dele</li>
+        <li>Redefinir a senha de alguém</li>
+        <li>Tirar um corretor da roleta de leads</li>
+        <li>Baixar um relatório de pessoas por papel</li>
+        <li>Abrir um registro na Auditoria e ver antes/depois</li>
+        <li>Editar um texto do site</li>
+        <li>Excluir um registro de teste</li>
+        <li>Rodar /treinamento para um colaborador</li>
+      </ul>
+
+      <div class="exercise">
+        <b>Exercício prático</b>
+        <p class="prompt">"Entrou um corretor novo na equipe."</p>
+        <p class="flow">Cadastre em Equipe (cargo corretor, com meta mensal) → crie o acesso com senha inicial → confirme que ele entrou na roleta de leads → rode /treinamento para gerar o guia dele → no fim do mês, abra o ranking do Dashboard e veja a % da meta que ele atingiu.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+
+      <p style="text-align:center; font-size:.78rem; color:var(--gray-text); margin:24px 0 0;">
+        Manual gerado a partir do CRM em produção. Para imprimir só um bloco, use a prévia de impressão do navegador (Ctrl+P) — cada função sai numa página separada.
+      </p>
+    </section>
+
+    <!-- ===== APROVAÇÕES ===== -->
+    <section class="view" id="view-aprovacoes" hidden>
+      <div class="view-head">
+        <div><h1>Aprovações</h1><p id="aprovacoesSubtitulo">Documentação de clientes em processo de aprovação</p></div>
+        <div class="imovel-card-actions">
+          <button class="btn btn-ghost" id="btnInstituicoes" hidden>🏦 Instituições</button>
+          <button class="btn btn-primary" id="newAprovacaoBtn" hidden>+ Novo processo</button>
+          <button class="btn btn-primary" id="newProcessoCorretorBtn" hidden>+ Novo processo (meu cliente)</button>
+          <button class="btn btn-primary" id="newConsultaRapidaBtn" hidden>+ Consulta de CPF (pessoa nova)</button>
+        </div>
+      </div>
+      <div class="filters-bar">
+        <input type="search" id="aprovacoesSearch" placeholder="Buscar por cliente, imóvel, instituição...">
+        <select id="aprovacoesFiltroTipo">
+          <option value="">Todos os tipos</option>
+          <option value="financiamento">Financiamento bancário</option>
+          <option value="loteadora">Aprovação com loteadora</option>
+          <option value="incorporadora">Aprovação com incorporadora</option>
+          <option value="cartorio">Cartório / Registro</option>
+        </select>
+        <select id="aprovacoesFiltroStatus"><option value="">Todos os status</option></select>
+        <select id="aprovacoesFiltroCorretor" hidden><option value="">Todos os corretores</option></select>
+        <label class="filters-bar-label"><input type="checkbox" id="aprovacoesFiltroAtrasadas"> Só paradas/atrasadas</label>
+      </div>
+      <div id="aprovacoesCards" class="imoveis-cards"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============ MODAL GENÉRICO ============ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent" role="dialog" aria-modal="true">
+    <button class="modal-close" id="modalClose" aria-label="Fechar">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<!-- ============ MINI BOT DE AJUDA ============ -->
+<button class="bot-toggle" id="botToggle" aria-label="Abrir ajuda">❓</button>
+<div class="bot-panel" id="botPanel" hidden>
+  <div class="bot-panel-head"><strong>Ajuda do CRM</strong><button class="bot-close" id="botClose">✕</button></div>
+  <div class="bot-messages" id="botMessages"></div>
+  <form class="bot-form" id="botForm">
+    <input id="botInput" placeholder="Como faço para..." autocomplete="off">
+    <button type="submit" class="btn btn-primary btn-sm">Perguntar</button>
+  </form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.3.3/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.3.3/vfs_fonts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/doc-pdf.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

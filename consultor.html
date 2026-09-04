@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultor de Produto — Gregório | Meu Lar Imobiliária</title>
+<link rel="icon" type="image/png" href="assets/logo-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0F2747;
+    --navy-2:#16345E;
+    --orange:#F58220;
+    --orange-dim:#FBD8B5;
+    --white:#FFFFFF;
+    --gray-light:#F5F7FA;
+    --gray-dark:#4B5563;
+    --green:#1B7A3D;
+    --green-bg:#E5F4E9;
+    --red:#B3261E;
+    --red-bg:#FBEAE9;
+    --amber:#95610A;
+    --amber-bg:#FDF0DD;
+    --teal:#0E6E6E;
+    --teal-bg:#DEF3F3;
+    --purple:#6B3FA0;
+    --purple-bg:#EFE5F8;
+    --blue:#1E5FA8;
+    --blue-bg:#E4EEFA;
+    --line:#E4E8EE;
+    --radius:10px;
+    --shadow: 0 1px 2px rgba(15,39,71,.06), 0 8px 24px rgba(15,39,71,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--gray-light);
+    color:var(--navy);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{font-family:'Sora',system-ui,sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  header.top{
+    background:linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    color:var(--white);
+    padding:22px 28px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    position:sticky; top:0; z-index:50;
+    box-shadow:0 2px 12px rgba(15,39,71,.25);
+  }
+  header.top .glyph{
+    width:40px;height:40px;border-radius:9px;
+    background:var(--white);
+    display:flex;align-items:center;justify-content:center;
+    flex:none;padding:4px;
+  }
+  header.top .glyph img{width:100%;height:100%;object-fit:contain;}
+  header.top .titles h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.2px;}
+  header.top .titles p{font-size:12.5px;margin:2px 0 0;color:#C9D4E4;font-weight:500;}
+  header.top .badge{
+    margin-left:auto;
+    background:rgba(245,130,32,.16);
+    border:1px solid rgba(245,130,32,.5);
+    color:var(--orange);
+    font-size:11px;font-weight:700;letter-spacing:.4px;
+    padding:6px 12px;border-radius:100px;text-transform:uppercase;
+    white-space:nowrap;
+  }
+
+  .wrap{
+    max-width:1360px;margin:0 auto;padding:28px;
+    display:grid;grid-template-columns:390px 1fr;gap:24px;
+    align-items:start;
+  }
+  @media (max-width:980px){
+    .wrap{grid-template-columns:1fr; padding:16px;}
+    header.top{padding:16px;}
+  }
+
+  .card{
+    background:var(--white);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    border:1px solid var(--line);
+  }
+  .form-card{position:sticky; top:96px; max-height:calc(100vh - 120px); overflow-y:auto;}
+  @media (max-width:980px){.form-card{position:static; max-height:none;}}
+  .form-card .head{
+    padding:18px 20px 14px;
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:var(--white); z-index:2;
+  }
+  .form-card .head h2{font-size:15px;margin:0 0 3px;font-weight:700;}
+  .form-card .head p{font-size:12px;margin:0;color:var(--gray-dark);}
+  .form-body{padding:18px 20px 20px;}
+  .section-label{
+    font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+    color:var(--orange); margin:18px 0 10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-label:first-child{margin-top:0;}
+  .section-label .line{flex:1;height:1px;background:var(--line);}
+  .field{margin-bottom:12px;}
+  .field label{
+    display:block;font-size:12.5px;font-weight:600;color:var(--navy);
+    margin-bottom:5px;
+  }
+  .field .hint{font-size:10.5px;color:var(--gray-dark);font-weight:400;margin-top:3px; display:block;}
+  .field input[type=text], .field input[type=number], .field select{
+    width:100%;
+    border:1.5px solid var(--line);
+    border-radius:7px;
+    padding:9px 10px;
+    font-size:13.5px;
+    font-family:'Inter',sans-serif;
+    color:var(--navy);
+    background:var(--white);
+    transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus{outline:none; border-color:var(--orange);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .chip-group{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{
+    border:1.5px solid var(--line);
+    background:var(--white);
+    color:var(--navy);
+    font-size:12px;font-weight:600;
+    padding:7px 12px;border-radius:100px;cursor:pointer;
+    user-select:none; transition:all .12s;
+  }
+  .chip.active{background:var(--navy); border-color:var(--navy); color:var(--white);}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;
+    border:1.5px solid var(--line); border-radius:7px; padding:9px 12px; gap:8px;}
+  .toggle-row label{margin:0;font-size:12.5px;font-weight:600;}
+  .toggle-btns{display:flex;gap:6px; flex:none;}
+  .toggle-btns .chip{padding:5px 12px;font-size:11.5px;}
+
+  .modalidade-banner{
+    margin:0 0 14px; padding:10px 12px; border-radius:8px; font-size:11.5px; font-weight:600;
+    display:flex; align-items:center; gap:8px; line-height:1.4;
+  }
+  .modalidade-banner.mcmv{background:var(--green-bg); color:var(--green);}
+  .modalidade-banner.sbpe{background:var(--blue-bg); color:var(--blue);}
+  .modalidade-banner.investidor{background:var(--purple-bg); color:var(--purple);}
+
+  .results-head{margin-bottom:16px;}
+  .results-head h2{font-size:20px;margin:0 0 4px;font-weight:700;}
+  .results-head p{font-size:13px;color:var(--gray-dark);margin:0;}
+  .count-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--white); border:1px solid var(--line); border-radius:100px;
+    padding:5px 12px; font-size:12px; font-weight:700; color:var(--navy);
+    margin-top:10px;
+  }
+  .count-pill b{color:var(--orange); font-size:14px;}
+
+  .empty-state{
+    background:var(--white); border:1.5px dashed var(--line); border-radius:var(--radius);
+    padding:48px 24px; text-align:center; color:var(--gray-dark);
+  }
+  .empty-state .ico{font-size:30px;margin-bottom:10px;}
+  .empty-state h3{color:var(--navy); font-size:16px; margin:0 0 6px;}
+  .empty-state p{font-size:13px;margin:0;max-width:360px;margin:0 auto;}
+
+  .rank-grid{display:flex;flex-direction:column;gap:16px;}
+  .prop-card{
+    background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow);
+    border:1px solid var(--line); border-left:5px solid var(--orange);
+    padding:18px 20px; position:relative;
+  }
+  .prop-card.alt{border-left-color:#B8C4D6;}
+  .prop-top{display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
+  .rank-badge{
+    width:30px;height:30px;border-radius:8px;background:var(--navy);color:var(--white);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;
+    flex:none; font-family:'Sora',sans-serif;
+  }
+  .prop-card.alt .rank-badge{background:#B8C4D6; color:var(--navy);}
+  .prop-title h3{font-size:16px;margin:0 0 2px;font-weight:700;}
+  .prop-title .sub{font-size:12.5px;color:var(--gray-dark);}
+  .prop-title .loc{font-size:12px;color:var(--gray-dark); margin-top:2px;}
+  .tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;justify-content:flex-end;}
+  .tag{font-size:10px;font-weight:700;letter-spacing:.3px;padding:4px 9px;border-radius:100px;text-transform:uppercase;white-space:nowrap;}
+  .tag.mcmv{background:var(--green-bg);color:var(--green);}
+  .tag.sbpe{background:var(--blue-bg);color:var(--blue);}
+  .tag.investidor{background:var(--purple-bg);color:var(--purple);}
+  .tag.cohapar{background:var(--orange-dim);color:#8A4B0F;}
+  .tag.associativo{background:var(--teal-bg);color:var(--teal);}
+  .tag.tipo{background:var(--gray-light);color:var(--gray-dark);}
+
+  .stat-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+    margin:14px 0; padding:12px; background:var(--gray-light); border-radius:8px;
+  }
+  @media (max-width:640px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+  .stat-grid .stat .label{font-size:10px;color:var(--gray-dark);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+  .stat-grid .stat .val{font-size:14.5px;font-weight:700;color:var(--navy);margin-top:2px;font-family:'IBM Plex Mono',monospace;}
+
+  .assoc-box{
+    margin:14px 0; padding:12px 14px; background:var(--teal-bg); border-radius:8px;
+    border:1px solid rgba(14,110,110,.25);
+  }
+  .assoc-box .assoc-title{font-size:11px;font-weight:800;color:var(--teal);letter-spacing:.3px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .assoc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  @media (max-width:640px){.assoc-grid{grid-template-columns:repeat(2,1fr);}}
+  .assoc-grid .a-stat .label{font-size:9.5px;color:var(--teal);font-weight:700;text-transform:uppercase;opacity:.85;}
+  .assoc-grid .a-stat .val{font-size:13px;font-weight:700;color:#0A4F4F;margin-top:2px;font-family:'IBM Plex Mono',monospace;}
+  .assoc-note{font-size:11px;color:#0A4F4F;margin-top:10px;line-height:1.5;opacity:.9;}
+
+  .bars{display:flex;gap:14px;margin:14px 0 10px;}
+  .bar-item{flex:1;}
+  .bar-item .lbl{font-size:10.5px;font-weight:700;color:var(--gray-dark);margin-bottom:5px;display:flex;justify-content:space-between;}
+  .bar-track{height:6px;border-radius:100px;background:var(--line);overflow:hidden;}
+  .bar-fill{height:100%;border-radius:100px;}
+  .bar-fill.ok{background:var(--green);}
+  .bar-fill.warn{background:var(--amber);}
+  .bar-fill.bad{background:var(--red);}
+
+  .reasons{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .reasons li{font-size:12.5px;display:flex;gap:8px;align-items:flex-start;line-height:1.4;}
+  .reasons li .ico{flex:none;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;margin-top:1px;}
+  .reasons li.ok .ico{background:var(--green-bg);color:var(--green);}
+  .reasons li.bad .ico{background:var(--red-bg);color:var(--red);}
+  .reasons li.info .ico{background:var(--orange-dim);color:#8A4B0F;}
+  .reasons li.warn .ico{background:var(--amber-bg);color:var(--amber);}
+  .reasons li span.txt{color:var(--gray-dark);}
+  .reasons li b{color:var(--navy);}
+
+  details.more{margin-top:22px;}
+  details.more summary{
+    cursor:pointer; font-size:13px; font-weight:700; color:var(--navy);
+    padding:12px 16px; background:var(--white); border:1px solid var(--line); border-radius:8px;
+    list-style:none; display:flex; align-items:center; gap:8px;
+  }
+  details.more summary::-webkit-details-marker{display:none;}
+  details.more summary::before{content:'▸'; color:var(--orange); transition:transform .15s;}
+  details.more[open] summary::before{transform:rotate(90deg);}
+  details.more .inner{padding-top:12px; display:flex; flex-direction:column; gap:10px;}
+
+  .mini-row{
+    background:var(--white); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px; font-size:12.5px; flex-wrap:wrap;
+  }
+  .mini-row .name{font-weight:700; color:var(--navy); flex:1; min-width:180px;}
+  .mini-row .reason{color:var(--gray-dark); font-size:11.5px;}
+  .mini-row .price{font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--navy); white-space:nowrap;}
+
+  footer.note{
+    max-width:1360px;margin:8px auto 40px;padding:0 28px;
+    font-size:11px;color:var(--gray-dark); line-height:1.7;
+  }
+  footer.note b{color:var(--navy);}
+  @media (max-width:980px){footer.note{padding:0 16px;}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="glyph">
+    <img src="assets/logo-icon.png" alt="Gregório | Meu Lar">
+  </div>
+  <div class="titles">
+    <h1>Consultor de Produto</h1>
+    <p>Gregório | Meu Lar Imobiliária — direcionamento de cliente por perfil</p>
+  </div>
+  <div class="badge">Uso interno · corretores</div>
+</header>
+
+<div class="wrap">
+  <!-- FICHA DO CLIENTE -->
+  <div class="card form-card">
+    <div class="head">
+      <h2>Ficha do cliente</h2>
+      <p>Preencha o que o cliente te contou. Quanto mais completo, mais preciso o ranking.</p>
+    </div>
+    <div class="form-body" id="form">
+
+      <div class="section-label">Enquadramento<div class="line"></div></div>
+      <div class="field toggle-row">
+        <label>É a compra do primeiro imóvel?</label>
+        <div class="toggle-btns" data-group="primeiroImovel">
+          <div class="chip active" data-val="sim">Sim</div>
+          <div class="chip" data-val="nao">Não</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:8px;">
+        <label>Objetivo</label>
+        <select id="objetivo">
+          <option value="moradia">Moradia / sair do aluguel</option>
+          <option value="maior">Trocar por imóvel maior</option>
+          <option value="investimento">Investimento</option>
+        </select>
+      </div>
+
+      <div class="section-label">Perfil financeiro<div class="line"></div></div>
+      <div class="field">
+        <label>Renda familiar bruta mensal (R$)</label>
+        <input type="number" id="renda" placeholder="Ex: 4500" min="0">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Tipo de renda</label>
+          <select id="tipoRenda">
+            <option value="clt">CLT</option>
+            <option value="autonomo">Autônomo</option>
+            <option value="empresario">Empresário</option>
+            <option value="aposentado">Aposentado</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Parcela confortável (R$/mês)</label>
+          <input type="number" id="parcelaDesejada" placeholder="Opcional" min="0">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Entrada em dinheiro (R$)</label>
+          <input type="number" id="entradaDinheiro" placeholder="0" min="0" value="0">
+        </div>
+        <div class="field">
+          <label>FGTS disponível (R$)</label>
+          <input type="number" id="fgts" placeholder="0" min="0" value="0">
+        </div>
+      </div>
+      <div class="field">
+        <label>Veículo/outro bem p/ negociar (R$) <span class="hint">— opcional, valor estimado</span></label>
+        <input type="number" id="veiculo" placeholder="0" min="0" value="0">
+      </div>
+      <div class="field toggle-row">
+        <label>Tem restrição no CPF?</label>
+        <div class="toggle-btns" data-group="restricao">
+          <div class="chip" data-val="nao">Não</div>
+          <div class="chip" data-val="sim">Sim</div>
+        </div>
+      </div>
+      <div class="field toggle-row" style="margin-top:8px;">
+        <label>Responsável tem 60+ anos?</label>
+        <div class="toggle-btns" data-group="idoso">
+          <div class="chip" data-val="nao">Não</div>
+          <div class="chip" data-val="sim">Sim</div>
+        </div>
+      </div>
+
+      <div class="section-label">Crédito associativo<div class="line"></div></div>
+      <p class="hint" style="margin:-4px 0 10px;">Só é usado nos empreendimentos vendidos nessa modalidade (Venezian, Vivale, Sevilha, Next, Treviso, Milos, Solar do Vale).</p>
+      <div class="field">
+        <label>Sinal de ato oferecido (R$)</label>
+        <input type="number" id="sinalAto" placeholder="Ex: 3000" min="0" value="0">
+      </div>
+      <div class="field">
+        <label>Balões que pretende usar <span class="hint" style="display:inline;">(cada um ≈ 55% da renda)</span></label>
+        <div class="chip-group" data-group="numBaloes">
+          <div class="chip active" data-val="0">0</div>
+          <div class="chip" data-val="1">1</div>
+          <div class="chip" data-val="2">2</div>
+          <div class="chip" data-val="3">3</div>
+        </div>
+      </div>
+      <div class="field toggle-row">
+        <label>Tem fiador? <span class="hint" style="display:block;">(exigência específica do Treviso/Trelle)</span></label>
+        <div class="toggle-btns" data-group="temFiador">
+          <div class="chip" data-val="nao">Não</div>
+          <div class="chip" data-val="sim">Sim</div>
+        </div>
+      </div>
+
+      <div class="section-label">Família &amp; imóvel<div class="line"></div></div>
+      <div class="row2">
+        <div class="field">
+          <label>Nº de moradores</label>
+          <input type="number" id="moradores" placeholder="Ex: 3" min="1">
+        </div>
+        <div class="field">
+          <label>Quartos desejados</label>
+          <select id="quartosSel">
+            <option value="qualquer">Qualquer</option>
+            <option value="1">1+</option>
+            <option value="2">2+</option>
+            <option value="3">3+</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Tipo de imóvel</label>
+        <div class="chip-group" data-group="tipo">
+          <div class="chip active" data-val="qualquer">Qualquer</div>
+          <div class="chip" data-val="Casa">Casa</div>
+          <div class="chip" data-val="Apartamento">Apartamento</div>
+        </div>
+      </div>
+
+      <div class="section-label">Onde &amp; quando<div class="line"></div></div>
+      <div class="field">
+        <label>Região aceita</label>
+        <div class="chip-group" data-group="cidade">
+          <div class="chip active" data-val="qualquer">Qualquer</div>
+          <div class="chip" data-val="Fazenda Rio Grande">Fazenda Rio Grande</div>
+          <div class="chip" data-val="Curitiba">Curitiba</div>
+          <div class="chip" data-val="Araucária">Araucária</div>
+          <div class="chip" data-val="São José dos Pinhais">São José dos Pinhais</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Prazo para se mudar</label>
+        <div class="chip-group" data-group="prazo">
+          <div class="chip" data-val="imediato">Imediato</div>
+          <div class="chip" data-val="1ano">Até 1 ano</div>
+          <div class="chip active" data-val="2anos">Até 2 anos</div>
+          <div class="chip" data-val="sempressa">Sem pressa</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESULTADOS -->
+  <div>
+    <div class="results-head">
+      <h2>Produtos recomendados</h2>
+      <p>Cruzando renda, entrada, parcela, região, quartos e prazo com os lançamentos disponíveis (dados ao vivo do CRM).</p>
+      <div id="modalidadeBanner"></div>
+      <div class="count-pill" id="countPill">— </div>
+    </div>
+    <div id="resultsArea">
+      <div class="empty-state">
+        <div class="ico">⏳</div>
+        <h3>Carregando lançamentos...</h3>
+        <p>Buscando os imóveis disponíveis direto do CRM.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="note">
+  Simulação de pré-qualificação para uso interno da equipe comercial — não substitui a análise oficial do banco/Caixa/Cohapar/construtora.
+  Os imóveis exibidos são buscados ao vivo do CRM (lançamentos com status disponível).
+  <b>Modalidade do cliente</b> é definida automaticamente: Investimento → Crédito Investidor; não é o primeiro imóvel ou renda acima de R$ 12.000 → SBPE (financiamento convencional, sem Cohapar/subsídio Caixa); caso contrário → MCMV.
+  Taxas MCMV e subsídio Caixa por faixa de renda são estimativas. Cohapar considerado apenas para os empreendimentos habilitados no programa (renda até R$ 6.450 — subsídio de R$ 20.000, ou R$ 80.000 para responsável com 60+ anos).
+  <b>Crédito associativo</b> (apoio à produção): banco financia 80% do valor de avaliação, liberado só após a entrega das chaves; os 20% restantes (já abatidos de Cohapar/subsídio Caixa) são pagos via sinal de ato + até 3 balões (≈55% da renda cada) + parcelamento com a construtora em até 48 meses (fluxo de obras, prazo padrão — confirme o real com cada incorporadora). Durante a obra o cliente também paga "apoio à produção" (juros de obra), que começa por volta de R$ 300/mês e aumenta com o andamento — não incluído no cálculo fechado, pois varia mês a mês por incorporadora.
+  Alguns empreendimentos (ex: Venezian, Vivale Garden, Mendoza) têm <b>regra especial de aprovação</b>: renda mínima fixa (aceitando holerite ou renda informal/autônoma) e sinal de ato com valor fixo, cadastrados individualmente no imóvel.
+</footer>
+
+<script>
+/* =========================================================
+   DADOS DOS IMÓVEIS — buscados ao vivo do Supabase (mesmo banco do CRM)
+   ========================================================= */
+const SUPABASE_URL = 'https://yiyhspddvrypifxfzzdm.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_JQK9ls0HmQDrGGOW8ClvDA_ehiFAUJd';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const FASE_OBRA_LABEL = {
+  breve_lancamento: 'Breve lançamento',
+  em_obras: 'Em obras',
+  ultimas_unidades: 'Últimas unidades',
+  entregue: 'Entregue',
+};
+
+let IMOVEIS = [];
+let dadosCarregados = false;
+
+async function carregarImoveis() {
+  const { data, error } = await sb
+    .from('imoveis')
+    .select('titulo,codigo,cidade,bairro,tipo,quartos,area_total,area_construida,fase_obra,previsao_entrega,elegivel_mcmv,elegivel_cohapar,valor_venda,credito_associativo,prazo_fluxo_obras,renda_minima_aprovacao,aceita_renda_informal,exige_documentacao_limpa,valor_ato_fixo,situacao,status,grupo_empreendimento')
+    .eq('situacao', 'lancamento')
+    .eq('status', 'disponivel');
+
+  if (error) {
+    document.getElementById('resultsArea').innerHTML = `<div class="empty-state"><div class="ico">⚠️</div><h3>Não foi possível carregar os lançamentos</h3><p>Verifique a conexão e recarregue a página.</p></div>`;
+    return;
+  }
+
+  IMOVEIS = (data || []).map((im) => ({
+    empreendimento: im.titulo || im.codigo,
+    unidade: im.titulo || '',
+    codigo: im.codigo,
+    cidade: im.cidade,
+    bairro: im.bairro,
+    tipo: im.tipo === 'casa' ? 'Casa' : im.tipo === 'apartamento' ? 'Apartamento' : (im.tipo || ''),
+    quartos: im.quartos || 0,
+    area: im.area_construida || im.area_total || 0,
+    faseObra: FASE_OBRA_LABEL[im.fase_obra] || (im.situacao === 'pronto' ? 'Entregue' : 'Em obras'),
+    previsaoEntrega: im.previsao_entrega,
+    mcmv: !!im.elegivel_mcmv,
+    cohapar: !!im.elegivel_cohapar,
+    valorVenda: Number(im.valor_venda || 0),
+    associativo: !!im.credito_associativo,
+    fluxoObrasPadrao: im.prazo_fluxo_obras || null,
+    rendaMinimaAprovacao: im.renda_minima_aprovacao != null ? Number(im.renda_minima_aprovacao) : null,
+    aceitaRendaInformal: im.aceita_renda_informal !== false,
+    exigeDocumentacaoLimpa: im.exige_documentacao_limpa !== false,
+    valorAtoFixo: im.valor_ato_fixo != null ? Number(im.valor_ato_fixo) : null,
+  })).filter((im) => im.valorVenda > 0);
+
+  dadosCarregados = true;
+  render();
+}
+
+/* =========================================================
+   PREMISSAS FINANCEIRAS
+   ========================================================= */
+const ASSUMP = {
+  entradaPctMcmv: 0.10,
+  entradaPctConv: 0.20,
+  taxaGenericaConv: 0.11,
+  prazoMeses: { mcmv: 420, conv: 360 },
+  comprometimento: 0.30,
+  cohapar: { geral: 20000, idoso: 80000, rendaMax: 6450 },
+  caixaFaixas: [[2850, 55000], [4700, 35000], [8600, 0], [12000, 0]],
+  taxaFaixasMcmv: [[2850, 0.045], [4700, 0.07], [8600, 0.09], [12000, 0.105]],
+  mcmvRendaTeto: 12000,
+  baloePctRenda: 0.55,
+  fluxoObrasPadrao: 48
+};
+
+function taxaPorFaixa(renda){
+  for (const [lim, taxa] of ASSUMP.taxaFaixasMcmv){ if (renda <= lim) return taxa; }
+  return ASSUMP.taxaFaixasMcmv[ASSUMP.taxaFaixasMcmv.length-1][1];
+}
+function subsidioCaixaPorFaixa(renda){
+  for (const [lim, val] of ASSUMP.caixaFaixas){ if (renda <= lim) return val; }
+  return 0;
+}
+function pmtPrice(principal, taxaAnual, prazoMeses){
+  if (principal <= 0) return 0;
+  const taxaMensal = Math.pow(1+taxaAnual, 1/12) - 1;
+  if (taxaMensal <= 0) return principal/prazoMeses;
+  return principal * (taxaMensal*Math.pow(1+taxaMensal,prazoMeses)) / (Math.pow(1+taxaMensal,prazoMeses)-1);
+}
+function fmtR$(v){ return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
+function mesesAte(dataStr){
+  if (!dataStr) return null;
+  const alvo = new Date(dataStr+'T00:00:00');
+  const hoje = new Date();
+  return (alvo.getFullYear()-hoje.getFullYear())*12 + (alvo.getMonth()-hoje.getMonth());
+}
+/* "Forma de renda" do cliente (tipoRenda) conta como holerite/formal p/ regras que não aceitam renda informal */
+function formaRendaFormal(tipoRenda){
+  return tipoRenda === 'clt' || tipoRenda === 'aposentado';
+}
+
+/* Modalidade do CLIENTE — independe do imóvel */
+function modalidadeCliente(cli){
+  if (cli.objetivo === 'investimento') return 'investidor';
+  if (cli.primeiroImovel !== 'sim') return 'sbpe';
+  if (cli.renda > ASSUMP.mcmvRendaTeto) return 'sbpe';
+  return 'mcmv';
+}
+const MODALIDADE_LABEL = { mcmv:'MCMV', sbpe:'SBPE (convencional)', investidor:'Crédito Investidor' };
+
+function analisar(im, cli){
+  const { empreendimento, unidade, codigo, cidade, bairro, tipo, quartos, area, faseObra, previsaoEntrega,
+          mcmv: imMcmv, cohapar, valorVenda, associativo, fluxoObrasPadrao,
+          rendaMinimaAprovacao, aceitaRendaInformal, exigeDocumentacaoLimpa, valorAtoFixo } = im;
+
+  const modalidade = modalidadeCliente(cli);
+  const usaMcmvRegras = (modalidade === 'mcmv') && imMcmv;
+  const regraEspecial = rendaMinimaAprovacao != null;
+
+  // crédito associativo sempre financia 80/20, independente da faixa MCMV
+  const entradaPct = associativo ? 0.20 : (usaMcmvRegras ? ASSUMP.entradaPctMcmv : ASSUMP.entradaPctConv);
+  const entradaIdeal = valorVenda*entradaPct;
+  const financiado = valorVenda-entradaIdeal;
+  const prazo = usaMcmvRegras ? ASSUMP.prazoMeses.mcmv : ASSUMP.prazoMeses.conv;
+  const taxa = usaMcmvRegras ? taxaPorFaixa(cli.renda||0) : ASSUMP.taxaGenericaConv;
+  const parcela = pmtPrice(financiado, taxa, prazo);
+  const rendaMinimaCalculada = parcela/ASSUMP.comprometimento;
+  const rendaMinima = regraEspecial ? rendaMinimaAprovacao : rendaMinimaCalculada;
+
+  let subsidioCohapar = 0;
+  if (cohapar && usaMcmvRegras && (cli.renda||0) <= ASSUMP.cohapar.rendaMax){
+    subsidioCohapar = cli.idoso ? ASSUMP.cohapar.idoso : ASSUMP.cohapar.geral;
+  }
+  const subsidioCaixa = usaMcmvRegras ? subsidioCaixaPorFaixa(cli.renda||0) : 0;
+  const entradaLiquida = Math.max(0, entradaIdeal - subsidioCohapar - subsidioCaixa);
+  const fundosDisponiveis = (cli.entradaDinheiro||0) + (cli.fgts||0) + (cli.veiculo||0);
+
+  const formaRendaOk = aceitaRendaInformal !== false || formaRendaFormal(cli.tipoRenda);
+  const docOk = exigeDocumentacaoLimpa === false || !cli.restricao;
+
+  let assoc = null;
+  let entradaOk;
+  if (associativo){
+    const sinal = valorAtoFixo != null ? Math.min(valorAtoFixo, entradaLiquida) : Math.min(entradaLiquida, cli.sinalAto||0);
+    const restanteAposSinal = Math.max(0, entradaLiquida - sinal);
+    const valorBalao = ASSUMP.baloePctRenda * (cli.renda||0);
+    const totalBaloes = Math.min(restanteAposSinal, valorBalao * (cli.numBaloes||0));
+    const restanteAposBaloes = Math.max(0, restanteAposSinal - totalBaloes);
+    const mesesFluxo = fluxoObrasPadrao || ASSUMP.fluxoObrasPadrao;
+    const parcelaFluxoObras = restanteAposBaloes / mesesFluxo;
+    assoc = { sinal, sinalFixo: valorAtoFixo != null, valorBalao, numBaloes: cli.numBaloes||0, totalBaloes, restanteAposBaloes, mesesFluxo, parcelaFluxoObras };
+    entradaOk = regraEspecial ? (fundosDisponiveis >= sinal || !valorAtoFixo) : fundosDisponiveis >= sinal;
+  } else {
+    entradaOk = fundosDisponiveis >= entradaLiquida;
+  }
+
+  const rendaOk = regraEspecial
+    ? ((cli.renda||0) >= rendaMinima && formaRendaOk && docOk)
+    : ((cli.renda||0) >= rendaMinima);
+  const parcelaOk = !cli.parcelaDesejada || parcela <= cli.parcelaDesejada;
+
+  return { empreendimento, unidade, codigo, cidade, bairro, tipo, quartos, area, faseObra, previsaoEntrega,
+    mcmv: imMcmv, cohapar, associativo, valorVenda, entradaIdeal, financiado, parcela, rendaMinima,
+    subsidioCohapar, subsidioCaixa, entradaLiquida, fundosDisponiveis, rendaOk, entradaOk, parcelaOk,
+    modalidade, assoc, regraEspecial, rendaMinimaAprovacao, aceitaRendaInformal, exigeDocumentacaoLimpa,
+    formaRendaOk, docOk };
+}
+
+function passaFiltrosDuros(im, cli){
+  const { cidade, tipo, quartos, faseObra, previsaoEntrega } = im;
+  if (cli.cidade !== 'qualquer' && cidade !== cli.cidade) return false;
+  if (cli.tipo !== 'qualquer' && tipo !== cli.tipo) return false;
+  if (cli.quartos !== 'qualquer' && quartos < parseInt(cli.quartos)) return false;
+
+  const meses = mesesAte(previsaoEntrega);
+  if (cli.prazo === 'imediato'){
+    if (faseObra !== 'Entregue') return false;
+  } else if (cli.prazo === '1ano'){
+    if (faseObra !== 'Entregue' && !(meses !== null && meses <= 12)) return false;
+  } else if (cli.prazo === '2anos'){
+    if (faseObra !== 'Entregue' && !(meses === null || meses <= 24)) return false;
+  }
+  return true;
+}
+
+/* =========================================================
+   ESTADO DA FICHA
+   ========================================================= */
+const estado = {
+  cidade:'qualquer', tipo:'qualquer', prazo:'2anos',
+  restricao:'nao', idoso:'nao', primeiroImovel:'sim', numBaloes:'0', temFiador:'nao'
+};
+
+document.querySelectorAll('.chip-group, .toggle-btns').forEach(group=>{
+  const key = group.dataset.group;
+  group.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      group.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      estado[key] = chip.dataset.val;
+      render();
+    });
+  });
+});
+
+['renda','parcelaDesejada','entradaDinheiro','fgts','veiculo','sinalAto','objetivo','quartosSel'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', render);
+  el.addEventListener('change', render);
+});
+
+function coletarCliente(){
+  return {
+    renda: parseFloat(document.getElementById('renda').value) || 0,
+    parcelaDesejada: parseFloat(document.getElementById('parcelaDesejada').value) || 0,
+    entradaDinheiro: parseFloat(document.getElementById('entradaDinheiro').value) || 0,
+    fgts: parseFloat(document.getElementById('fgts').value) || 0,
+    veiculo: parseFloat(document.getElementById('veiculo').value) || 0,
+    sinalAto: parseFloat(document.getElementById('sinalAto').value) || 0,
+    numBaloes: parseInt(estado.numBaloes) || 0,
+    idoso: estado.idoso === 'sim',
+    restricao: estado.restricao === 'sim',
+    temFiador: estado.temFiador === 'sim',
+    primeiroImovel: estado.primeiroImovel,
+    objetivo: document.getElementById('objetivo').value,
+    cidade: estado.cidade, tipo: estado.tipo,
+    quartos: document.getElementById('quartosSel').value,
+    prazo: estado.prazo
+  };
+}
+
+function barClass(ok, parcial){
+  if (ok) return 'ok';
+  if (parcial) return 'warn';
+  return 'bad';
+}
+
+function reasonsHtml(r, cli){
+  const items = [];
+  if (r.regraEspecial) {
+    items.push({
+      cls: r.rendaOk?'ok':'bad', ico: r.rendaOk?'✓':'✗',
+      txt: r.rendaOk
+        ? `<b>Renda aprova pela regra especial</b> <span class="txt">— a partir de ${fmtR$(r.rendaMinimaAprovacao)}/mês${r.formaRendaOk?'':' (mas forma de renda não bate)'}${r.docOk?'':' (mas exige nome sem restrição)'}</span>`
+        : `<b>Não atende a regra especial deste empreendimento</b> <span class="txt">— renda a partir de ${fmtR$(r.rendaMinimaAprovacao)}/mês${!r.formaRendaOk?', só aceita holerite/carteira assinada':''}${!r.docOk?', exige nome sem restrição (SPC/Serasa)':''}</span>`
+    });
+  } else {
+    items.push({
+      cls: r.rendaOk?'ok':'bad', ico: r.rendaOk?'✓':'✗',
+      txt: r.rendaOk
+        ? `<b>Renda compatível</b> <span class="txt">— mínima estimada ${fmtR$(r.rendaMinima)}/mês (${MODALIDADE_LABEL[r.modalidade]})</span>`
+        : `<b>Renda insuficiente</b> <span class="txt">— falta ${fmtR$(r.rendaMinima-cli.renda)}/mês (mínimo ${fmtR$(r.rendaMinima)}, ${MODALIDADE_LABEL[r.modalidade]})</span>`
+    });
+  }
+
+  if (r.associativo){
+    items.push({
+      cls: r.entradaOk?'ok':'bad', ico: r.entradaOk?'✓':'✗',
+      txt: r.entradaOk
+        ? `<b>Sinal de ato cabe no bolso</b> <span class="txt">— precisa de ${fmtR$(r.assoc.sinal)} agora${r.assoc.sinalFixo?' (valor fixo do empreendimento)':''}</span>`
+        : `<b>Falta ${fmtR$(r.assoc.sinal-r.fundosDisponiveis)} para o sinal de ato</b> <span class="txt">— necessário ${fmtR$(r.assoc.sinal)}${r.assoc.sinalFixo?' (valor fixo do empreendimento)':''}</span>`
+    });
+  } else {
+    items.push({
+      cls: r.entradaOk?'ok':'bad', ico: r.entradaOk?'✓':'✗',
+      txt: r.entradaOk
+        ? `<b>Entrada cobre o necessário</b> <span class="txt">— ${fmtR$(r.entradaLiquida)} após subsídios</span>`
+        : `<b>Falta ${fmtR$(r.entradaLiquida-r.fundosDisponiveis)} para a entrada</b> <span class="txt">— necessário ${fmtR$(r.entradaLiquida)} após subsídios</span>`
+    });
+  }
+
+  if (cli.parcelaDesejada && !r.regraEspecial){
+    items.push({
+      cls: r.parcelaOk?'ok':'bad', ico: r.parcelaOk?'✓':'✗',
+      txt: r.parcelaOk
+        ? `<b>Parcela dentro do combinado</b> <span class="txt">— estimada ${fmtR$(r.parcela)} (pós-chave)</span>`
+        : `<b>Parcela acima do confortável</b> <span class="txt">— estimada ${fmtR$(r.parcela)} vs ${fmtR$(cli.parcelaDesejada)} desejado</span>`
+    });
+  }
+
+  let extra = [];
+  if (r.subsidioCohapar>0) extra.push(`+ Subsídio Cohapar de ${fmtR$(r.subsidioCohapar)}`);
+  if (r.subsidioCaixa>0) extra.push(`+ Subsídio Caixa de ${fmtR$(r.subsidioCaixa)} (estimado)`);
+  if (r.modalidade !== 'mcmv' && r.mcmv) extra.push(`⚠ Imóvel é elegível MCMV, mas o cliente não se enquadra (${r.modalidade==='investidor'?'objetivo de investimento':(cli.primeiroImovel!=='sim'?'não é o primeiro imóvel':'renda acima do teto')}) — cálculo usando ${MODALIDADE_LABEL[r.modalidade]}`);
+  if (cli.restricao) extra.push('⚠ Cliente com restrição no CPF — análise de crédito pode travar, confirme antes de avançar');
+
+  let warnItems = [];
+  if (r.empreendimento.toLowerCase().includes('treviso') && !cli.temFiador){
+    warnItems.push('Treviso/Trelle exige fiador (1 com bem ≥30% da dívida ou 2 sem bem) para parcelar a entrada — cliente ainda não confirmou ter fiador');
+  }
+
+  let html = items.map(it=>`<li class="${it.cls}"><span class="ico">${it.ico}</span>${it.txt}</li>`).join('');
+  html += extra.map(t=>`<li class="info"><span class="ico">!</span><span class="txt">${t}</span></li>`).join('');
+  html += warnItems.map(t=>`<li class="warn"><span class="ico">!</span><span class="txt">${t}</span></li>`).join('');
+  return html;
+}
+
+function assocBoxHtml(r){
+  if (!r.associativo) return '';
+  const a = r.assoc;
+  return `<div class="assoc-box">
+    <div class="assoc-title">🏗 Estrutura de pagamento — Crédito Associativo</div>
+    <div class="assoc-grid">
+      <div class="a-stat"><div class="label">Sinal de ato</div><div class="val">${fmtR$(a.sinal)}</div></div>
+      <div class="a-stat"><div class="label">${a.numBaloes} balão(ões)</div><div class="val">${fmtR$(a.totalBaloes)}</div></div>
+      <div class="a-stat"><div class="label">Parcela fluxo obras</div><div class="val">${fmtR$(a.parcelaFluxoObras)}/mês</div></div>
+      <div class="a-stat"><div class="label">Prazo fluxo obras</div><div class="val">${a.mesesFluxo} meses</div></div>
+    </div>
+    <div class="assoc-note">+ "Apoio à produção" (juros de obra) a partir de ~R$ 300/mês, aumentando conforme o andamento — cobrado à parte, some ao caixa mensal do cliente durante a obra. Banco só começa a cobrar a parcela do financiamento após a entrega das chaves.</div>
+  </div>`;
+}
+
+function propCardHtml(r, cli, rank){
+  const tags = [`<span class="tag tipo">${r.tipo}</span>`];
+  tags.push(`<span class="tag ${r.modalidade}">${MODALIDADE_LABEL[r.modalidade]}</span>`);
+  if (r.cohapar && r.modalidade==='mcmv') tags.push('<span class="tag cohapar">Cohapar</span>');
+  if (r.associativo) tags.push('<span class="tag associativo">Associativo</span>');
+  if (r.regraEspecial) tags.push(`<span class="tag" style="background:var(--orange-dim);color:#8A4B0F;">🎯 Renda a partir de ${fmtR$(r.rendaMinimaAprovacao)}</span>`);
+
+  const rendaFill = Math.min(100, cli.renda>0 ? (cli.renda/r.rendaMinima)*100 : 0);
+  const baseEntrada = r.associativo ? r.assoc.sinal : r.entradaLiquida;
+  const entradaFill = baseEntrada>0 ? Math.min(100,(r.fundosDisponiveis/baseEntrada)*100) : 100;
+  const parcelaFill = cli.parcelaDesejada ? Math.min(100,(cli.parcelaDesejada/r.parcela)*100) : (r.parcelaOk?100:50);
+
+  return `
+  <div class="prop-card ${rank>3?'alt':''}">
+    <div class="prop-top">
+      <div class="rank-badge">${rank}</div>
+      <div class="prop-title">
+        <h3>${r.empreendimento}</h3>
+        <div class="sub">${r.unidade} · ${r.quartos} dorm · ${r.area}m²</div>
+        <div class="loc">${r.bairro}, ${r.cidade} · ${r.faseObra}${r.previsaoEntrega ? ' · entrega '+r.previsaoEntrega.slice(0,7).split('-').reverse().join('/') : ''}</div>
+      </div>
+      <div class="tag-row">${tags.join('')}</div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Valor</div><div class="val">${fmtR$(r.valorVenda)}</div></div>
+      <div class="stat"><div class="label">${r.associativo?'Sinal de ato':'Entrada líquida'}</div><div class="val">${fmtR$(r.associativo?r.assoc.sinal:r.entradaLiquida)}</div></div>
+      <div class="stat"><div class="label">Parcela ${r.associativo?'pós-chave':'est.'}</div><div class="val">${fmtR$(r.parcela)}</div></div>
+      <div class="stat"><div class="label">Renda mínima</div><div class="val">${fmtR$(r.rendaMinima)}</div></div>
+    </div>
+
+    ${assocBoxHtml(r)}
+
+    <div class="bars">
+      <div class="bar-item"><div class="lbl"><span>Renda</span></div><div class="bar-track"><div class="bar-fill ${barClass(r.rendaOk, rendaFill>70)}" style="width:${Math.max(6,Math.min(100,rendaFill))}%"></div></div></div>
+      <div class="bar-item"><div class="lbl"><span>${r.associativo?'Sinal':'Entrada'}</span></div><div class="bar-track"><div class="bar-fill ${barClass(r.entradaOk, entradaFill>60)}" style="width:${Math.max(6,Math.min(100,entradaFill))}%"></div></div></div>
+      <div class="bar-item"><div class="lbl"><span>Parcela</span></div><div class="bar-track"><div class="bar-fill ${barClass(r.parcelaOk, parcelaFill>60)}" style="width:${Math.max(6,Math.min(100,parcelaFill))}%"></div></div></div>
+    </div>
+
+    <ul class="reasons">${reasonsHtml(r, cli)}</ul>
+  </div>`;
+}
+
+function render(){
+  const cli = coletarCliente();
+  const area = document.getElementById('resultsArea');
+  const pill = document.getElementById('countPill');
+  const banner = document.getElementById('modalidadeBanner');
+
+  if (!dadosCarregados){
+    return; // ainda buscando do Supabase — carregarImoveis() chama render() de novo ao terminar
+  }
+
+  if (!cli.renda || cli.renda <= 0){
+    area.innerHTML = `<div class="empty-state">
+      <div class="ico">🏠</div>
+      <h3>Preencha a renda do cliente para começar</h3>
+      <p>Assim que a renda for informada, a ferramenta já cruza com os ${IMOVEIS.length} imóveis em lançamento cadastrados no CRM e mostra os mais compatíveis.</p>
+    </div>`;
+    pill.innerHTML = ''; banner.innerHTML = '';
+    return;
+  }
+
+  const modalidade = modalidadeCliente(cli);
+  const bannerTxt = {
+    mcmv: '✓ Cliente se enquadra no MCMV — taxas reduzidas, Cohapar e subsídio Caixa aplicados quando o imóvel permitir.',
+    sbpe: `⚠ Cliente <b>não</b> se enquadra no MCMV (${cli.primeiroImovel!=='sim' ? 'não é o primeiro imóvel' : 'renda acima de R$ 12.000'}) — calculando com financiamento convencional (SBPE), sem Cohapar/subsídio Caixa.`,
+    investidor: '⚠ Objetivo de investimento — calculando como Crédito Investidor (taxas de mercado, sem subsídios). Confirme condição específica com o banco.'
+  };
+  banner.innerHTML = `<div class="modalidade-banner ${modalidade}">${bannerTxt[modalidade]}</div>`;
+
+  const candidatos = IMOVEIS.filter(im => passaFiltrosDuros(im, cli)).map(im => analisar(im, cli));
+
+  if (candidatos.length === 0){
+    area.innerHTML = `<div class="empty-state">
+      <div class="ico">🔍</div>
+      <h3>Nenhum imóvel bate com essa região/tipo/quartos</h3>
+      <p>Tente ampliar a região aceita ou o prazo — pode haver produtos fora do filtro atual que ainda cabem no bolso do cliente.</p>
+    </div>`;
+    pill.innerHTML = '';
+    return;
+  }
+
+  candidatos.sort((a,b)=>{
+    const scoreA = (a.rendaOk?1:0)+(a.entradaOk?1:0)+(a.parcelaOk?1:0);
+    const scoreB = (b.rendaOk?1:0)+(b.entradaOk?1:0)+(b.parcelaOk?1:0);
+    if (scoreB !== scoreA) return scoreB-scoreA;
+    const baseA = a.associativo ? a.assoc.sinal : a.entradaLiquida;
+    const baseB = b.associativo ? b.assoc.sinal : b.entradaLiquida;
+    const gapA = Math.max(0, baseA-a.fundosDisponiveis) + Math.max(0, a.rendaMinima-cli.renda);
+    const gapB = Math.max(0, baseB-b.fundosDisponiveis) + Math.max(0, b.rendaMinima-cli.renda);
+    if (gapA !== gapB) return gapA-gapB;
+    return a.valorVenda-b.valorVenda;
+  });
+
+  const compativeisTotal = candidatos.filter(c=>c.rendaOk && c.entradaOk && c.parcelaOk).length;
+  pill.innerHTML = `<b>${compativeisTotal}</b>&nbsp;de ${candidatos.length} imóveis na região/perfil escolhidos batem 100% com esse cliente`;
+
+  const top3 = candidatos.slice(0,3);
+  const resto = candidatos.slice(3);
+  const restoOk = resto.filter(c=>(c.rendaOk?1:0)+(c.entradaOk?1:0)+(c.parcelaOk?1:0) >= 2);
+  const naoIndicados = resto.filter(c=>(c.rendaOk?1:0)+(c.entradaOk?1:0)+(c.parcelaOk?1:0) < 2);
+
+  let html = `<div class="rank-grid">` + top3.map((r,i)=>propCardHtml(r, cli, i+1)).join('') + `</div>`;
+
+  if (restoOk.length){
+    html += `<details class="more"><summary>Outras opções compatíveis (${restoOk.length})</summary><div class="inner">`;
+    html += restoOk.map(r=>{
+      const motivo = !r.rendaOk ? 'renda um pouco abaixo' : !r.entradaOk ? (r.associativo?'falta parte do sinal':'falta parte da entrada') : !r.parcelaOk ? 'parcela acima do combinado' : 'boa opção alternativa';
+      return `<div class="mini-row"><div class="name">${r.empreendimento} — ${r.bairro}, ${r.cidade}</div><div class="reason">${motivo}</div><div class="price">${fmtR$(r.valorVenda)}</div></div>`;
+    }).join('');
+    html += `</div></details>`;
+  }
+
+  if (naoIndicados.length){
+    html += `<details class="more"><summary>Não indicados agora (${naoIndicados.length})</summary><div class="inner">`;
+    html += naoIndicados.map(r=>{
+      const base = r.associativo ? r.assoc.sinal : r.entradaLiquida;
+      const motivos = [];
+      if (!r.rendaOk) motivos.push(`renda insuficiente (falta ${fmtR$(r.rendaMinima-cli.renda)})`);
+      if (!r.entradaOk) motivos.push(`${r.associativo?'sinal':'entrada'} incompatível (falta ${fmtR$(base-r.fundosDisponiveis)})`);
+      if (!r.parcelaOk) motivos.push('parcela acima do desejado');
+      return `<div class="mini-row"><div class="name">${r.empreendimento} — ${r.bairro}, ${r.cidade}</div><div class="reason">${motivos.join(' · ')}</div><div class="price">${fmtR$(r.valorVenda)}</div></div>`;
+    }).join('');
+    html += `</div></details>`;
+  }
+
+  area.innerHTML = html;
+}
+
+carregarImoveis();
+</script>
+</body>
+</html>

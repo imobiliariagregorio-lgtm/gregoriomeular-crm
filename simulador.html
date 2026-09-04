@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Parcelas — Gregório | Meu Lar Imobiliária</title>
+<link rel="icon" type="image/png" href="assets/logo-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0F2747;
+    --navy-2:#16345E;
+    --orange:#F58220;
+    --orange-dim:#FBD8B5;
+    --white:#FFFFFF;
+    --gray-light:#F5F7FA;
+    --gray-dark:#4B5563;
+    --green:#1B7A3D;
+    --green-bg:#E5F4E9;
+    --red:#B3261E;
+    --red-bg:#FBEAE9;
+    --line:#E4E8EE;
+    --radius:10px;
+    --shadow: 0 1px 2px rgba(15,39,71,.06), 0 8px 24px rgba(15,39,71,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--gray-light);color:var(--navy);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.display{font-family:'Sora',system-ui,sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  header.top{
+    background:linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    color:var(--white);padding:22px 28px;display:flex;align-items:center;gap:16px;
+    position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(15,39,71,.25);
+  }
+  header.top .glyph{width:40px;height:40px;border-radius:9px;background:var(--white);display:flex;align-items:center;justify-content:center;flex:none;padding:4px;}
+  header.top .glyph img{width:100%;height:100%;object-fit:contain;}
+  header.top .titles h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.2px;}
+  header.top .titles p{font-size:12.5px;margin:2px 0 0;color:#C9D4E4;font-weight:500;}
+  header.top .badge{margin-left:auto;background:rgba(245,130,32,.16);border:1px solid rgba(245,130,32,.5);color:var(--orange);font-size:11px;font-weight:700;letter-spacing:.4px;padding:6px 12px;border-radius:100px;text-transform:uppercase;white-space:nowrap;}
+
+  .wrap{max-width:1220px;margin:0 auto;padding:28px;display:grid;grid-template-columns:360px 1fr;gap:24px;align-items:start;}
+  @media (max-width:980px){.wrap{grid-template-columns:1fr;padding:16px;}header.top{padding:16px;}}
+
+  .card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line);}
+  .card-pad{padding:22px;}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-dark);margin:0 0 16px;font-weight:700;}
+
+  .field{margin-bottom:15px;}
+  .field label{display:block;font-size:12.5px;color:var(--gray-dark);margin-bottom:5px;font-weight:600;}
+  .field input{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:8px;font-size:14px;color:var(--navy);font-family:'Inter',sans-serif;}
+  .field input:focus{outline:2px solid var(--orange);border-color:var(--orange);}
+  .hint{font-size:11.5px;color:var(--gray-dark);margin-top:4px;}
+
+  .prazos-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .prazo-chip{border:1px solid var(--line);background:var(--gray-light);border-radius:20px;padding:6px 13px;font-size:12.5px;cursor:pointer;user-select:none;color:var(--gray-dark);font-weight:600;transition:.12s;}
+  .prazo-chip.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  .resumo{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+  .resumo .box{background:var(--gray-light);border-radius:10px;padding:14px;text-align:center;}
+  .resumo .box b{display:block;font-family:'Sora',sans-serif;font-size:1.15rem;color:var(--navy);}
+  .resumo .box span{font-size:11px;color:var(--gray-dark);text-transform:uppercase;letter-spacing:.04em;}
+
+  table{width:100%;border-collapse:collapse;margin-top:4px;}
+  th,td{padding:12px 11px;text-align:right;font-size:14px;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;}
+  th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;}
+  tr:hover td{background:#FFF7EF;}
+  .destaque{color:var(--orange);font-weight:800;font-family:'Sora',sans-serif;}
+
+  .disclaimer{background:var(--orange-dim);border:1px solid var(--orange);border-radius:10px;padding:15px 17px;font-size:12.5px;color:#7A4108;margin-top:20px;line-height:1.55;}
+
+  .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  button.btn{background:var(--orange);color:#fff;border:none;border-radius:8px;padding:12px 20px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;}
+  button.btn.secondary{background:var(--navy);}
+  button.btn:hover{opacity:.92;}
+  textarea{width:100%;min-height:190px;margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:13px;font-size:12.5px;font-family:'IBM Plex Mono',monospace;color:var(--navy);display:none;background:var(--gray-light);}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="glyph">
+    <img src="assets/logo-icon.png" alt="Gregório | Meu Lar">
+  </div>
+  <div class="titles">
+    <h1>Simulador de Parcelas</h1>
+    <p>Gregório | Meu Lar Imobiliária — comparativo de prazos (Tabela PRICE)</p>
+  </div>
+  <div class="badge">Uso interno · corretores</div>
+</header>
+
+<div class="wrap">
+  <div class="card card-pad">
+    <h2>Dados da simulação</h2>
+
+    <div class="field">
+      <label>Valor total do imóvel (R$)</label>
+      <input type="number" id="valorTotal" value="380000" min="0" step="1000">
+    </div>
+
+    <div class="field">
+      <label>Entrada (%)</label>
+      <input type="number" id="entradaPct" value="10" min="0" max="100" step="1">
+      <div class="hint" id="entradaValorHint"></div>
+    </div>
+
+    <div class="field">
+      <label>Entrada parcelada em quantas vezes?</label>
+      <input type="number" id="entradaVezes" value="1" min="1" max="48" step="1">
+      <div class="hint" id="entradaParcelaHint"></div>
+    </div>
+
+    <div class="field">
+      <label>Taxa de juros anual efetiva (%)</label>
+      <input type="number" id="taxaAnual" value="12" min="0" step="0.1">
+      <div class="hint">Padrão de mercado p/ terrenos ≈ 12% a.a. (~0,95% a.m.). Ajuste conforme a incorporadora.</div>
+    </div>
+
+    <div class="field">
+      <label>Prazos para comparar (meses)</label>
+      <div class="prazos-row" id="prazosRow"></div>
+      <input type="text" id="prazosCustom" value="140,180,240,300" placeholder="Ex: 140,180,240,300">
+      <div class="hint">Clique nos chips pra ligar/desligar. Também dá pra editar direto no campo acima.</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn secondary" id="btnCopiar">📋 Copiar texto p/ cliente</button>
+    </div>
+    <textarea id="saida" readonly></textarea>
+  </div>
+
+  <div class="card card-pad">
+    <h2>Resultado da simulação</h2>
+
+    <div class="resumo">
+      <div class="box"><b id="rValorTotal">—</b><span>Valor do imóvel</span></div>
+      <div class="box"><b id="rEntrada">—</b><span>Entrada (<span id="rEntradaPct">10</span>%)</span></div>
+      <div class="box"><b id="rFinanciado">—</b><span>Valor financiado</span></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Prazo</th><th>Parcela mensal</th><th>Total pago</th><th>Total de juros</th></tr>
+      </thead>
+      <tbody id="tabelaBody"></tbody>
+    </table>
+
+    <div class="disclaimer">
+      ⚠️ <strong>Atenção:</strong> esta é uma <strong>simulação aproximada</strong>, calculada pela Tabela PRICE
+      com a taxa de referência informada acima, apenas para fins de planejamento e orientação ao cliente.
+      Os valores exatos de entrada, parcelas, taxa e sistema de amortização (PRICE, SAC ou outro) serão
+      definidos exclusivamente pela <strong>incorporadora/instituição financeira responsável</strong> na análise
+      de crédito, podendo sofrer alteração sem aviso prévio. A Gregório | Meu Lar Imobiliária não garante
+      os valores aqui apresentados.
+    </div>
+  </div>
+</div>
+
+<script>
+const $=(s)=>document.querySelector(s);
+const fmt=(v)=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+let prazosAtivos = [140,180,240,300];
+
+function pmtPrice(principal, taxaAnualPct, n){
+  if(principal<=0||n<=0) return 0;
+  const iMensal = Math.pow(1+taxaAnualPct/100, 1/12) - 1;
+  if(iMensal===0) return principal/n;
+  return principal * (iMensal*Math.pow(1+iMensal,n)) / (Math.pow(1+iMensal,n)-1);
+}
+
+function renderChips(){
+  const row = $('#prazosRow');
+  row.innerHTML = prazosAtivos.map(p=>`<div class="prazo-chip active" data-p="${p}">${p}x</div>`).join('');
+  row.querySelectorAll('.prazo-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const p = Number(chip.dataset.p);
+      prazosAtivos = prazosAtivos.includes(p) ? prazosAtivos.filter(x=>x!==p) : [...prazosAtivos,p];
+      prazosAtivos.sort((a,b)=>a-b);
+      $('#prazosCustom').value = prazosAtivos.join(',');
+      renderChips();
+      calcular();
+    });
+  });
+}
+
+$('#prazosCustom').addEventListener('input', (e)=>{
+  const nums = e.target.value.split(',').map(s=>parseInt(s.trim())).filter(n=>n>0);
+  prazosAtivos = [...new Set(nums)].sort((a,b)=>a-b);
+  renderChips();
+  calcular();
+});
+
+function calcular(){
+  const valorTotal = Number($('#valorTotal').value)||0;
+  const entradaPct = Number($('#entradaPct').value)||0;
+  const entradaVezes = Math.max(1, Number($('#entradaVezes').value)||1);
+  const taxaAnual = Number($('#taxaAnual').value)||0;
+
+  const entrada = valorTotal * (entradaPct/100);
+  const financiado = Math.max(0, valorTotal - entrada);
+  const parcelaEntrada = entrada / entradaVezes;
+
+  $('#rValorTotal').textContent = fmt(valorTotal);
+  $('#rEntrada').textContent = fmt(entrada);
+  $('#rEntradaPct').textContent = entradaPct;
+  $('#rFinanciado').textContent = fmt(financiado);
+
+  $('#entradaValorHint').textContent = `= ${fmt(entrada)}`;
+  $('#entradaParcelaHint').textContent = entradaVezes>1
+    ? `= ${entradaVezes}x de ${fmt(parcelaEntrada)}`
+    : `Entrada à vista de ${fmt(entrada)}`;
+
+  const linhas = prazosAtivos.map(n=>{
+    const parcela = pmtPrice(financiado, taxaAnual, n);
+    const totalPago = parcela*n;
+    const totalJuros = totalPago - financiado;
+    return {n, parcela, totalPago, totalJuros};
+  });
+
+  $('#tabelaBody').innerHTML = linhas.map(l=>`
+    <tr>
+      <td><strong>${l.n} meses</strong></td>
+      <td class="destaque">${fmt(l.parcela)}</td>
+      <td>${fmt(l.totalPago)}</td>
+      <td>${fmt(l.totalJuros)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="4">Informe ao menos um prazo.</td></tr>';
+
+  window.__ultimaSimulacao = { valorTotal, entradaPct, entrada, entradaVezes, parcelaEntrada, financiado, taxaAnual, linhas };
+}
+
+function montarTexto(){
+  const s = window.__ultimaSimulacao;
+  if(!s) return '';
+  let txt = `SIMULAÇÃO DE FINANCIAMENTO — GREGÓRIO | MEU LAR IMOBILIÁRIA\n\n`;
+  txt += `Valor do imóvel: ${fmt(s.valorTotal)}\n`;
+  txt += `Entrada (${s.entradaPct}%): ${fmt(s.entrada)}`;
+  txt += s.entradaVezes>1 ? ` — parcelada em ${s.entradaVezes}x de ${fmt(s.parcelaEntrada)}\n` : ` — à vista\n`;
+  txt += `Valor a financiar: ${fmt(s.financiado)}\n`;
+  txt += `Taxa de referência: ${s.taxaAnual}% ao ano\n\n`;
+  txt += `Prazo | Parcela mensal | Total pago | Total de juros\n`;
+  s.linhas.forEach(l=>{ txt += `${l.n} meses | ${fmt(l.parcela)} | ${fmt(l.totalPago)} | ${fmt(l.totalJuros)}\n`; });
+  txt += `\n⚠️ Simulação aproximada pela Tabela PRICE, apenas para planejamento. `;
+  txt += `Valores finais de entrada, parcelas e taxa serão definidos pela incorporadora/instituição financeira na análise de crédito.`;
+  return txt;
+}
+
+$('#btnCopiar').addEventListener('click', ()=>{
+  const txt = montarTexto();
+  const area = $('#saida');
+  area.style.display='block';
+  area.value = txt;
+  area.select();
+  navigator.clipboard?.writeText(txt).then(()=>{
+    $('#btnCopiar').textContent='✓ Copiado!';
+    setTimeout(()=>{$('#btnCopiar').textContent='📋 Copiar texto p/ cliente';},1800);
+  }).catch(()=>{});
+});
+
+['valorTotal','entradaPct','entradaVezes','taxaAnual'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', calcular);
+});
+
+renderChips();
+calcular();
+</script>
+</body>
+</html>
