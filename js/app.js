@@ -4281,7 +4281,18 @@ async function loadContratos() {
 
   if (error) { wrap.innerHTML = `<p class="empty-state">Erro ao carregar contratos.</p>`; console.error(error); return; }
 
-  contratosCache = (data || []).slice().sort((a, b) => {
+  // Cobrança do MÊS ATUAL de cada contrato de locação, pra mostrar o status
+  // (pago/pendente/atrasado) direto no card, sem precisar ir pra outra tela.
+  const referenciaMes = new Date(); referenciaMes.setDate(1); referenciaMes.setHours(0, 0, 0, 0);
+  const referenciaMesStr = referenciaMes.toISOString().slice(0, 10);
+  const { data: cobrancasMes } = await supabase
+    .from('cobrancas')
+    .select('id, contrato_id, valor_base, data_pagamento, data_vencimento, status')
+    .eq('referencia', referenciaMesStr);
+  const cobrancaPorContrato = {};
+  (cobrancasMes || []).forEach((cb) => { cobrancaPorContrato[cb.contrato_id] = cb; });
+
+  contratosCache = (data || []).map((c) => ({ ...c, cobrancaAtual: cobrancaPorContrato[c.id] || null })).sort((a, b) => {
     const pa = CONTRATO_STATUS_PRIORIDADE[a.status] ?? 1.5;
     const pb = CONTRATO_STATUS_PRIORIDADE[b.status] ?? 1.5;
     if (pa !== pb) return pa - pb;
@@ -4319,6 +4330,25 @@ function renderContratosCards() {
     const badges = [`<span class="badge-mini">${c.tipo === 'locacao' ? 'Locação' : 'Venda'}</span>`];
     if (c.tipo === 'locacao' && c.taxa_administracao_percentual) badges.push(`<span class="badge-mini">Taxa adm.: ${c.taxa_administracao_percentual}%</span>`);
 
+    // Resumo do mês atual (só locação ativa) — o pedido mais comum do dia a dia,
+    // direto no card, sem precisar ir pra tela de Cobranças pra achar.
+    let resumoMesAtual = '';
+    if (c.tipo === 'locacao' && c.status === 'ativo') {
+      const cb = c.cobrancaAtual;
+      const nomeMes = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+      if (!cb) {
+        resumoMesAtual = `<div class="contrato-mes-atual"><span class="badge-mini" title="A cobrança desse mês ainda não foi gerada">⏳ ${nomeMes}: cobrança ainda não gerada</span></div>`;
+      } else if (cb.data_pagamento) {
+        resumoMesAtual = `<div class="contrato-mes-atual"><span class="badge-mini" style="background:rgba(64,180,120,.18); color:#2fa86a;">✅ ${nomeMes}: pago em ${new Date(cb.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR')}</span></div>`;
+      } else {
+        const atrasado = new Date(cb.data_vencimento + 'T00:00:00') < new Date(new Date().toDateString());
+        resumoMesAtual = `<div class="contrato-mes-atual">
+          <span class="badge-mini" style="${atrasado ? 'background:rgba(220,80,80,.15); color:#d15353;' : ''}">${atrasado ? '🔴' : '🟡'} ${nomeMes}: ${atrasado ? 'atrasado' : 'pendente'} — vence ${new Date(cb.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="contrato-marcar-pago-rapido" data-id="${cb.id}">✔️ Marcar pago</button>
+        </div>`;
+      }
+    }
+
     return `
       <article class="imovel-card">
         <div class="imovel-card-body" style="padding-left:2px;">
@@ -4331,12 +4361,14 @@ function renderContratosCards() {
             ${statusPill(c.status)}
           </div>
           <div class="imovel-card-badges">${badges.join('')}</div>
+          ${resumoMesAtual}
           <div class="imovel-card-footer">
             <div class="imovel-card-precowrap">
               <strong class="imovel-card-preco">${money(c.valor)}${c.tipo === 'locacao' ? '/mês' : ''}</strong>
               <span class="imovel-card-meta">Corretor: ${c.usuarios?.nome || '—'} · Comissão: ${money(c.comissao_valor)}${c.comissao_percentual ? ` (${c.comissao_percentual}%)` : ''}</span>
             </div>
             <div class="imovel-card-actions">
+              ${c.tipo === 'locacao' ? `<button class="btn btn-ghost btn-sm" data-action="contrato-ver-cobrancas" data-termo="${escapeHtml([c.imoveis?.titulo, c.pessoas?.nome].filter(Boolean).join(' '))}">📄 Ver cobranças</button>` : ''}
               <button class="btn btn-ghost btn-sm" data-action="contrato-edit" data-id="${c.id}">Editar</button>
             </div>
           </div>
@@ -5465,6 +5497,27 @@ document.addEventListener('click', async (e) => {
     if (error) { toast('Não foi possível confirmar.', true); return; }
     toast('Pagamento confirmado.');
     loadCobrancas();
+  }
+
+  // Atalho direto do card de Contratos — marca a cobrança do mês atual como paga
+  // sem precisar sair da tela pra ir em Financeiro > Cobranças.
+  if (e.target.dataset.action === 'contrato-marcar-pago-rapido') {
+    if (!confirm('Confirmar recebimento deste pagamento hoje?')) return;
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from('cobrancas').update({ data_pagamento: hoje, status: 'pago' }).eq('id', e.target.dataset.id);
+    if (error) { toast('Não foi possível confirmar.', true); return; }
+    toast('Pagamento confirmado.');
+    loadContratos();
+  }
+
+  // Atalho do card de Contratos — vai direto pra Financeiro > Cobranças já filtrado
+  // por esse imóvel/inquilino, em vez de precisar procurar na lista toda.
+  if (e.target.dataset.action === 'contrato-ver-cobrancas') {
+    navigateTo('financeiro');
+    $('.financeiro-tab[data-financeiro-tab="locacoes"]')?.click();
+    await loadCobrancas();
+    const campoBusca = $('#cobrancasSearch');
+    if (campoBusca) { campoBusca.value = e.target.dataset.termo || ''; renderCobrancasCards(); }
   }
 
   if (e.target.dataset.action === 'cobranca-isentar-multa') {
