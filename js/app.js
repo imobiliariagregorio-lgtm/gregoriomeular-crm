@@ -972,7 +972,7 @@ const LEAD_STATUS_LABELS = {
   pos_venda_60: 'Pós-venda 60 dias',
   pos_venda_90: 'Pós-venda 90 dias',
   pos_venda_120: 'Pós-venda 120 dias',
-  perdido: 'Perdido',
+  perdido: 'Lead Frio Perdido',
 };
 
 const ORIGENS_LEAD = ['site', 'whatsapp', 'instagram', 'facebook', 'indicacao', 'portal_imoveis', 'placas', 'google', 'ligacao', 'presencial', 'outro'];
@@ -6641,7 +6641,7 @@ function destacarBusca(termoBusca, texto) {
 const BOT_FAQ = [
   { gatilhos: ['login', 'entrar', 'acessar', 'senha'], contexto: ['esqueci', 'nao consigo', 'como'], resposta: 'Use seu e-mail e senha cadastrados na tela inicial. Esqueceu a senha? Clique em "Esqueci minha senha" e siga o link enviado por e-mail.' },
   { gatilhos: ['dashboard', 'painel', 'inicial'], contexto: ['que e', 'o que', 'pra que serve'], resposta: 'O Dashboard é a tela inicial: mostra leads novos, imóveis disponíveis, visitas agendadas e os últimos leads recebidos.' },
-  { gatilhos: ['lead', 'leads'], contexto: ['status', 'funil', 'atendimento', 'mudar', 'avancar'], resposta: 'Na tela Leads, você filtra por status e muda o status de cada lead direto na lista, seguindo o funil: novo → tentativas de contato (1ª/2ª/3ª) → busca qualificada → visita agendada → visita feita → alterar busca → proposta → documentação → assinaturas → pós-venda (30/60/90/120 dias), ou perdido.' },
+  { gatilhos: ['lead', 'leads'], contexto: ['status', 'funil', 'atendimento', 'mudar', 'avancar'], resposta: 'Na tela Leads, você filtra por status e muda o status de cada lead direto na lista, seguindo o funil: novo → tentativas de contato (1ª/2ª/3ª) → busca qualificada → visita agendada → visita feita → alterar busca → proposta → documentação → assinaturas → pós-venda (30/60/90/120 dias), ou lead frio perdido.' },
   { gatilhos: ['funil', 'kanban', 'dastbord', 'dashboard individual'], contexto: ['vend', 'lead', 'corretor', 'acompanh'], resposta: 'O Funil de Vendas é um quadro com colunas por etapa do lead. Cada corretor vê só os próprios leads; gerente e admin veem e editam os de todos, com filtro por corretor.' },
   { gatilhos: ['cadastr', 'novo imovel', 'imovel novo', 'criar imovel'], contexto: ['imovel', 'casa', 'apartamento', 'terreno'], resposta: 'Vá em Imóveis → "+ Novo imóvel", preencha os dados, envie as fotos e escolha o corretor responsável. Clique na estrela da foto para defini-la como capa.' },
   { gatilhos: ['capa', 'foto principal', 'estrela'], contexto: ['foto', 'imagem', 'imovel'], resposta: 'No formulário do imóvel, clique na estrelinha da miniatura da foto que quer usar como principal — ela fica marcada em dourado.' },
