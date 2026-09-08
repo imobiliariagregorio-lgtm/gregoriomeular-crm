@@ -365,7 +365,6 @@ select.status-select{background:var(--navy-800);color:var(--white);border:1px so
 .busca-destaque{background:rgba(245,130,32,.35);color:inherit;padding:0 2px;border-radius:3px;}
 .imovel-card-loc{margin:0;font-size:.82rem;color:var(--gray-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .imovel-card-badges{display:flex;flex-wrap:wrap;gap:6px;}
-.contrato-mes-atual{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);}
 .badge-mini{background:var(--navy-600);color:var(--gray-text);font-size:.72rem;padding:3px 10px;border-radius:999px;}
 .badge-clicavel{border:none;cursor:pointer;font-family:inherit;background:rgba(255,182,72,.18);color:#ffb648;transition:background .15s;}
 .badge-clicavel:hover{background:rgba(255,182,72,.32);}

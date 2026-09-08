@@ -217,11 +217,20 @@
         <select id="leadStatusFilter">
           <option value="">Todos os status</option>
           <option value="novo">Novo</option>
-          <option value="em_atendimento">Em atendimento</option>
-          <option value="qualificado">Qualificado</option>
-          <option value="visita_agendada">Visita agendada</option>
+          <option value="tentativa_1">1ª Tentativa</option>
+          <option value="tentativa_2">2ª Tentativa</option>
+          <option value="tentativa_3">3ª Tentativa</option>
+          <option value="busca_qualificada">Busca Qualificada</option>
+          <option value="visita_agendada">Visita Agendada</option>
+          <option value="visita_feita">Visita Feita</option>
+          <option value="alterar_busca">Alterar Busca</option>
           <option value="proposta">Proposta</option>
-          <option value="fechado">Fechado</option>
+          <option value="documentacao">Documentação</option>
+          <option value="assinaturas">Assinaturas</option>
+          <option value="pos_venda_30">Pós-venda 30 dias</option>
+          <option value="pos_venda_60">Pós-venda 60 dias</option>
+          <option value="pos_venda_90">Pós-venda 90 dias</option>
+          <option value="pos_venda_120">Pós-venda 120 dias</option>
           <option value="perdido">Perdido</option>
         </select>
       </div>
@@ -711,7 +720,7 @@
         <li>
           <p class="step-title">Atender um lead. <span class="path">CRM › Leads</span></p>
           <ul>
-            <li>Filtre por status. Mude o status direto na lista: <b>novo → em atendimento → qualificado → visita agendada → proposta → fechado / perdido</b>.</li>
+            <li>Filtre por status. Mude o status direto na lista: <b>novo → 1ª/2ª/3ª tentativa → busca qualificada → visita agendada → visita feita → alterar busca → proposta → documentação → assinaturas → pós-venda (30/60/90/120 dias) / perdido</b>.</li>
             <li>Ao marcar <b>perdido</b>, o sistema pede o motivo — preencha, é o que mostra por que negócio não fecha.</li>
             <li><b>Ver</b> abre o histórico de interações. Registre toda ligação, WhatsApp e e-mail ali.</li>
           </ul>

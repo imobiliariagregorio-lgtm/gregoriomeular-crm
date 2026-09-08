@@ -357,7 +357,8 @@ function money(v) { return v ? Number(v).toLocaleString('pt-BR', { style: 'curre
 function dateTime(v) { return v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'; }
 function statusPill(status, motivo) {
   const titleAttr = (status === 'inativo' && motivo) ? ` title="Motivo: ${motivo.replace(/"/g, '&quot;')}"` : '';
-  return `<span class="status-pill status-${status}"${titleAttr}>${status.replace(/_/g, ' ')}</span>`;
+  const label = LEAD_STATUS_LABELS[status] || status.replace(/_/g, ' ');
+  return `<span class="status-pill status-${status}"${titleAttr}>${label}</span>`;
 }
 
 function firstFoto(fotos) {
@@ -571,7 +572,7 @@ async function carregarPainelExecutivoLocacao() {
       .not('data_pagamento', 'is', null)
       .gte('referencia', inicioMesIso),
     supabase.from('imoveis').select('id,status,finalidade'),
-    supabase.from('leads').select('id,nome,status,criado_em,usuarios(nome)').in('status', ['novo', 'em_atendimento']).lt('criado_em', new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()).order('criado_em', { ascending: true }),
+    supabase.from('leads').select('id,nome,status,criado_em,usuarios(nome)').in('status', ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3']).lt('criado_em', new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()).order('criado_em', { ascending: true }),
     supabase.from('imoveis').select('id,titulo,fotos').eq('status', 'disponivel'),
     // Imóveis que deveriam estar no feed do Imovelweb (mesmo filtro usado pela Netlify Function
     // /feed/imovelweb.xml) — pra detectar o que está travando a entrada ou pesando no Quality Score.
@@ -954,9 +955,27 @@ async function loadRanking() {
 // =====================================================================
 // LEADS
 // =====================================================================
-const LEAD_STATUSES = ['novo', 'em_atendimento', 'qualificado', 'visita_agendada', 'proposta', 'fechado', 'perdido'];
+const LEAD_STATUSES = ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3', 'busca_qualificada', 'visita_agendada', 'visita_feita', 'alterar_busca', 'proposta', 'documentacao', 'assinaturas', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120', 'perdido'];
+const LEAD_STATUS_LABELS = {
+  novo: 'Novo',
+  tentativa_1: '1ª Tentativa',
+  tentativa_2: '2ª Tentativa',
+  tentativa_3: '3ª Tentativa',
+  busca_qualificada: 'Busca Qualificada',
+  visita_agendada: 'Visita Agendada',
+  visita_feita: 'Visita Feita',
+  alterar_busca: 'Alterar Busca',
+  proposta: 'Proposta',
+  documentacao: 'Documentação',
+  assinaturas: 'Assinaturas',
+  pos_venda_30: 'Pós-venda 30 dias',
+  pos_venda_60: 'Pós-venda 60 dias',
+  pos_venda_90: 'Pós-venda 90 dias',
+  pos_venda_120: 'Pós-venda 120 dias',
+  perdido: 'Perdido',
+};
 
-const ORIGENS_LEAD = ['site', 'whatsapp', 'instagram', 'facebook', 'indicacao', 'portal_imoveis', 'ligacao', 'presencial', 'outro'];
+const ORIGENS_LEAD = ['site', 'whatsapp', 'instagram', 'facebook', 'indicacao', 'portal_imoveis', 'placas', 'google', 'ligacao', 'presencial', 'outro'];
 const INTERESSES_LEAD = ['compra', 'venda', 'locacao', 'avaliacao', 'outro'];
 
 let leadsCache = [];
@@ -989,7 +1008,7 @@ function renderLeadsTable() {
 
   if (filtroLeadsParados) {
     const limite = Date.now() - 5 * 24 * 60 * 60 * 1000;
-    filtrados = filtrados.filter((l) => ['novo', 'em_atendimento'].includes(l.status) && new Date(l.criado_em).getTime() < limite);
+    filtrados = filtrados.filter((l) => ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3'].includes(l.status) && new Date(l.criado_em).getTime() < limite);
   }
   if (banner) {
     banner.hidden = !filtroLeadsParados;
@@ -1008,7 +1027,7 @@ function renderLeadsTable() {
       <td>${l.interesse || '—'}</td>
       <td>
         <select class="status-select" data-id="${l.id}" data-action="lead-status">
-          ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${s.replace(/_/g, ' ')}</option>`).join('')}
+          ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${LEAD_STATUS_LABELS[s]}</option>`).join('')}
         </select>
       </td>
       <td>
@@ -1361,15 +1380,7 @@ document.addEventListener('click', async (e) => {
 // =====================================================================
 // FUNIL DE VENDAS (KANBAN) — acompanhamento do lead até a assinatura
 // =====================================================================
-const FUNIL_COLUNAS = [
-  { status: 'novo', label: 'Novo' },
-  { status: 'em_atendimento', label: 'Em atendimento' },
-  { status: 'qualificado', label: 'Qualificado' },
-  { status: 'visita_agendada', label: 'Visita agendada' },
-  { status: 'proposta', label: 'Proposta' },
-  { status: 'fechado', label: 'Fechado' },
-  { status: 'perdido', label: 'Perdido' },
-];
+const FUNIL_COLUNAS = LEAD_STATUSES.map((status) => ({ status, label: LEAD_STATUS_LABELS[status] }));
 
 let funilCorretorFiltro = '';
 let funilCorretoresCarregados = false;
@@ -1415,7 +1426,7 @@ async function loadFunil() {
               <small>${l.interesse || 'interesse não informado'}</small>
               ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
               <select class="status-select" data-id="${l.id}" data-action="lead-status">
-                ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${s.replace(/_/g, ' ')}</option>`).join('')}
+                ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${LEAD_STATUS_LABELS[s]}</option>`).join('')}
               </select>
             </div>
           `).join('') : '<p class="kanban-empty">Nenhum lead aqui.</p>'}
@@ -4281,18 +4292,7 @@ async function loadContratos() {
 
   if (error) { wrap.innerHTML = `<p class="empty-state">Erro ao carregar contratos.</p>`; console.error(error); return; }
 
-  // Cobrança do MÊS ATUAL de cada contrato de locação, pra mostrar o status
-  // (pago/pendente/atrasado) direto no card, sem precisar ir pra outra tela.
-  const referenciaMes = new Date(); referenciaMes.setDate(1); referenciaMes.setHours(0, 0, 0, 0);
-  const referenciaMesStr = referenciaMes.toISOString().slice(0, 10);
-  const { data: cobrancasMes } = await supabase
-    .from('cobrancas')
-    .select('id, contrato_id, valor_base, data_pagamento, data_vencimento, status')
-    .eq('referencia', referenciaMesStr);
-  const cobrancaPorContrato = {};
-  (cobrancasMes || []).forEach((cb) => { cobrancaPorContrato[cb.contrato_id] = cb; });
-
-  contratosCache = (data || []).map((c) => ({ ...c, cobrancaAtual: cobrancaPorContrato[c.id] || null })).sort((a, b) => {
+  contratosCache = (data || []).slice().sort((a, b) => {
     const pa = CONTRATO_STATUS_PRIORIDADE[a.status] ?? 1.5;
     const pb = CONTRATO_STATUS_PRIORIDADE[b.status] ?? 1.5;
     if (pa !== pb) return pa - pb;
@@ -4330,25 +4330,6 @@ function renderContratosCards() {
     const badges = [`<span class="badge-mini">${c.tipo === 'locacao' ? 'Locação' : 'Venda'}</span>`];
     if (c.tipo === 'locacao' && c.taxa_administracao_percentual) badges.push(`<span class="badge-mini">Taxa adm.: ${c.taxa_administracao_percentual}%</span>`);
 
-    // Resumo do mês atual (só locação ativa) — o pedido mais comum do dia a dia,
-    // direto no card, sem precisar ir pra tela de Cobranças pra achar.
-    let resumoMesAtual = '';
-    if (c.tipo === 'locacao' && c.status === 'ativo') {
-      const cb = c.cobrancaAtual;
-      const nomeMes = new Date().toLocaleDateString('pt-BR', { month: 'long' });
-      if (!cb) {
-        resumoMesAtual = `<div class="contrato-mes-atual"><span class="badge-mini" title="A cobrança desse mês ainda não foi gerada">⏳ ${nomeMes}: cobrança ainda não gerada</span></div>`;
-      } else if (cb.data_pagamento) {
-        resumoMesAtual = `<div class="contrato-mes-atual"><span class="badge-mini" style="background:rgba(64,180,120,.18); color:#2fa86a;">✅ ${nomeMes}: pago em ${new Date(cb.data_pagamento + 'T00:00:00').toLocaleDateString('pt-BR')}</span></div>`;
-      } else {
-        const atrasado = new Date(cb.data_vencimento + 'T00:00:00') < new Date(new Date().toDateString());
-        resumoMesAtual = `<div class="contrato-mes-atual">
-          <span class="badge-mini" style="${atrasado ? 'background:rgba(220,80,80,.15); color:#d15353;' : ''}">${atrasado ? '🔴' : '🟡'} ${nomeMes}: ${atrasado ? 'atrasado' : 'pendente'} — vence ${new Date(cb.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-          <button type="button" class="btn btn-ghost btn-sm" data-action="contrato-marcar-pago-rapido" data-id="${cb.id}">✔️ Marcar pago</button>
-        </div>`;
-      }
-    }
-
     return `
       <article class="imovel-card">
         <div class="imovel-card-body" style="padding-left:2px;">
@@ -4361,14 +4342,12 @@ function renderContratosCards() {
             ${statusPill(c.status)}
           </div>
           <div class="imovel-card-badges">${badges.join('')}</div>
-          ${resumoMesAtual}
           <div class="imovel-card-footer">
             <div class="imovel-card-precowrap">
               <strong class="imovel-card-preco">${money(c.valor)}${c.tipo === 'locacao' ? '/mês' : ''}</strong>
               <span class="imovel-card-meta">Corretor: ${c.usuarios?.nome || '—'} · Comissão: ${money(c.comissao_valor)}${c.comissao_percentual ? ` (${c.comissao_percentual}%)` : ''}</span>
             </div>
             <div class="imovel-card-actions">
-              ${c.tipo === 'locacao' ? `<button class="btn btn-ghost btn-sm" data-action="contrato-ver-cobrancas" data-termo="${escapeHtml([c.imoveis?.titulo, c.pessoas?.nome].filter(Boolean).join(' '))}">📄 Ver cobranças</button>` : ''}
               <button class="btn btn-ghost btn-sm" data-action="contrato-edit" data-id="${c.id}">Editar</button>
             </div>
           </div>
@@ -5499,27 +5478,6 @@ document.addEventListener('click', async (e) => {
     loadCobrancas();
   }
 
-  // Atalho direto do card de Contratos — marca a cobrança do mês atual como paga
-  // sem precisar sair da tela pra ir em Financeiro > Cobranças.
-  if (e.target.dataset.action === 'contrato-marcar-pago-rapido') {
-    if (!confirm('Confirmar recebimento deste pagamento hoje?')) return;
-    const hoje = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from('cobrancas').update({ data_pagamento: hoje, status: 'pago' }).eq('id', e.target.dataset.id);
-    if (error) { toast('Não foi possível confirmar.', true); return; }
-    toast('Pagamento confirmado.');
-    loadContratos();
-  }
-
-  // Atalho do card de Contratos — vai direto pra Financeiro > Cobranças já filtrado
-  // por esse imóvel/inquilino, em vez de precisar procurar na lista toda.
-  if (e.target.dataset.action === 'contrato-ver-cobrancas') {
-    navigateTo('financeiro');
-    $('.financeiro-tab[data-financeiro-tab="locacoes"]')?.click();
-    await loadCobrancas();
-    const campoBusca = $('#cobrancasSearch');
-    if (campoBusca) { campoBusca.value = e.target.dataset.termo || ''; renderCobrancasCards(); }
-  }
-
   if (e.target.dataset.action === 'cobranca-isentar-multa') {
     if (!confirm('Não cobrar a multa e os juros do atraso nesta cobrança? O inquilino paga só o valor base.')) return;
     const { error } = await supabase.from('cobrancas').update({ isento_multa_juros: true }).eq('id', e.target.dataset.id);
@@ -6580,7 +6538,7 @@ document.addEventListener('click', async (e) => {
 const TUTORIAL_TOPICOS = [
   { titulo: 'Como faço login?', texto: 'Digite o e-mail e a senha cadastrados pelo gerente/administrador na tela inicial. Se esquecer a senha, clique em "Esqueci minha senha" e siga o link enviado por e-mail.' },
   { titulo: 'O que é o Dashboard?', texto: 'É a tela inicial: mostra quantos leads novos chegaram, quantos imóveis estão disponíveis, visitas agendadas e os últimos leads recebidos.' },
-  { titulo: 'Como funciona a tela de Leads?', texto: 'Lista todos os interessados que entraram em contato. Você pode filtrar por status e mudar o status de cada lead diretamente na lista (novo, em atendimento, qualificado, visita agendada, proposta, fechado ou perdido).' },
+  { titulo: 'Como funciona a tela de Leads?', texto: 'Lista todos os interessados que entraram em contato. Você pode filtrar por status e mudar o status de cada lead diretamente na lista, seguindo o funil: novo → 1ª/2ª/3ª tentativa → busca qualificada → visita agendada → visita feita → alterar busca → proposta → documentação → assinaturas → pós-venda (30/60/90/120 dias) ou perdido.' },
   { titulo: 'O lead quer VENDER ou LOCAR um imóvel (ou é construtora). O que faço?', texto: 'Na linha do lead, clique em "→ Captação". Abre a tela de captação já com o nome e o telefone preenchidos — é só informar o imóvel, o papel do contato (vendedor, locador, construtora ou incorporadora) e a finalidade. Ao criar, o cliente entra no Funil de Captação e fica registrado nas observações do lead que ele foi direcionado.' },
   { titulo: 'O que é o Funil de Vendas?', texto: 'É um quadro (Kanban) que mostra os leads organizados por etapa, da esquerda para a direita, até fechar a venda/locação. Cada corretor só vê os próprios leads; gerente e administrador veem e podem alterar os de todos, com um filtro para escolher um corretor específico.' },
   { titulo: 'Como cadastro um imóvel novo?', texto: 'Vá em Imóveis → "+ Novo imóvel". Preencha título, tipo, finalidade, endereço, valores, características e escolha o corretor responsável. Depois, envie as fotos e clique na estrela da foto que quer usar como capa (principal). Se tiver vídeo, cole o link do YouTube no campo próprio.' },
@@ -6683,7 +6641,7 @@ function destacarBusca(termoBusca, texto) {
 const BOT_FAQ = [
   { gatilhos: ['login', 'entrar', 'acessar', 'senha'], contexto: ['esqueci', 'nao consigo', 'como'], resposta: 'Use seu e-mail e senha cadastrados na tela inicial. Esqueceu a senha? Clique em "Esqueci minha senha" e siga o link enviado por e-mail.' },
   { gatilhos: ['dashboard', 'painel', 'inicial'], contexto: ['que e', 'o que', 'pra que serve'], resposta: 'O Dashboard é a tela inicial: mostra leads novos, imóveis disponíveis, visitas agendadas e os últimos leads recebidos.' },
-  { gatilhos: ['lead', 'leads'], contexto: ['status', 'funil', 'atendimento', 'mudar', 'avancar'], resposta: 'Na tela Leads, você filtra por status e muda o status de cada lead direto na lista (novo, em atendimento, qualificado, visita agendada, proposta, fechado, perdido).' },
+  { gatilhos: ['lead', 'leads'], contexto: ['status', 'funil', 'atendimento', 'mudar', 'avancar'], resposta: 'Na tela Leads, você filtra por status e muda o status de cada lead direto na lista, seguindo o funil: novo → tentativas de contato (1ª/2ª/3ª) → busca qualificada → visita agendada → visita feita → alterar busca → proposta → documentação → assinaturas → pós-venda (30/60/90/120 dias), ou perdido.' },
   { gatilhos: ['funil', 'kanban', 'dastbord', 'dashboard individual'], contexto: ['vend', 'lead', 'corretor', 'acompanh'], resposta: 'O Funil de Vendas é um quadro com colunas por etapa do lead. Cada corretor vê só os próprios leads; gerente e admin veem e editam os de todos, com filtro por corretor.' },
   { gatilhos: ['cadastr', 'novo imovel', 'imovel novo', 'criar imovel'], contexto: ['imovel', 'casa', 'apartamento', 'terreno'], resposta: 'Vá em Imóveis → "+ Novo imóvel", preencha os dados, envie as fotos e escolha o corretor responsável. Clique na estrela da foto para defini-la como capa.' },
   { gatilhos: ['capa', 'foto principal', 'estrela'], contexto: ['foto', 'imagem', 'imovel'], resposta: 'No formulário do imóvel, clique na estrelinha da miniatura da foto que quer usar como principal — ela fica marcada em dourado.' },
@@ -8233,7 +8191,7 @@ async function loadAprovacoes() {
   const { data, error } = await supabase
     .from('aprovacoes')
     .select(`*,
-      comprador:pessoas!aprovacoes_comprador_id_fkey(nome, telefone, cpf_cnpj, email),
+      comprador:pessoas!aprovacoes_comprador_id_fkey(nome, telefone, cpf_cnpj),
       comprador2:pessoas!aprovacoes_comprador2_id_fkey(nome, telefone, cpf_cnpj),
       vendedor:pessoas!aprovacoes_vendedor_id_fkey(nome),
       imovel:imoveis(titulo, bairro, cidade),
@@ -8321,17 +8279,9 @@ function renderAprovacoesCards() {
         seloDocumentos = `<span class="aprovacao-badge-prazo" title="${faltando.map((c) => APROVACAO_CATEGORIAS_ARQUIVO[c] || c).join(', ')}">📎 falta: ${faltando.map((c) => APROVACAO_CATEGORIAS_ARQUIVO[c] || c).join(', ')}</span>`;
       }
     }
-    const dadosTexto = a.dados_texto || {};
-    const textosPendentes = (exigencias?.textos || []).filter((label) => !dadosTexto[label]);
-    const textosPreenchidos = (exigencias?.textos || []).filter((label) => dadosTexto[label]);
-    const seloTextos = [
-      textosPreenchidos.length
-        ? `<span class="badge-mini" style="background:rgba(64,180,120,.18); color:#2fa86a;" title="${textosPreenchidos.map((l) => `${l}: ${dadosTexto[l]}`).join(' · ')}">✅ ${textosPreenchidos.join(', ')}</span>`
-        : '',
-      textosPendentes.length
-        ? `<span class="badge-mini" title="Não vira arquivo — preencha em 'Abrir' ou confirme com a Daiane">📞 confirmar: ${textosPendentes.join(', ')}</span>`
-        : '',
-    ].filter(Boolean).join(' ');
+    const seloTextos = exigencias?.textos?.length
+      ? `<span class="badge-mini" title="Não vira arquivo — confirme com a Daiane">📞 confirmar: ${exigencias.textos.join(', ')}</span>`
+      : '';
     return `
       <article class="imovel-card">
         <div class="imovel-card-body" style="padding-left:2px;">
@@ -8372,7 +8322,7 @@ function renderAprovacoesCards() {
 
 async function aprovacaoFormDados() {
   const [{ data: pessoas }, { data: imoveis }, { data: corretores }, { data: instituicoes }] = await Promise.all([
-    supabase.from('pessoas').select('id,nome,cpf_cnpj,email').order('nome'),
+    supabase.from('pessoas').select('id,nome').order('nome'),
     supabase.from('imoveis').select('id,titulo').order('titulo'),
     supabase.from('usuarios').select('id,nome').eq('ativo', true).order('nome'),
     supabase.from('instituicoes').select('id,nome,tipo').eq('ativo', true).order('nome'),
@@ -8417,19 +8367,11 @@ function aprovacaoForm(a = {}, dados) {
           ${opt(dados.pessoas, a.comprador_id)}
         </select>
       </div>
-      <div class="proprietario-novo-grid" style="margin-bottom:10px;">
-        <input id="ap-comprador-cpf" placeholder="CPF do cliente (Proponente 1)" value="${escapeHtml(a.comprador?.cpf_cnpj || '')}">
-        <input id="ap-comprador-email" placeholder="E-mail do cliente (Proponente 1)" value="${escapeHtml(a.comprador?.email || '')}">
-      </div>
       <div class="form-row full"><label>Proponente 2 (opcional — cônjuge, coobrigado...)</label>
         <select id="ap-comprador2">
           <option value="">— nenhum —</option>
           ${opt(dados.pessoas, a.comprador2_id)}
         </select>
-      </div>
-      <div class="proprietario-novo-grid" id="ap-comprador2-contato-wrap" style="margin-bottom:10px;" ${a.comprador2_id ? '' : 'hidden'}>
-        <input id="ap-comprador2-cpf" placeholder="CPF do cliente (Proponente 2)" value="${escapeHtml(a.comprador2?.cpf_cnpj || '')}">
-        <input id="ap-comprador2-email" placeholder="E-mail do cliente (Proponente 2)" value="${escapeHtml(a.comprador2?.email || '')}">
       </div>
       <div class="form-row full" id="ap-novo-cliente-wrap" hidden>
         <div class="proprietario-novo">
@@ -8499,23 +8441,6 @@ function aprovacaoForm(a = {}, dados) {
       <span class="dash-linha-sub">Dispensados (marcados como concluído sem anexo):</span><br>
       ${a.categorias_dispensadas.map((c) => `<button type="button" class="badge-mini badge-clicavel" data-action="aprovacao-restaurar-categoria" data-id="${a.id}" data-categoria="${c}" title="Clique pra voltar a exigir este documento" style="background:rgba(64,180,120,.18); color:#2fa86a; margin:4px 4px 0 0;">${APROVACAO_CATEGORIAS_ARQUIVO[c] || c} ↺</button>`).join('')}
     </div>` : ''}
-    ${(() => {
-      const exig = obterExigenciasDocumento(a.tipo_processo, a.tipo_renda);
-      if (!exig?.textos?.length) return '';
-      const dados = a.dados_texto || {};
-      return `
-      <h3 style="margin-top:20px;">Informações sem arquivo (pra Daiane conferir)</h3>
-      <p class="dash-linha-sub" style="margin-bottom:8px;">PIS, e-mail/telefone etc. não têm documento pra anexar — preenche aqui que fica visível pra Daiane direto no card, sem precisar avisar por fora.</p>
-      <div id="aprovacaoDadosTexto" style="display:flex; flex-direction:column; gap:8px;">
-        ${exig.textos.map((label, i) => `
-        <div class="form-row">
-          <label>${escapeHtml(label)}</label>
-          <input type="text" class="ap-texto-valor" data-label="${escapeHtml(label)}" value="${escapeHtml(dados[label] || '')}" placeholder="Preencher...">
-        </div>`).join('')}
-      </div>
-      <button type="button" class="btn btn-ghost btn-sm" id="ap-salvar-textos" data-id="${a.id}" style="margin-top:8px;">💾 Salvar informações</button>
-      `;
-    })()}
     <div class="contrato-arquivos-upload">
       <select id="ap-arq-categoria">
         ${opcoesCategoriaArquivo(a.tipo_renda)}
@@ -8595,29 +8520,13 @@ async function resolverPessoaNovaAprovacao(prefixo, papel, rotulo) {
   return nova.id;
 }
 
-function bindAprovacaoForm(dados) {
+function bindAprovacaoForm() {
   $('#cancelAprovacao').addEventListener('click', closeModal);
   $('#ap-tipo').addEventListener('change', aprovacaoAtualizarCampos);
   $('#ap-comprador').addEventListener('change', aprovacaoToggleNovasPessoas);
   $('#ap-vendedor').addEventListener('change', aprovacaoToggleNovasPessoas);
   aprovacaoAtualizarCampos();
   aprovacaoToggleNovasPessoas();
-
-  // Ao trocar o cliente selecionado, preenche CPF/e-mail automaticamente com o
-  // que já estiver cadastrado em Pessoas (o corretor só edita se precisar
-  // corrigir ou completar).
-  const preencherContato = (selectId, cpfId, emailId) => {
-    const sel = $(`#${selectId}`);
-    if (!sel) return;
-    sel.addEventListener('change', () => {
-      const pessoa = dados?.pessoas?.find((p) => p.id === sel.value);
-      $(`#${cpfId}`).value = pessoa?.cpf_cnpj || '';
-      $(`#${emailId}`).value = pessoa?.email || '';
-      if (selectId === 'ap-comprador2') $('#ap-comprador2-contato-wrap').hidden = !sel.value;
-    });
-  };
-  preencherContato('ap-comprador', 'ap-comprador-cpf', 'ap-comprador-email');
-  preencherContato('ap-comprador2', 'ap-comprador2-cpf', 'ap-comprador2-email');
 
   const id = $('#ap-id').value;
   if (id) { carregarHistoricoAprovacao(id); carregarArquivosAprovacao(id); carregarCpfSolicitacoes(id); }
@@ -8639,20 +8548,6 @@ function bindAprovacaoForm(dados) {
       if (!compradorId) { restaurarBotao(); return; }
     }
     const comprador2Id = $('#ap-comprador2')?.value || null;
-
-    // Salva CPF/e-mail digitados de volta no cadastro da pessoa (só se preenchido,
-    // pra não apagar um dado já existente por acidente com um campo em branco).
-    const salvarContatoPessoa = async (pessoaId, cpfId, emailId) => {
-      if (!pessoaId || pessoaId === '__novo__') return;
-      const cpf = $(`#${cpfId}`)?.value.trim();
-      const email = $(`#${emailId}`)?.value.trim();
-      const patch = {};
-      if (cpf) patch.cpf_cnpj = cpf;
-      if (email) patch.email = email;
-      if (Object.keys(patch).length) await supabase.from('pessoas').update(patch).eq('id', pessoaId);
-    };
-    await salvarContatoPessoa(compradorId, 'ap-comprador-cpf', 'ap-comprador-email');
-    await salvarContatoPessoa(comprador2Id, 'ap-comprador2-cpf', 'ap-comprador2-email');
 
     let vendedorId = tipo === 'cartorio' ? ($('#ap-vendedor').value || null) : null;
     if (vendedorId === '__novo__') {
@@ -8804,9 +8699,9 @@ document.addEventListener('click', async (e) => {
   toast('Exigência restaurada.');
   const dados = await aprovacaoFormDados();
   const { data: a } = await supabase.from('aprovacoes')
-    .select('*, comprador:pessoas!aprovacoes_comprador_id_fkey(nome, cpf_cnpj, email), comprador2:pessoas!aprovacoes_comprador2_id_fkey(nome, cpf_cnpj, email)')
+    .select('*, comprador:pessoas!aprovacoes_comprador_id_fkey(nome, cpf_cnpj), comprador2:pessoas!aprovacoes_comprador2_id_fkey(nome, cpf_cnpj)')
     .eq('id', aprovacaoId).single();
-  if (a) { openModal(aprovacaoForm(a, dados)); bindAprovacaoForm(dados); }
+  if (a) { openModal(aprovacaoForm(a, dados)); bindAprovacaoForm(); }
 });
 
 // Marca uma categoria de documento como dispensada (concluído sem anexo) —
@@ -8825,25 +8720,6 @@ document.addEventListener('click', async (e) => {
   const { error } = await supabase.from('aprovacoes').update({ categorias_dispensadas: novaLista }).eq('id', aprovacaoId);
   if (error) { toast('Erro ao dispensar: ' + error.message, true); btnDispensar.disabled = false; return; }
   toast(`"${rotulo}" marcado como dispensado.`);
-  loadAprovacoes();
-});
-
-// Salva as informações sem arquivo (PIS, e-mail/telefone etc.) digitadas no
-// formulário — fica visível pra Daiane direto no card, sem precisar avisar por fora.
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('#ap-salvar-textos');
-  if (!btn) return;
-  const aprovacaoId = btn.dataset.id;
-  const dados = {};
-  $$('.ap-texto-valor').forEach((input) => {
-    const valor = input.value.trim();
-    if (valor) dados[input.dataset.label] = valor;
-  });
-  btn.disabled = true;
-  const { error } = await supabase.from('aprovacoes').update({ dados_texto: dados }).eq('id', aprovacaoId);
-  btn.disabled = false;
-  if (error) { toast('Erro ao salvar: ' + error.message, true); return; }
-  toast('Informações salvas — já aparecem no card.');
   loadAprovacoes();
 });
 
@@ -9008,7 +8884,7 @@ $('#newAprovacaoBtn')?.addEventListener('click', async () => {
   if (!podeVerAprovacoes) return;
   const dados = await aprovacaoFormDados();
   openModal(aprovacaoForm({}, dados));
-  bindAprovacaoForm(dados);
+  bindAprovacaoForm();
 });
 
 // ---- Novo processo pro corretor, quando o cliente JÁ está cadastrado no
@@ -9242,7 +9118,7 @@ async function abrirConsultaRapidaForm() {
       // 2) Lead, já em atendimento com o corretor logado
       const { error: erroLead } = await supabase.from('leads').insert({
         nome, telefone, pessoa_id: pessoa.id, corretor_id: currentUsuario.id,
-        status: 'em_atendimento', origem: 'outro', interesse: 'compra',
+        status: 'tentativa_1', origem: 'outro', interesse: 'compra',
         observacoes: 'Lead criado a partir de consulta de CPF na aba Aprovações.',
         atribuido_em: new Date().toISOString(),
       });
@@ -9280,13 +9156,13 @@ document.addEventListener('click', async (e) => {
   const abrir = e.target.closest('[data-action="aprovacao-abrir"]');
   if (abrir) {
     const { data: a, error } = await supabase.from('aprovacoes')
-      .select('*, comprador:pessoas!aprovacoes_comprador_id_fkey(nome, cpf_cnpj, email), comprador2:pessoas!aprovacoes_comprador2_id_fkey(nome, cpf_cnpj, email)')
+      .select('*, comprador:pessoas!aprovacoes_comprador_id_fkey(nome, cpf_cnpj), comprador2:pessoas!aprovacoes_comprador2_id_fkey(nome, cpf_cnpj)')
       .eq('id', abrir.dataset.id).single();
     if (error || !a) { toast('Não foi possível abrir o processo.', true); return; }
     if (podeVerAprovacoes) {
       const dados = await aprovacaoFormDados();
       openModal(aprovacaoForm(a, dados));
-      bindAprovacaoForm(dados);
+      bindAprovacaoForm();
     } else {
       const { data: arquivosDoProcesso } = await supabase.from('aprovacao_arquivos').select('categoria').eq('aprovacao_id', a.id);
       a.categoriasPresentes = new Set((arquivosDoProcesso || []).map((x) => x.categoria));

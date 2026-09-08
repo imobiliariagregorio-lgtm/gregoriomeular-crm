@@ -97,13 +97,30 @@
         bloco.labels.forEach((labelRaw) => {
           const label = resolverTexto(labelRaw, dados);
           if (!label) return;
-          // 2026-09-04: por pedido do Gregório, a assinatura da imobiliária NÃO é mais
-          // inserida automaticamente em nenhuma linha — todas as partes (imobiliária,
-          // locador, locatário, comprador etc.) assinam digitalmente por fora (via
-          // plataforma de assinatura), então o documento só precisa do espaço em branco,
-          // maior que antes, para caber a assinatura digital sobreposta.
-          stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, 46, 0, 2] });
-          stack.push({ text: label, bold: true, alignment: 'center', margin: [0, 0, 0, 4] });
+          // Linha da IMOBILIÁRIA/ADMINISTRADORA (identificada pela presença do
+          // tag {imobiliaria_nome} no label, convenção usada em todos os
+          // modelos): recebe a assinatura fixa da empresa automaticamente,
+          // se o arquivo assets/assinatura-gregorio.png estiver disponível.
+          // Linhas de outras partes (locador, locatário, comprador etc.)
+          // nunca recebem assinatura fixa — continuam em branco para
+          // assinatura manual.
+          const ehLinhaImobiliaria = /\{imobiliaria_nome\}/.test(labelRaw);
+          if (ehLinhaImobiliaria && imagens.assinatura) {
+            stack.push({ image: imagens.assinatura, width: 130, alignment: 'center', margin: [0, 22, 0, 2] });
+            stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, 0, 0, 2] });
+          } else {
+            stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, 26, 0, 2] });
+          }
+          stack.push({ text: label, bold: true, alignment: 'center', margin: [0, 0, 0, ehLinhaImobiliaria && imagens.assinatura ? 1 : 4] });
+          // Linha de apoio com o nome de quem assina fisicamente pela
+          // ADMINISTRADORA e seu CPF, só na linha da imobiliária e só quando
+          // a assinatura fixa está presente (senão não há o que identificar).
+          if (ehLinhaImobiliaria && imagens.assinatura) {
+            const identificacaoAssinante = resolverTexto('{assinante_nome} — CPF {assinante_cpf}', dados);
+            if (identificacaoAssinante.trim()) {
+              stack.push({ text: identificacaoAssinante, fontSize: 8.5, color: '#555555', alignment: 'center', margin: [0, 0, 0, 4] });
+            }
+          }
         });
         return { stack };
       }
@@ -624,9 +641,9 @@
       par('Na condição de administradora do imóvel do qual V.Sa. é locatário(a), e observando o disposto no art. 27 da Lei nº 8.245/91, vimos, pelo presente, oferecer o referido imóvel: {imovel_tipo}, {imovel_descricao_detalhada}, situado em {imovel_endereco_completo}, pelo valor de R$ {valor_venda} ({valor_venda_extenso}).', { margin: [0, 10, 0, 12] }),
       par('A contar do recebimento desta notificação, V.Sa. poderá manifestar-se, sinalizando neste documento o interesse em comprar o imóvel, ou sinalizar que não tem interesse na compra. Fica registrado que, na data de início da locação, V.Sa. já estava ciente de que o imóvel se encontrava anunciado à venda. Havendo interesse na compra, V.Sa. deverá assinar a respectiva proposta, com pagamento à vista, para quitação em até {prazo_pagamento_avista_dias} dias.', { margin: [0, 0, 0, 12] }),
       par('Caso opte por não comprar o imóvel, V.Sa. terá o prazo de {prazo_desocupacao_dias} dias para desocupação do imóvel, a partir da data de recebimento deste documento. O prazo para manifestação quanto a este documento é de {prazo_manifestacao_horas} horas; não havendo manifestação dentro deste prazo, será considerado o desinteresse na compra do imóvel.', { margin: [0, 0, 0, 16] }),
-      par('_______________________________________________', { margin: [0, 24, 0, 2] }),
-      par('LOCATÁRIO(A): NÃO vou comprar o imóvel. Assinatura: _______________________', { margin: [0, 0, 0, 24] }),
-      par('_______________________________________________', { margin: [0, 24, 0, 2] }),
+      par('_______________________________________________', { margin: [0, 6, 0, 2] }),
+      par('LOCATÁRIO(A): NÃO vou comprar o imóvel. Assinatura: _______________________', { margin: [0, 0, 0, 16] }),
+      par('_______________________________________________', { margin: [0, 6, 0, 2] }),
       par('LOCATÁRIO(A): SIM, vou comprar o imóvel. Assinatura: _______________________', { margin: [0, 0, 0, 8] }),
       par('{observacoes_direito_preferencia}', { margin: [0, 0, 0, 8] }),
       assinaturas(['ADMINISTRADORA — {imobiliaria_nome}']),
@@ -673,9 +690,9 @@
       clausula(4, 'do prazo de validade', 'A presente oferta tem validade de {prazo_validade_oferta_dias} dias, contados da data de emissão deste documento, findo o qual poderá ser renovada, alterada ou retirada a critério do(a) OFERTANTE, sem necessidade de justificativa.'),
       clausula(5, 'da veracidade das informações', 'As informações constantes neste documento foram fornecidas pelo(a) OFERTANTE e/ou obtidas de fontes públicas, não se responsabilizando {imobiliaria_nome} por eventuais divergências que só possam ser apuradas mediante due diligence própria da DESTINATÁRIA.'),
       clausula(6, 'do foro', 'Fica eleito o foro da comarca de {cidade_contrato} para dirimir quaisquer dúvidas oriundas desta oferta.'),
-      par('_______________________________________________', { margin: [0, 24, 0, 2] }),
-      par('DESTINATÁRIA: ACEITA a oferta nos termos apresentados. Assinatura: _______________________', { margin: [0, 0, 0, 24] }),
-      par('_______________________________________________', { margin: [0, 24, 0, 2] }),
+      par('_______________________________________________', { margin: [0, 16, 0, 2] }),
+      par('DESTINATÁRIA: ACEITA a oferta nos termos apresentados. Assinatura: _______________________', { margin: [0, 0, 0, 16] }),
+      par('_______________________________________________', { margin: [0, 6, 0, 2] }),
       par('DESTINATÁRIA: apresenta CONTRAPROPOSTA (descrever): _____________________________________________', { margin: [0, 0, 0, 8] }),
       par('{observacoes_oferta}', { margin: [0, 0, 0, 8] }),
       assinaturas(['OFERTANTE — {proprietario_nome}', 'IMOBILIÁRIA — {imobiliaria_nome} ({corretor_nome})']),
@@ -801,7 +818,8 @@
     imagensCache = Promise.all([
       carregarImagemDataUrl('assets/logo-header.png'),
       carregarImagemDataUrl('assets/logo-watermark.png'),
-    ]).then(([logoHeader, logoWatermark]) => ({ logoHeader, logoWatermark }));
+      carregarImagemDataUrl('assets/assinatura-gregorio.png'),
+    ]).then(([logoHeader, logoWatermark, assinatura]) => ({ logoHeader, logoWatermark, assinatura }));
     return imagensCache;
   }
 
