@@ -2713,6 +2713,7 @@ async function imovelForm(im = {}) {
       <div class="form-row"><label>Número</label><input id="im-numero" value="${im.numero || ''}"></div>
       <div class="form-row"><label>Complemento</label><input id="im-complemento" value="${im.complemento || ''}"></div>
       <div class="form-row"><label>CEP</label><input id="im-cep" value="${im.cep || ''}"></div>
+      <div class="form-row full"><small id="im-cep-status" class="imovel-card-meta" hidden></small></div>
       <div class="form-row full"><label>Ponto de referência</label><input id="im-ponto-referencia" value="${im.ponto_referencia || ''}" placeholder="Ex: 1 minuto da BR-116, próximo à Escola Municipal..."></div>
       <div class="form-row"><label>Valor de venda (R$)</label><input type="number" id="im-valor-venda" value="${im.valor_venda || ''}"></div>
       <div class="form-row"><label>Valor de locação (R$)</label><input type="number" id="im-valor-locacao" value="${im.valor_locacao || ''}"></div>
@@ -3325,6 +3326,58 @@ function bindDesativarImovelForm() {
 
 function bindImovelForm(im = {}) {
   $('#cancelImovel').addEventListener('click', closeModal);
+
+  // Ao sair do campo CEP: busca o endereço oficial (ViaCEP) pra preencher os campos vazios,
+  // e já gera latitude/longitude na hora (via Edge Function, evita bloqueio de CORS do Nominatim).
+  $('#im-cep').addEventListener('blur', async () => {
+    const cepDigitado = $('#im-cep').value.replace(/\D/g, '');
+    if (cepDigitado.length !== 8) return;
+
+    const camposStatus = $('#im-cep-status');
+    if (camposStatus) { camposStatus.textContent = '🔎 Buscando endereço do CEP...'; camposStatus.hidden = false; }
+
+    let enderecoResolvido = null;
+    try {
+      const resp = await fetch(`https://viacep.com.br/ws/${cepDigitado}/json/`);
+      const dados = await resp.json();
+      if (!dados.erro) {
+        enderecoResolvido = dados;
+        // Só preenche o que estiver vazio — não sobrescreve o que o corretor já digitou.
+        if (!$('#im-endereco').value.trim() && dados.logradouro) $('#im-endereco').value = dados.logradouro;
+        if (!$('#im-bairro').value.trim() && dados.bairro) $('#im-bairro').value = dados.bairro;
+        if (dados.localidade) $('#im-cidade').value = dados.localidade;
+        if (dados.uf) $('#im-estado').value = dados.uf;
+      }
+    } catch { /* segue sem endereço resolvido — geocodificação ainda tenta pelo que já estava preenchido */ }
+
+    if (camposStatus) camposStatus.textContent = '📍 Gerando coordenadas...';
+    try {
+      const { data: resultado, error: erroFn } = await supabase.functions.invoke('geocodificar-endereco', {
+        body: {
+          cep: cepDigitado,
+          endereco: $('#im-endereco').value.trim(),
+          numero: $('#im-numero').value.trim(),
+          bairro: $('#im-bairro').value.trim(),
+          cidade: $('#im-cidade').value.trim(),
+        },
+      });
+      if (!erroFn && resultado?.encontrado) {
+        $('#im-latitude').value = resultado.latitude;
+        $('#im-longitude').value = resultado.longitude;
+        const aproximado = resultado.precisao === 'bairro' || resultado.precisao === 'cidade';
+        if (camposStatus) {
+          camposStatus.textContent = aproximado
+            ? '📍 Coordenadas geradas (aproximadas — endereço exato não encontrado no mapa).'
+            : '✅ Endereço e coordenadas preenchidos automaticamente.';
+        }
+      } else if (camposStatus) {
+        camposStatus.textContent = enderecoResolvido ? '✅ Endereço preenchido. Não foi possível gerar coordenadas.' : '⚠️ CEP não encontrado.';
+      }
+    } catch {
+      if (camposStatus) camposStatus.textContent = '⚠️ Erro ao gerar coordenadas — pode preencher latitude/longitude manualmente.';
+    }
+    if (camposStatus) setTimeout(() => { camposStatus.hidden = true; }, 4000);
+  });
 
   Array.from($$('.im-portal-check')).forEach((chk) => {
     chk.addEventListener('change', () => {
