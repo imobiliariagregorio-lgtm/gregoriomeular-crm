@@ -1919,6 +1919,59 @@ $('#imoveisFiltroDestaque').addEventListener('change', () => { imoveisPagina = 1
 $('#imoveisFiltroPortal').addEventListener('change', () => { imoveisPagina = 1; renderImoveisTable(); });
 $('#imoveisFiltroEntrega')?.addEventListener('change', () => { imoveisPagina = 1; renderImoveisTable(); });
 
+// Gera latitude/longitude em lote para imóveis que já têm CEP mas ainda não têm coordenadas.
+// A geocodificação em si roda na Edge Function "geocodificar-endereco" (Nominatim/OSM não libera
+// CORS pra chamada direta do navegador). Roda sequencial, uma chamada por vez, pra não sobrecarregar
+// a API gratuita.
+$('#imoveisGeocodificarBtn')?.addEventListener('click', async () => {
+  const btn = $('#imoveisGeocodificarBtn');
+  const { data: pendentes, error } = await supabase
+    .from('imoveis')
+    .select('id, cep, endereco, numero, bairro, cidade')
+    .not('cep', 'is', null)
+    .neq('cep', '')
+    .or('latitude.is.null,longitude.is.null');
+
+  if (error) { toast('Erro ao buscar imóveis: ' + error.message, true); return; }
+  if (!pendentes.length) { toast('Todos os imóveis com CEP já têm coordenadas. 🎉'); return; }
+
+  if (!confirm(`Gerar coordenadas para ${pendentes.length} imóve${pendentes.length === 1 ? 'l' : 'is'}? Leva alguns segundos, um de cada vez.`)) return;
+
+  btn.disabled = true;
+  const textoOriginal = btn.textContent;
+  let exatos = 0;
+  let aproximados = 0;
+  let falha = 0;
+
+  for (let i = 0; i < pendentes.length; i++) {
+    const im = pendentes[i];
+    btn.textContent = `📍 Geocodificando ${i + 1}/${pendentes.length}...`;
+    try {
+      const { data: resultado, error: erroFn } = await supabase.functions.invoke('geocodificar-endereco', {
+        body: { cep: im.cep, endereco: im.endereco, numero: im.numero, bairro: im.bairro, cidade: im.cidade },
+      });
+      if (erroFn || !resultado?.encontrado) {
+        falha++;
+      } else {
+        await supabase.from('imoveis').update({ latitude: resultado.latitude, longitude: resultado.longitude }).eq('id', im.id);
+        if (resultado.precisao === 'endereco' || resultado.precisao === 'endereco_viacep') exatos++;
+        else aproximados++;
+      }
+    } catch {
+      falha++;
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = textoOriginal;
+  const partes = [];
+  if (exatos) partes.push(`${exatos} no endereço exato`);
+  if (aproximados) partes.push(`${aproximados} aproximado${aproximados === 1 ? '' : 's'} (bairro/cidade)`);
+  if (falha) partes.push(`${falha} não encontrado${falha === 1 ? '' : 's'}`);
+  toast(`Coordenadas geradas: ${partes.join(', ')}.`, falha > 0 && exatos === 0 && aproximados === 0);
+  loadImoveis();
+});
+
 // =====================================================================
 // SELEÇÃO E EXPORTAÇÃO DE XML PARA PORTAIS
 // =====================================================================
