@@ -2744,8 +2744,8 @@ async function imovelForm(im = {}) {
       <div class="form-row full"><label>Proximidades (separe por vírgula)</label><input id="im-proximidades" value="${(im.proximidades || []).join(', ')}" placeholder="Ex: Escola, Supermercado, Farmácia"></div>
       <div class="form-row full"><label>Vídeo (link do YouTube)</label><input id="im-video-url" type="url" value="${im.video_url || ''}" placeholder="https://www.youtube.com/watch?v=..."></div>
       <div class="form-row full"><label>Tour virtual 360° (link)</label><input id="im-tour-virtual" type="url" value="${im.tour_virtual_url || ''}" placeholder="https://..."></div>
-      <div class="form-row"><label>Latitude</label><input id="im-latitude" type="number" step="0.000001" value="${im.latitude ?? ''}" placeholder="Ex: -25.6467"></div>
-      <div class="form-row"><label>Longitude</label><input id="im-longitude" type="number" step="0.000001" value="${im.longitude ?? ''}" placeholder="Ex: -49.3086"></div>
+      <div class="form-row"><label>Latitude</label><input id="im-latitude" type="number" step="any" value="${im.latitude ?? ''}" placeholder="Ex: -25.6467"></div>
+      <div class="form-row"><label>Longitude</label><input id="im-longitude" type="number" step="any" value="${im.longitude ?? ''}" placeholder="Ex: -49.3086"></div>
       <p style="grid-column:1/-1;font-size:.75rem;margin:-6px 0 0;">Dica: abra o imóvel no Google Maps, clique com o botão direito no local exato e copie as coordenadas.</p>
       <div class="form-row full upload-row">
         <label>Fotos do imóvel — clique na estrela pra escolher a foto principal (capa)</label>
