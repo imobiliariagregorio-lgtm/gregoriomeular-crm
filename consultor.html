@@ -445,6 +445,7 @@
   Taxas MCMV e subsídio Caixa por faixa de renda são estimativas. Cohapar considerado apenas para os empreendimentos habilitados no programa (renda até R$ 6.450 — subsídio de R$ 20.000, ou R$ 80.000 para responsável com 60+ anos).
   <b>Crédito associativo</b> (apoio à produção): banco financia 80% do valor de avaliação, liberado só após a entrega das chaves; os 20% restantes (já abatidos de Cohapar/subsídio Caixa) são pagos via sinal de ato + até 3 balões (≈55% da renda cada) + parcelamento com a construtora em até 48 meses (fluxo de obras, prazo padrão — confirme o real com cada incorporadora). Durante a obra o cliente também paga "apoio à produção" (juros de obra), que começa por volta de R$ 300/mês e aumenta com o andamento — não incluído no cálculo fechado, pois varia mês a mês por incorporadora.
   Alguns empreendimentos (ex: Venezian, Vivale Garden, Mendoza) têm <b>regra especial de aprovação</b>: renda mínima fixa (aceitando holerite ou renda informal/autônoma) e sinal de ato com valor fixo, cadastrados individualmente no imóvel.
+  <b>Regras de fiador e pró-soluto</b> variam por empreendimento (Treviso, Creta, Milos, Colinas do Norte, California III, Solar do Vale Veneza/Nações, Venezian) e aparecem automaticamente como aviso no card do imóvel quando aplicável — sempre confirme com o gestor antes de repassar a condição ao cliente.
 </footer>
 
 <script>
@@ -554,6 +555,39 @@ function modalidadeCliente(cli){
   return 'mcmv';
 }
 const MODALIDADE_LABEL = { mcmv:'MCMV', sbpe:'SBPE (convencional)', investidor:'Crédito Investidor' };
+
+/* =========================================================
+   REGRAS DE FIADOR / PRÓ-SOLUTO POR EMPREENDIMENTO
+   Fonte: manual de treinamento dos simuladores (Treèle, RSV Veneza,
+   California III, Solar Nações, Sevilha). Casadas por título/bairro
+   porque cada incorporadora nomeia o "grupo_empreendimento" de um jeito.
+   ========================================================= */
+const FIADOR_RULES = [
+  { test: (t)=> t.includes('treviso'),
+    msg: 'Exige fiador (2 sem bem, ou 1 com bem ≥30% da dívida) para parcelar a entrada com a construtora — não aceita balão pós-chaves.' },
+  { test: (t)=> t.includes('creta'),
+    msg: 'Exige fiador (2 sem bem, ou 1 com bem) para parcelar a entrada com a construtora — não aceita balão pós-chaves.' },
+  { test: (t)=> t.includes('milos'),
+    msg: 'Exige fiador (2 sem bem, ou 1 com bem) para parcelar a entrada com a construtora.' },
+  { test: (t)=> t.includes('colinas do norte'),
+    msg: 'Fiador varia pelo saldo devedor: até R$ 15 mil = 1 fiador; de R$ 15 a 25 mil = 2 fiadores; acima de R$ 25 mil = 2 fiadores + bem de garantia compatível.' },
+  { test: (t)=> t.includes('california'),
+    msg: 'Pró-soluto dispensa fiador em até 57 parcelas (usa também score de avaliação do cliente) — acima disso a incorporadora exige fiador, confirme com o gestor.' },
+  { test: (t,b)=> t.includes('solar do vale') && b.includes('naç'),
+    msg: 'Pró-soluto máx. 20% do valor de venda. Dispensa fiador em até 80 parcelas.' },
+  { test: (t,b)=> t.includes('solar do vale') && b.includes('venez'),
+    msg: 'Pró-soluto máx. 15% do valor de venda. Dispensa fiador em até 36 parcelas.' },
+  { test: (t)=> t.includes('venezian'),
+    msg: 'Reforço permitido = 60% da renda do cliente — não negocie reforço acima desse teto.' },
+  { test: (t)=> t.includes('sevilha'),
+    msg: 'Fluxo simples desse empreendimento não calcula pró-soluto/fiador automaticamente na planilha — confirme manualmente com o gestor antes de fechar.' },
+];
+function regraFiadorTxt(r){
+  const t = (r.empreendimento||'').toLowerCase();
+  const b = (r.bairro||'').toLowerCase();
+  const found = FIADOR_RULES.find(rule => rule.test(t,b));
+  return found ? found.msg : null;
+}
 
 function analisar(im, cli){
   const { empreendimento, unidade, codigo, cidade, bairro, tipo, quartos, area, faseObra, previsaoEntrega,
@@ -732,8 +766,10 @@ function reasonsHtml(r, cli){
   if (cli.restricao) extra.push('⚠ Cliente com restrição no CPF — análise de crédito pode travar, confirme antes de avançar');
 
   let warnItems = [];
-  if (r.empreendimento.toLowerCase().includes('treviso') && !cli.temFiador){
-    warnItems.push('Treviso/Trelle exige fiador (1 com bem ≥30% da dívida ou 2 sem bem) para parcelar a entrada — cliente ainda não confirmou ter fiador');
+  const regraF = r.associativo ? regraFiadorTxt(r) : null;
+  if (regraF){
+    const semConfirmar = cli.temFiador !== 'sim' && !regraF.toLowerCase().includes('reforço');
+    warnItems.push(`<b>Regra específica deste empreendimento:</b> ${regraF}${semConfirmar ? ' — cliente ainda não confirmou ter fiador, verifique antes de avançar.' : ''}`);
   }
 
   let html = items.map(it=>`<li class="${it.cls}"><span class="ico">${it.ico}</span>${it.txt}</li>`).join('');
