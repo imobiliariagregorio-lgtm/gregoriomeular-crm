@@ -3668,7 +3668,7 @@ function bindImovelForm(im = {}) {
 // =====================================================================
 // PESSOAS
 // =====================================================================
-const PAPEIS = ['proprietario', 'inquilino', 'comprador', 'vendedor', 'locador', 'construtor', 'incorporadora'];
+const PAPEIS = ['proprietario', 'inquilino', 'comprador', 'vendedor', 'locador', 'construtor', 'incorporadora', 'interessado_compra', 'interessado_locacao'];
 
 let pessoasCache = [];
 let pessoasPagina = 1;
@@ -3687,7 +3687,7 @@ function iniciais(nome) {
   return ((partes[0]?.[0] || '') + (partes[partes.length - 1]?.[0] || '')).toUpperCase();
 }
 
-const PAPEL_LABEL = { proprietario: 'Proprietário', locatario: 'Locatário', comprador: 'Comprador', locador: 'Locador', lead: 'Lead', fiador: 'Fiador' };
+const PAPEL_LABEL = { proprietario: 'Proprietário', locatario: 'Locatário', inquilino: 'Inquilino', comprador: 'Comprador', vendedor: 'Vendedor', locador: 'Locador', construtor: 'Construtor', incorporadora: 'Incorporadora', interessado_compra: 'Interessado Compra', interessado_locacao: 'Interessado Locação', lead: 'Lead', fiador: 'Fiador' };
 
 function renderPessoasTable() {
   const wrap = $('#pessoasCards');
@@ -3773,7 +3773,7 @@ async function pessoaForm(p = {}) {
       <div class="form-row"><label>CEP</label><input id="p-cep" value="${p.cep || ''}"></div>
       <div class="form-row full" style="display:flex;gap:16px;flex-wrap:wrap;">
         ${PAPEIS.map((papel) => `
-          <label class="check-row"><input type="checkbox" class="p-papel" value="${papel}" ${papeis.includes(papel) ? 'checked' : ''}> ${papel}</label>
+          <label class="check-row"><input type="checkbox" class="p-papel" value="${papel}" ${papeis.includes(papel) ? 'checked' : ''}> ${PAPEL_LABEL[papel] || papel}</label>
         `).join('')}
       </div>
       <div class="form-row full"><label>Observações</label><textarea id="p-obs" rows="2">${p.observacoes || ''}</textarea></div>
