@@ -1180,10 +1180,32 @@ document.addEventListener('click', async (e) => {
       <p><strong>Telefone:</strong> ${l.telefone}</p>
       <p><strong>E-mail:</strong> ${l.email || '—'}</p>
       <p><strong>Origem:</strong> ${l.origem}</p>
-      <p><strong>Interesse:</strong> ${l.interesse || '—'}</p>
       <p><strong>Observações:</strong> ${l.observacoes || '—'}</p>
       ${l.status === 'perdido' && l.motivo_perda ? `<p><strong>Motivo da perda:</strong> ${l.motivo_perda}</p>` : ''}
       <p><strong>Criado em:</strong> ${dateTime(l.criado_em)}</p>
+
+      <h3 style="margin-top:18px;">🔎 Busca do cliente</h3>
+      <form class="modal-form" id="leadBuscaForm">
+        <div class="form-row"><label>Interesse</label>
+          <select id="lb-interesse">
+            ${INTERESSES_LEAD.map((i) => `<option value="${i}" ${i === l.interesse ? 'selected' : ''}>${i.replace(/_/g, ' ')}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row"><label>Tipo de imóvel</label>
+          <select id="lb-tipo">
+            <option value="">— Qualquer —</option>
+            ${TIPOS_IMOVEL.map((t) => `<option value="${t}" ${t === l.tipo_imovel_busca ? 'selected' : ''}>${t.replace(/_/g, ' ')}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row full"><label>Região / bairro desejado</label><input id="lb-regiao" value="${l.regiao_busca || ''}" placeholder="Ex: Eucaliptos, Veneza, próximo à BR-116..."></div>
+        <div class="form-row"><label>Valor mínimo</label><input id="lb-valor-min" type="number" step="0.01" value="${l.valor_min ?? ''}" placeholder="R$"></div>
+        <div class="form-row"><label>Valor máximo</label><input id="lb-valor-max" type="number" step="0.01" value="${l.valor_max ?? ''}" placeholder="R$"></div>
+        <div class="form-row"><label>Quartos (mínimo)</label><input id="lb-quartos" type="number" min="0" value="${l.quartos_min ?? ''}"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary btn-sm">💾 Salvar busca</button>
+        </div>
+      </form>
+
       <h3 style="margin-top:18px;">Histórico de interações</h3>
       <div class="interacoes-lista" id="leadInteracoesLista"><p class="table-empty">Carregando...</p></div>
       <form class="modal-form interacao-form" id="interacaoForm" style="margin-top:10px;">
@@ -1210,6 +1232,22 @@ document.addEventListener('click', async (e) => {
       </form>
     `);
     carregarInteracoesLead(l.id);
+    $('#leadBuscaForm').addEventListener('submit', async (e3) => {
+      e3.preventDefault();
+      const payload = {
+        interesse: $('#lb-interesse').value,
+        tipo_imovel_busca: $('#lb-tipo').value || null,
+        regiao_busca: $('#lb-regiao').value.trim() || null,
+        valor_min: $('#lb-valor-min').value ? Number($('#lb-valor-min').value) : null,
+        valor_max: $('#lb-valor-max').value ? Number($('#lb-valor-max').value) : null,
+        quartos_min: $('#lb-quartos').value ? Number($('#lb-quartos').value) : null,
+      };
+      const { error } = await supabase.from('leads').update(payload).eq('id', l.id);
+      if (error) { toast('Não foi possível salvar a busca.', true); console.error(error); return; }
+      toast('Busca do cliente atualizada.');
+      loadLeads();
+      if ($('#view-funil') && !$('#view-funil').hidden) loadFunil();
+    });
     $('#interacaoForm').addEventListener('submit', async (e2) => {
       e2.preventDefault();
       const mensagem = $('#int-mensagem').value.trim();
