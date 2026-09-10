@@ -3820,6 +3820,7 @@ async function pessoaForm(p = {}) {
         ${p.auth_user_id ? `
           <label>Acesso ao Portal do Proprietário</label>
           <p class="imovel-card-meta">✅ Já tem acesso criado, com o e-mail ${p.email || 'cadastrado'}.</p>
+          <button type="button" class="btn btn-ghost btn-sm" id="resetarSenhaPortalBtn" data-pessoa-id="${p.id}">🔄 Resetar senha</button>
         ` : `
           <label>Acesso ao Portal do Proprietário</label>
           <p class="imovel-card-meta" style="margin-bottom:6px;">Ainda não tem login. Confirme o e-mail e clique em criar — a senha temporária aparece na hora, pra você passar ao proprietário.</p>
@@ -3915,6 +3916,42 @@ document.addEventListener('click', async (e) => {
 
 function bindPessoaForm() {
   $('#cancelPessoa').addEventListener('click', closeModal);
+
+  $('#resetarSenhaPortalBtn')?.addEventListener('click', async () => {
+    const btn = $('#resetarSenhaPortalBtn');
+    const pessoaId = btn.dataset.pessoaId;
+    if (!confirm('Isso invalida a senha atual dela e gera uma nova. Confirma?')) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Resetando...';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: resultado, error } = await supabase.functions.invoke('resetar-senha-proprietario', {
+        body: { pessoa_id: pessoaId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error || !resultado?.sucesso) {
+        toast('Erro: ' + (resultado?.erro || error?.message || 'não foi possível resetar.'), true);
+        btn.disabled = false;
+        btn.textContent = '🔄 Resetar senha';
+        return;
+      }
+      $('#acessoPortalWrap').innerHTML = `
+        <label>Acesso ao Portal do Proprietário</label>
+        <p class="imovel-card-meta">✅ Senha resetada! Passe pro proprietário:</p>
+        <p style="font-family:monospace;background:var(--navy-800);padding:10px;border-radius:8px;margin-top:6px;">
+          Site: imoveisgregorio.com.br/portal-proprietario<br>
+          E-mail: ${resultado.email}<br>
+          Nova senha: ${resultado.nova_senha}
+        </p>
+      `;
+      toast('Senha resetada com sucesso.');
+    } catch (err) {
+      toast('Erro ao resetar: ' + err.message, true);
+      btn.disabled = false;
+      btn.textContent = '🔄 Resetar senha';
+    }
+  });
 
   $('#criarAcessoPortalBtn')?.addEventListener('click', async () => {
     const btn = $('#criarAcessoPortalBtn');
