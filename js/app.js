@@ -3937,7 +3937,10 @@ function bindPessoaForm() {
         btn.textContent = '🔑 Criar acesso ao Portal';
         return;
       }
-      $('#acessoPortalWrap').innerHTML = `
+      $('#acessoPortalWrap').innerHTML = resultado.ja_existia ? `
+        <label>Acesso ao Portal do Proprietário</label>
+        <p class="imovel-card-meta">✅ Vinculado ao login que já existia com o e-mail ${resultado.email} (mesmo acesso de outra pessoa da família). Os imóveis dela aparecem juntos no mesmo portal, com a mesma senha de sempre.</p>
+      ` : `
         <label>Acesso ao Portal do Proprietário</label>
         <p class="imovel-card-meta">✅ Acesso criado! Passe esses dados pro proprietário:</p>
         <p style="font-family:monospace;background:var(--navy-800);padding:10px;border-radius:8px;margin-top:6px;">
