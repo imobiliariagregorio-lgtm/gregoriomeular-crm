@@ -3815,9 +3815,19 @@ async function pessoaForm(p = {}) {
         `).join('')}
       </div>
       <div class="form-row full"><label>Observações</label><textarea id="p-obs" rows="2">${p.observacoes || ''}</textarea></div>
-      ${podeVerFinanceiro ? `
-      <div class="form-row full"><label>ID de acesso ao Portal do Proprietário (Auth User ID)</label>
-        <input id="p-auth-user-id" value="${p.auth_user_id || ''}" placeholder="Cole aqui o UID depois de criar o login em Supabase → Authentication → Users">
+      ${podeVerFinanceiro && papeis.includes('proprietario') ? `
+      <div class="form-row full" id="acessoPortalWrap">
+        ${p.auth_user_id ? `
+          <label>Acesso ao Portal do Proprietário</label>
+          <p class="imovel-card-meta">✅ Já tem acesso criado, com o e-mail ${p.email || 'cadastrado'}.</p>
+        ` : `
+          <label>Acesso ao Portal do Proprietário</label>
+          <p class="imovel-card-meta" style="margin-bottom:6px;">Ainda não tem login. Confirme o e-mail e clique em criar — a senha temporária aparece na hora, pra você passar ao proprietário.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <input id="p-email-acesso" type="email" value="${p.email || ''}" placeholder="e-mail do proprietário" style="flex:1;min-width:220px;">
+            <button type="button" class="btn btn-ghost btn-sm" id="criarAcessoPortalBtn" data-pessoa-id="${p.id || ''}">🔑 Criar acesso ao Portal</button>
+          </div>
+        `}
       </div>` : ''}
       ${p.id ? `
       <div class="form-row full">
@@ -3905,6 +3915,46 @@ document.addEventListener('click', async (e) => {
 
 function bindPessoaForm() {
   $('#cancelPessoa').addEventListener('click', closeModal);
+
+  $('#criarAcessoPortalBtn')?.addEventListener('click', async () => {
+    const btn = $('#criarAcessoPortalBtn');
+    const pessoaId = btn.dataset.pessoaId;
+    const email = $('#p-email-acesso').value.trim();
+    if (!pessoaId) { toast('Salve a pessoa primeiro, depois abra de novo pra criar o acesso.', true); return; }
+    if (!email) { toast('Informe o e-mail do proprietário.', true); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Criando...';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: resultado, error } = await supabase.functions.invoke('criar-acesso-proprietario', {
+        body: { pessoa_id: pessoaId, email },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error || !resultado?.sucesso) {
+        toast('Erro: ' + (resultado?.erro || error?.message || 'não foi possível criar o acesso.'), true);
+        btn.disabled = false;
+        btn.textContent = '🔑 Criar acesso ao Portal';
+        return;
+      }
+      $('#acessoPortalWrap').innerHTML = `
+        <label>Acesso ao Portal do Proprietário</label>
+        <p class="imovel-card-meta">✅ Acesso criado! Passe esses dados pro proprietário:</p>
+        <p style="font-family:monospace;background:var(--navy-800);padding:10px;border-radius:8px;margin-top:6px;">
+          Site: imoveisgregorio.com.br/portal-proprietario<br>
+          E-mail: ${resultado.email}<br>
+          Senha temporária: ${resultado.senha_temporaria}
+        </p>
+        <p class="imovel-card-meta">Ele pode trocar a senha depois em "Esqueci minha senha" no próprio portal.</p>
+      `;
+      toast('Acesso criado com sucesso.');
+    } catch (err) {
+      toast('Erro ao criar acesso: ' + err.message, true);
+      btn.disabled = false;
+      btn.textContent = '🔑 Criar acesso ao Portal';
+    }
+  });
+
   $('#pessoaForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('#p-id').value;
@@ -3966,9 +4016,6 @@ function bindPessoaForm() {
       papeis,
       observacoes: $('#p-obs').value.trim() || null,
     };
-    if (podeVerFinanceiro && $('#p-auth-user-id')) {
-      payload.auth_user_id = $('#p-auth-user-id').value.trim() || null;
-    }
     payload.corretor_responsavel_id = $('#p-corretor').value || (!id ? currentUsuario?.id : null) || null;
 
     const { error } = id
