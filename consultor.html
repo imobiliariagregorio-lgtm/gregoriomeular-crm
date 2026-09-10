@@ -441,7 +441,7 @@
 <footer class="note">
   Simulação de pré-qualificação para uso interno da equipe comercial — não substitui a análise oficial do banco/Caixa/Cohapar/construtora.
   Os imóveis exibidos são buscados ao vivo do CRM (lançamentos com status disponível).
-  <b>Modalidade do cliente</b> é definida automaticamente: Investimento → Crédito Investidor; não é o primeiro imóvel ou renda acima de R$ 12.000 → SBPE (financiamento convencional, sem Cohapar/subsídio Caixa); caso contrário → MCMV.
+  <b>Modalidade do cliente</b> é definida automaticamente: Investimento → Crédito Investidor; não é o primeiro imóvel ou renda acima de R$ 13.000 → SBPE (financiamento convencional, sem Cohapar/subsídio Caixa); caso contrário → MCMV.
   Taxas MCMV e subsídio Caixa por faixa de renda são estimativas. Cohapar considerado apenas para os empreendimentos habilitados no programa (renda até R$ 6.450 — subsídio de R$ 20.000, ou R$ 80.000 para responsável com 60+ anos).
   <b>Crédito associativo</b> (apoio à produção): banco financia 80% do valor de avaliação, liberado só após a entrega das chaves; os 20% restantes (já abatidos de Cohapar/subsídio Caixa) são pagos via sinal de ato + até 3 balões (≈55% da renda cada) + parcelamento com a construtora em até 48 meses (fluxo de obras, prazo padrão — confirme o real com cada incorporadora). Durante a obra o cliente também paga "apoio à produção" (juros de obra), que começa por volta de R$ 300/mês e aumenta com o andamento — não incluído no cálculo fechado, pois varia mês a mês por incorporadora.
   Alguns empreendimentos (ex: Venezian, Vivale Garden, Mendoza) têm <b>regra especial de aprovação</b>: renda mínima fixa (aceitando holerite ou renda informal/autônoma) e sinal de ato com valor fixo, cadastrados individualmente no imóvel.
@@ -514,9 +514,12 @@ const ASSUMP = {
   prazoMeses: { mcmv: 420, conv: 360 },
   comprometimento: 0.30,
   cohapar: { geral: 20000, idoso: 80000, rendaMax: 6450 },
-  caixaFaixas: [[2850, 55000], [4700, 35000], [8600, 0], [12000, 0]],
-  taxaFaixasMcmv: [[2850, 0.045], [4700, 0.07], [8600, 0.09], [12000, 0.105]],
-  mcmvRendaTeto: 12000,
+  // Faixas MCMV atualizadas (regras novas): Faixa 1 até R$3.200 (subsídio até R$55.000, cobre até 95% do imóvel),
+  // Faixa 2 de R$3.200,01 a R$5.000 (subsídio decrescente e proporcional à renda, até R$55.000 no piso da faixa),
+  // Faixa 3 de R$5.000,01 a R$9.600 (sem subsídio, só juros reduzidos), Faixa 4 até R$13.000 (sem subsídio).
+  faixasRendaMcmv: [3200, 5000, 9600, 13000],
+  taxaFaixasMcmv: [[3200, 0.045], [5000, 0.07], [9600, 0.09], [13000, 0.105]],
+  mcmvRendaTeto: 13000,
   baloePctRenda: 0.55,
   fluxoObrasPadrao: 48
 };
@@ -525,8 +528,14 @@ function taxaPorFaixa(renda){
   for (const [lim, taxa] of ASSUMP.taxaFaixasMcmv){ if (renda <= lim) return taxa; }
   return ASSUMP.taxaFaixasMcmv[ASSUMP.taxaFaixasMcmv.length-1][1];
 }
+// Subsídio Caixa por faixa de renda (regras novas do MCMV):
+// Faixa 1 (até R$3.200): subsídio fixo de até R$55.000.
+// Faixa 2 (R$3.200,01 a R$5.000): proporcional à renda — decresce linearmente de R$55.000 (no piso) até R$0 (no teto).
+// Faixa 3 e 4 (acima de R$5.000): sem subsídio Caixa, só juros reduzidos.
 function subsidioCaixaPorFaixa(renda){
-  for (const [lim, val] of ASSUMP.caixaFaixas){ if (renda <= lim) return val; }
+  const [f1, f2] = ASSUMP.faixasRendaMcmv;
+  if (renda <= f1) return 55000;
+  if (renda <= f2) return Math.max(0, 55000 * (1 - (renda - f1) / (f2 - f1)));
   return 0;
 }
 function pmtPrice(principal, taxaAnual, prazoMeses){
@@ -859,7 +868,7 @@ function render(){
   const modalidade = modalidadeCliente(cli);
   const bannerTxt = {
     mcmv: '✓ Cliente se enquadra no MCMV — taxas reduzidas, Cohapar e subsídio Caixa aplicados quando o imóvel permitir.',
-    sbpe: `⚠ Cliente <b>não</b> se enquadra no MCMV (${cli.primeiroImovel!=='sim' ? 'não é o primeiro imóvel' : 'renda acima de R$ 12.000'}) — calculando com financiamento convencional (SBPE), sem Cohapar/subsídio Caixa.`,
+    sbpe: `⚠ Cliente <b>não</b> se enquadra no MCMV (${cli.primeiroImovel!=='sim' ? 'não é o primeiro imóvel' : 'renda acima de R$ 13.000'}) — calculando com financiamento convencional (SBPE), sem Cohapar/subsídio Caixa.`,
     investidor: '⚠ Objetivo de investimento — calculando como Crédito Investidor (taxas de mercado, sem subsídios). Confirme condição específica com o banco.'
   };
   banner.innerHTML = `<div class="modalidade-banner ${modalidade}">${bannerTxt[modalidade]}</div>`;
