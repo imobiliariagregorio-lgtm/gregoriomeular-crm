@@ -6560,6 +6560,8 @@ async function loadConfigSite() {
   $('#cs-creci').value = data.creci || '';
   $('#cs-razao-social').value = data.razao_social || '';
   $('#cs-cnpj').value = data.cnpj || '';
+  $('#cs-ir-inicio').value = data.ir_declaracao_inicio || '';
+  $('#cs-ir-fim').value = data.ir_declaracao_fim || '';
   $('#cs-cidade').value = data.cidade || 'Fazenda Rio Grande';
   $('#cs-estado').value = data.estado || 'PR';
   $('#cs-instagram').value = data.instagram_url || '';
@@ -6594,6 +6596,8 @@ $('#configSiteForm').addEventListener('submit', async (e) => {
     creci: $('#cs-creci').value.trim() || null,
     razao_social: $('#cs-razao-social').value.trim() || null,
     cnpj: $('#cs-cnpj').value.trim() || null,
+    ir_declaracao_inicio: $('#cs-ir-inicio').value || null,
+    ir_declaracao_fim: $('#cs-ir-fim').value || null,
     cidade: $('#cs-cidade').value.trim() || 'Fazenda Rio Grande',
     estado: $('#cs-estado').value.trim().toUpperCase() || 'PR',
     instagram_url: $('#cs-instagram').value.trim() || null,
