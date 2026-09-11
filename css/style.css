@@ -543,6 +543,8 @@ html[data-theme="claro"] .alerta-filtro-banner{background:rgba(255,182,72,.12);c
 .status-pill.status-reprovado,.status-pill.status-cpf_restricao{background:rgba(224,85,95,.2);color:#f0868d;}
 .status-pill.status-em_analise,.status-pill.status-aguardando_assinaturas{background:rgba(255,182,72,.18);color:#ffb648;}
 .status-pill.status-atrasado{background:rgba(224,85,95,.2);color:#f0868d;}
+.tabela-simples{width:100%;border-collapse:collapse;font-size:.85rem;}
+.tabela-simples th,.tabela-simples td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--navy-700);}
 .aprovacao-historico{list-style:none;padding:0;margin:0 0 14px;}
 .aprovacao-historico li{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:.82rem;color:var(--gray-text);}
 .aprovacao-historico li:last-child{border-bottom:none;}

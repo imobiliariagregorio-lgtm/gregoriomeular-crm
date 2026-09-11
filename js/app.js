@@ -5237,6 +5237,7 @@ $$('.financeiro-tab').forEach((btn) => {
     $('#financeiro-repasses').hidden = alvo !== 'repasses';
     $('#financeiro-vendas').hidden = alvo !== 'vendas';
     $('#financeiro-lucro').hidden = alvo !== 'lucro';
+    $('#financeiro-relatorio-ir').hidden = alvo !== 'relatorio-ir';
     // "Nova cobrança" e "Gerar cobranças do mês" só fazem sentido pra locação — somem nas outras abas
     const btnNovaCobranca = $('#newCobrancaBtn');
     if (btnNovaCobranca) btnNovaCobranca.hidden = alvo !== 'locacoes';
@@ -5245,7 +5246,128 @@ $$('.financeiro-tab').forEach((btn) => {
     const notaAuto = $('#financeiroAutoNota');
     if (notaAuto) notaAuto.hidden = alvo !== 'locacoes';
     if (alvo === 'lucro') loadLucro();
+    if (alvo === 'relatorio-ir') carregarProprietariosParaIR();
   });
+});
+
+async function carregarProprietariosParaIR() {
+  const select = $('#irProprietario');
+  if (select.dataset.carregado) return;
+  const { data } = await supabase
+    .from('pessoas')
+    .select('id, nome')
+    .contains('papeis', ['proprietario'])
+    .order('nome');
+  (data || []).forEach((p) => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.nome;
+    select.appendChild(opt);
+  });
+  select.dataset.carregado = '1';
+}
+
+$('#irGerarBtn')?.addEventListener('click', async () => {
+  const proprietarioId = $('#irProprietario').value;
+  const mesInicio = Number($('#irMesInicio').value);
+  const mesFim = Number($('#irMesFim').value);
+  const ano = Number($('#irAno').value);
+  const resultado = $('#irRelatorioResultado');
+  const btnImprimir = $('#irImprimirBtn');
+
+  if (!proprietarioId) { toast('Selecione o proprietário.', true); return; }
+  if (mesFim < mesInicio) { toast('O mês final não pode ser antes do mês inicial.', true); return; }
+
+  const dataInicio = `${ano}-${String(mesInicio).padStart(2, '0')}-01`;
+  const ultimoDiaMesFim = new Date(ano, mesFim, 0).getDate();
+  const dataFim = `${ano}-${String(mesFim).padStart(2, '0')}-${ultimoDiaMesFim}`;
+
+  const { data: proprietario } = await supabase.from('pessoas').select('nome, cpf_cnpj').eq('id', proprietarioId).maybeSingle();
+  const { data: configSite } = await supabase.from('config_site').select('razao_social, cnpj').eq('id', 1).maybeSingle();
+
+  const { data: contratos } = await supabase
+    .from('contratos')
+    .select('id, valor, taxa_administracao_percentual, imoveis(titulo, endereco)')
+    .eq('vendedor_locador_id', proprietarioId)
+    .eq('tipo', 'locacao');
+
+  if (!contratos || !contratos.length) {
+    resultado.innerHTML = '<p class="empty-state">Este proprietário não tem contratos de locação.</p>';
+    btnImprimir.hidden = true;
+    return;
+  }
+
+  let totalGeral = 0;
+  const blocos = [];
+
+  for (const contrato of contratos) {
+    const { data: cobrancas } = await supabase
+      .from('cobrancas')
+      .select('referencia, valor_base, status, cobranca_ajustes(*)')
+      .eq('contrato_id', contrato.id)
+      .gte('referencia', dataInicio)
+      .lte('referencia', dataFim)
+      .order('referencia');
+
+    if (!cobrancas || !cobrancas.length) continue;
+
+    const taxa = Number(contrato.taxa_administracao_percentual || 0);
+    let totalImovel = 0;
+    const linhas = (cobrancas || []).map((cb) => {
+      const bruto = Number(cb.valor_base || 0);
+      let ajusteProprietario = 0;
+      (cb.cobranca_ajustes || []).forEach((a) => {
+        const v = Number(a.valor) || 0;
+        if (a.tipo === 'acrescimo' && a.destino === 'proprietario') ajusteProprietario += v;
+        if (a.tipo === 'desconto' && a.destino === 'proprietario') ajusteProprietario += v;
+        if (a.tipo === 'desconto' && a.origem === 'proprietario') ajusteProprietario -= v;
+      });
+      const liquido = bruto * (1 - taxa / 100) + ajusteProprietario;
+      totalImovel += liquido;
+      totalGeral += liquido;
+      const [ay, am] = cb.referencia.split('-');
+      const nomesMesesAbrev = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      return `<tr><td>${nomesMesesAbrev[Number(am)]}/${ay}</td><td>${money(liquido)}</td><td>${cb.status}</td></tr>`;
+    }).join('');
+
+    blocos.push(`
+      <div class="panel" style="margin-top:16px;">
+        <h3 style="margin:0 0 8px;">${contrato.imoveis?.titulo || 'Imóvel'} — ${contrato.imoveis?.endereco || ''}</h3>
+        <table class="tabela-simples">
+          <thead><tr><th>Mês</th><th>Valor repassado</th><th>Status</th></tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+        <p style="text-align:right;font-weight:700;margin-top:8px;">Subtotal do imóvel: ${money(totalImovel)}</p>
+      </div>
+    `);
+  }
+
+  const nomesMeses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+  resultado.innerHTML = `
+    <div id="irRelatorioImprimivel" class="panel" style="margin-top:20px;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <h2 style="margin:0;">${configSite?.razao_social || 'Gregório | Meu Lar Imóveis'}</h2>
+        <p style="margin:2px 0;">CNPJ: ${configSite?.cnpj || '—'}</p>
+        <h3 style="margin:16px 0 0;">Relatório de repasses para fins de Imposto de Renda</h3>
+        <p>Proprietário: <strong>${proprietario?.nome || ''}</strong>${proprietario?.cpf_cnpj ? ' — CPF/CNPJ: ' + proprietario.cpf_cnpj : ''}</p>
+        <p>Período: ${nomesMeses[mesInicio]} a ${nomesMeses[mesFim]} de ${ano}</p>
+      </div>
+      ${blocos.join('')}
+      <h2 style="text-align:right;margin-top:24px;border-top:2px solid var(--navy-900);padding-top:12px;">Total repassado no período: ${money(totalGeral)}</h2>
+      <p style="font-size:.75rem;color:var(--gray-text);margin-top:16px;">Este relatório reflete os valores efetivamente repassados pela administradora ao proprietário no período selecionado, já descontada a taxa de administração e ajustados eventuais créditos/débitos lançados. Não substitui orientação de um contador.</p>
+    </div>
+  `;
+  btnImprimir.hidden = false;
+});
+
+$('#irImprimirBtn')?.addEventListener('click', () => {
+  const conteudo = $('#irRelatorioImprimivel').outerHTML;
+  const janela = window.open('', '_blank');
+  janela.document.write(`<html><head><title>Relatório IR</title><link rel="stylesheet" href="css/style.css"></head><body style="padding:24px;">${conteudo}</body></html>`);
+  janela.document.close();
+  janela.focus();
+  setTimeout(() => janela.print(), 300);
 });
 
 async function loadVendas() {

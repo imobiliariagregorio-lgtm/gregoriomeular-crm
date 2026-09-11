@@ -415,6 +415,32 @@
         <button class="financeiro-tab" data-financeiro-tab="repasses">Repasses</button>
         <button class="financeiro-tab" data-financeiro-tab="vendas">Vendas</button>
         <button class="financeiro-tab" data-financeiro-tab="lucro">Lucro do mês</button>
+        <button class="financeiro-tab" data-financeiro-tab="relatorio-ir">Relatório IR (proprietário)</button>
+      </div>
+
+      <div id="financeiro-relatorio-ir" class="financeiro-painel" hidden>
+        <div class="panel">
+          <div class="panel-head"><h2>Relatório para Imposto de Renda</h2><p style="margin:0;">Total repassado ao proprietário no período — pra ele declarar no IRPF</p></div>
+          <div class="filters-bar" style="flex-wrap:wrap;gap:12px;">
+            <select id="irProprietario" style="min-width:260px;"><option value="">Selecione o proprietário...</option></select>
+            <select id="irMesInicio">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+              <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+              <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <select id="irMesFim">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+              <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option><option value="9" selected>Setembro</option>
+              <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <input type="number" id="irAno" value="2026" style="width:100px;">
+            <button class="btn btn-primary btn-sm" id="irGerarBtn">Gerar relatório</button>
+            <button class="btn btn-ghost btn-sm" id="irImprimirBtn" hidden>🖨️ Imprimir / Salvar PDF</button>
+          </div>
+          <div id="irRelatorioResultado"></div>
+        </div>
       </div>
 
       <div id="financeiro-locacoes" class="financeiro-painel">
