@@ -5030,7 +5030,7 @@ function renderCobrancasCards() {
     : cobrancasCache;
 
   if (filtroCobrancasAtraso) filtradas = filtradas.filter((cb) => cb.statusReal === 'atrasado');
-  if (filtroFaixaVencimento) filtradas = filtradas.filter((cb) => String(cb.diaRepasse) === filtroFaixaVencimento);
+  if (filtroFaixaVencimento) filtradas = filtradas.filter((cb) => String(cb.diaRepasse) === filtroFaixaVencimento && cb.statusReal !== 'pago');
 
   const bannerCobr = $('#cobrancasAlertaBanner');
   if (bannerCobr) {
