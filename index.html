@@ -446,6 +446,12 @@
       <div id="financeiro-locacoes" class="financeiro-painel">
         <div id="locacoesResumo" class="about-stats"></div>
         <div id="cobrancasSecao">
+          <div class="filters-bar" style="gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm faixa-vencimento-btn active" data-faixa="">Todos os vencimentos</button>
+            <button class="btn btn-sm faixa-vencimento-btn" data-faixa="12">Vence 03 a 12 (repassa dia 12)</button>
+            <button class="btn btn-sm faixa-vencimento-btn" data-faixa="22">Vence 13 a 22 (repassa dia 22)</button>
+            <button class="btn btn-sm faixa-vencimento-btn" data-faixa="02">Vence 23 a 02 (repassa dia 02)</button>
+          </div>
           <div class="filters-bar"><input type="search" id="cobrancasSearch" placeholder="Buscar por imóvel ou cliente..."></div>
           <div id="cobrancasAlertaBanner" class="alerta-filtro-banner" hidden></div>
           <div id="cobrancasGrupos"></div>

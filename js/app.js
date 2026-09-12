@@ -734,6 +734,7 @@ let filtroImoveisFeed = false;
 let filtroCobrancasAtraso = false;
 let filtroRepassesAtraso = false;
 let filtroDiaRepasse = '';
+let filtroFaixaVencimento = '';
 let idsImoveisFeedProblema = [];
 let motivosImoveisFeedProblema = new Map();
 let idsCobrancasAtraso = new Set();
@@ -5029,6 +5030,7 @@ function renderCobrancasCards() {
     : cobrancasCache;
 
   if (filtroCobrancasAtraso) filtradas = filtradas.filter((cb) => cb.statusReal === 'atrasado');
+  if (filtroFaixaVencimento) filtradas = filtradas.filter((cb) => String(cb.diaRepasse) === filtroFaixaVencimento);
 
   const bannerCobr = $('#cobrancasAlertaBanner');
   if (bannerCobr) {
@@ -5229,6 +5231,16 @@ async function loadRepasses() {
 // FINANCEIRO — VENDAS (honorários e comissão do corretor)
 // =====================================================================
 let vendasCache = [];
+
+$$('.faixa-vencimento-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    $$('.faixa-vencimento-btn').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    const faixa = btn.dataset.faixa || '';
+    filtroFaixaVencimento = faixa === '02' ? '2' : faixa; // dia_repasse no banco é número (2), não "02"
+    renderCobrancasCards();
+  });
+});
 
 $$('.dia-repasse-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
