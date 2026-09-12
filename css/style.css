@@ -413,6 +413,7 @@ select.status-select{background:var(--navy-800);color:var(--white);border:1px so
 }
 .financeiro-tab:hover{color:var(--white);}
 .financeiro-tab.active{color:var(--orange);border-bottom-color:var(--orange);}
+.dia-repasse-btn.active{background:var(--orange);color:#fff;border-color:var(--orange);}
 .financeiro-painel{}
 
 /* Destaque do 1º aluguel (comissão de fechamento do corretor) */

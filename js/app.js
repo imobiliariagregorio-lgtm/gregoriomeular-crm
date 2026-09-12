@@ -733,6 +733,7 @@ let filtroImoveisSemFoto = false;
 let filtroImoveisFeed = false;
 let filtroCobrancasAtraso = false;
 let filtroRepassesAtraso = false;
+let filtroDiaRepasse = '';
 let idsImoveisFeedProblema = [];
 let motivosImoveisFeedProblema = new Map();
 let idsCobrancasAtraso = new Set();
@@ -5166,6 +5167,7 @@ async function loadRepasses() {
   });
 
   if (filtroRepassesAtraso) linhas = linhas.filter((l) => l.statusRepasse === 'atrasado');
+  if (filtroDiaRepasse) linhas = linhas.filter((l) => String(l.contrato.dia_repasse) === filtroDiaRepasse);
 
   const bannerRep = $('#repassesAlertaBanner');
   if (bannerRep) {
@@ -5227,6 +5229,15 @@ async function loadRepasses() {
 // FINANCEIRO — VENDAS (honorários e comissão do corretor)
 // =====================================================================
 let vendasCache = [];
+
+$$('.dia-repasse-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    $$('.dia-repasse-btn').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    filtroDiaRepasse = btn.dataset.diaRepasse || '';
+    loadRepasses();
+  });
+});
 
 $$('.financeiro-tab').forEach((btn) => {
   btn.addEventListener('click', () => {
