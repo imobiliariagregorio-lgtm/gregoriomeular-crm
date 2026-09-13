@@ -567,7 +567,7 @@ async function carregarPainelExecutivoLocacao() {
     // Repasses a fazer: cobranças já pagas pelo inquilino neste mês — usa a
     // mesma fórmula da tela "Repasses" (valor_base × (1 − taxa) + ajustes).
     supabase.from('cobrancas')
-      .select('id,valor_base,referencia,repasse_efetivado_em,contratos!inner(tipo,taxa_administracao_percentual,dia_repasse,imoveis(titulo),pessoas!contratos_vendedor_locador_id_fkey(nome)),cobranca_ajustes(*)')
+      .select('id,valor_base,referencia,repasse_efetivado_em,contratos!inner(tipo,taxa_administracao_percentual,dia_repasse,data_inicio,retem_primeiro_aluguel,imoveis(titulo),pessoas!contratos_vendedor_locador_id_fkey(nome)),cobranca_ajustes(*)')
       .eq('contratos.tipo', 'locacao')
       .not('data_pagamento', 'is', null)
       .gte('referencia', inicioMesIso),
@@ -605,9 +605,14 @@ async function carregarPainelExecutivoLocacao() {
     const contrato = cb.contratos || {};
     const taxa = contrato.taxa_administracao_percentual ?? 10;
     const { ajusteProprietario } = calcularAjustes(cb.cobranca_ajustes || []);
-    const repasseBase = Math.round(Number(cb.valor_base) * (1 - taxa / 100) * 100) / 100;
+    // 1º aluguel 100% imobiliária: só zera o repasse se ainda não foi efetivado
+    // (não reescreve repasses antigos já marcados como feitos).
+    const primeiroAluguelRetido = (contrato.retem_primeiro_aluguel ?? true)
+      && ehMesDoPrimeiroAluguel(contrato.data_inicio, cb.referencia)
+      && !cb.repasse_efetivado_em;
+    const repasseBase = primeiroAluguelRetido ? 0 : Math.round(Number(cb.valor_base) * (1 - taxa / 100) * 100) / 100;
     const repasse = Math.round((repasseBase + ajusteProprietario) * 100) / 100;
-    return { ...cb, contrato, taxa, repasse, diaRepasse: contrato.dia_repasse ?? null };
+    return { ...cb, contrato, taxa, repasse, primeiroAluguelRetido, diaRepasse: contrato.dia_repasse ?? null };
   });
   const totalRepassesMes = repassesCalc.reduce((s, r) => s + r.repasse, 0);
 
@@ -625,7 +630,7 @@ async function carregarPainelExecutivoLocacao() {
 
   const diaHoje = hoje.getDate();
   const recebimentosAtraso = cobrancasCalc.filter((cb) => cb.diasAtraso > 0);
-  const repassesAtraso = repassesCalc.filter((r) => r.diaRepasse && r.diaRepasse < diaHoje && !r.repasse_efetivado_em);
+  const repassesAtraso = repassesCalc.filter((r) => r.diaRepasse && r.diaRepasse < diaHoje && !r.repasse_efetivado_em && !r.primeiroAluguelRetido);
   const imoveisProblemaFeed = diagnosticarImoveisFeedImovelweb(imoveisFeedIw || []);
 
   idsImoveisFeedProblema = imoveisProblemaFeed.map((im) => im.id);
@@ -4660,6 +4665,10 @@ async function contratoForm(c = {}) {
       <div class="form-row"><label>Juros diário (%)</label><input type="number" step="0.1" id="c-juros" value="${c.juros_diario_percentual ?? 1}"></div>
       <p class="full" style="font-size:.75rem;color:var(--gray-text);margin:-6px 0 4px;">Estes são os percentuais usados <em>se</em> você escolher cobrar a multa/juros. Não é automático: em Financeiro, cada cobrança em atraso tem o botão "Cobrar multa/juros".</p>
       <div class="form-row"><label>Taxa de administração (%)</label><input type="number" step="0.1" id="c-taxa-adm" value="${c.taxa_administracao_percentual ?? 10}"></div>
+      <div class="form-row full" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="c-retem-1-aluguel" ${(c.retem_primeiro_aluguel ?? true) ? 'checked' : ''} style="width:auto;">
+        <label for="c-retem-1-aluguel" style="margin:0;">1º aluguel 100% para a imobiliária (não gera repasse no mês de início do contrato)</label>
+      </div>
       <div class="form-row"><label>Comissão do corretor (%)</label><input type="number" step="0.1" id="c-comissao-pct" value="${c.comissao_percentual ?? ''}"></div>
       <div class="form-row"><label>Comissão do corretor (R$) — calculada, pode ajustar</label><input type="number" step="0.01" id="c-comissao-valor" value="${c.comissao_valor ?? ''}"></div>
       <div class="form-row full"><label>Observações</label><textarea id="c-obs" rows="2">${c.observacoes || ''}</textarea></div>
@@ -4782,6 +4791,7 @@ function bindContratoForm() {
       multa_percentual: Number($('#c-multa').value),
       juros_diario_percentual: Number($('#c-juros').value),
       taxa_administracao_percentual: Number($('#c-taxa-adm').value),
+      retem_primeiro_aluguel: $('#c-retem-1-aluguel').checked,
       comissao_percentual: $('#c-comissao-pct').value ? Number($('#c-comissao-pct').value) : null,
       comissao_valor: $('#c-comissao-valor').value ? Number($('#c-comissao-valor').value) : null,
       observacoes: $('#c-obs').value.trim() || null,
@@ -4945,6 +4955,15 @@ const DIA_REPASSE_GRUPOS = [2, 12, 22, null]; // null = contrato ainda sem dia d
 
 // Soma os ajustes (descontos/acréscimos) de uma cobrança e devolve os impactos:
 // no que o inquilino paga, no repasse do proprietário e no lucro da imobiliária.
+// Regra "1º aluguel 100% imobiliária": verdadeiro quando o mês de referência da
+// cobrança é o mesmo mês (ano+mês) do início do contrato. Usada para zerar o
+// repasse ao proprietário no primeiro aluguel, quando o contrato tem essa
+// configuração ativa (contrato.retem_primeiro_aluguel).
+function ehMesDoPrimeiroAluguel(dataInicioIso, referenciaIso) {
+  if (!dataInicioIso || !referenciaIso) return false;
+  return dataInicioIso.slice(0, 7) === referenciaIso.slice(0, 7);
+}
+
 function calcularAjustes(ajustes) {
   let acrescimo = 0, descontoInquilino = 0, ajusteProprietario = 0, ajusteImobiliaria = 0;
   (ajustes || []).forEach((a) => {
@@ -5139,7 +5158,7 @@ async function loadRepasses() {
   if (!wrap) return;
   const { data, error } = await supabase
     .from('cobrancas')
-    .select('*, contratos!inner(tipo, taxa_administracao_percentual, dia_repasse, imoveis(titulo), pessoas!contratos_vendedor_locador_id_fkey(nome)), cobranca_ajustes(*)')
+    .select('*, contratos!inner(tipo, taxa_administracao_percentual, dia_repasse, data_inicio, retem_primeiro_aluguel, imoveis(titulo), pessoas!contratos_vendedor_locador_id_fkey(nome)), cobranca_ajustes(*)')
     .eq('contratos.tipo', 'locacao')
     .order('data_vencimento', { ascending: false });
 
@@ -5153,19 +5172,25 @@ async function loadRepasses() {
     const taxa = contrato.taxa_administracao_percentual ?? 10;
     const ajustes = cb.cobranca_ajustes || [];
     const { ajusteProprietario } = calcularAjustes(ajustes);
-    const repasseBase = Math.round(cb.valor_base * (1 - taxa / 100) * 100) / 100;
+    // 1º aluguel 100% imobiliária: só zera o repasse se ainda não foi efetivado
+    // (não reescreve repasses antigos já marcados como feitos).
+    const primeiroAluguelRetido = (contrato.retem_primeiro_aluguel ?? true)
+      && ehMesDoPrimeiroAluguel(contrato.data_inicio, cb.referencia)
+      && !cb.repasse_efetivado_em;
+    const repasseBase = primeiroAluguelRetido ? 0 : Math.round(cb.valor_base * (1 - taxa / 100) * 100) / 100;
     const repasse = Math.round((repasseBase + ajusteProprietario) * 100) / 100;
 
     // Atrasado = cobrança já paga pelo inquilino, o repasse ainda NÃO foi marcado como feito,
-    // e a data-limite do repasse (dia fixo do mês de referência) já passou.
+    // a data-limite do repasse (dia fixo do mês de referência) já passou, e há de fato
+    // repasse a fazer (1º aluguel retido não gera pendência nenhuma).
     let atrasado = false;
-    if (cb.data_pagamento && contrato.dia_repasse && !cb.repasse_efetivado_em) {
+    if (cb.data_pagamento && contrato.dia_repasse && !cb.repasse_efetivado_em && !primeiroAluguelRetido) {
       const [ano, mes] = cb.referencia.split('-').map(Number);
       const dataLimite = new Date(ano, mes - 1, contrato.dia_repasse);
       atrasado = dataLimite < hoje;
     }
-    const statusRepasse = cb.repasse_efetivado_em ? 'repassado' : (!cb.data_pagamento ? 'pendente' : (atrasado ? 'atrasado' : 'pago'));
-    return { cb, contrato, taxa, ajustes, ajusteProprietario, repasse, statusRepasse };
+    const statusRepasse = primeiroAluguelRetido ? 'retido_1_aluguel' : (cb.repasse_efetivado_em ? 'repassado' : (!cb.data_pagamento ? 'pendente' : (atrasado ? 'atrasado' : 'pago')));
+    return { cb, contrato, taxa, ajustes, ajusteProprietario, repasse, primeiroAluguelRetido, statusRepasse };
   });
 
   if (filtroRepassesAtraso) linhas = linhas.filter((l) => l.statusRepasse === 'atrasado');
