@@ -9060,9 +9060,9 @@ async function baixarTodosArquivosAprovacao(aprovacaoId, btn) {
       const resp = await fetch(signed.signedUrl);
       if (!resp.ok) continue;
       const blob = await resp.blob();
-      const pasta = (APROVACAO_CATEGORIAS_ARQUIVO[arq.categoria] || arq.categoria).replace(/\//g, '-').trim();
-      let nomeArquivo = arq.nome_arquivo || 'arquivo';
-      const chave = `${pasta}/${nomeArquivo}`;
+      const categoria = (APROVACAO_CATEGORIAS_ARQUIVO[arq.categoria] || arq.categoria).replace(/[\\/]/g, '-').trim();
+      let nomeArquivo = `${categoria} - ${arq.nome_arquivo || 'arquivo'}`;
+      const chave = nomeArquivo;
       if (nomesUsados[chave]) {
         nomesUsados[chave] += 1;
         const partes = nomeArquivo.split('.');
@@ -9071,7 +9071,7 @@ async function baixarTodosArquivosAprovacao(aprovacaoId, btn) {
       } else {
         nomesUsados[chave] = 1;
       }
-      zip.folder(pasta).file(nomeArquivo, blob);
+      zip.file(nomeArquivo, blob);
     }
 
     const conteudoZip = await zip.generateAsync({ type: 'blob' });
