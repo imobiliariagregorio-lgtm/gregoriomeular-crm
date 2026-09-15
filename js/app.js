@@ -7364,6 +7364,42 @@ const MODELOS_DOC = [
     ],
   },
   {
+    id: 'proposta_compra_planta',
+    arquivo: null,
+    titulo: 'Proposta de Compra com Sinal de Reserva — Imóvel na Planta',
+    descricao: 'Modelo próprio Gregório | Meu Lar para unidade em empreendimento na planta: qualificação da incorporadora/construtora, dados do empreendimento e da unidade, previsão de entrega e correção do saldo durante a obra (Lei 4.591/64).',
+    pessoas: [{ prefixo: 'proponente', rotulo: 'Proponente (comprador(a))' }],
+    empresaConstrutora: true,
+    rotuloConstrutora: 'Incorporadora/Construtora (Vendedora)',
+    nomeArquivoTag: 'proponente_nome',
+    paresValorExtenso: [['valor_proposta', 'valor_proposta_extenso']],
+    campos: [
+      { tag: 'nome_empreendimento', rotulo: 'Nome do empreendimento', placeholder: 'Ex: Residencial Veneza Solar' },
+      { tag: 'endereco_empreendimento', rotulo: 'Endereço do empreendimento', full: true },
+      { tag: 'registro_incorporacao', rotulo: 'Registro de incorporação (nº e Cartório de Registro de Imóveis)', full: true, placeholder: 'Ex: R-1, matrícula 12.345, 2º Ofício de Registro de Imóveis de Curitiba' },
+      { tag: 'numero_unidade', rotulo: 'Número da unidade' },
+      { tag: 'bloco_torre_pavimento', rotulo: 'Bloco/torre/pavimento (opcional)', placeholder: 'Ex: Torre 2, 5º pavimento' },
+      { tag: 'area_privativa_m2', rotulo: 'Área privativa aproximada (m²)' },
+      { tag: 'vaga_garagem', rotulo: 'Vaga(s) de garagem', placeholder: 'Ex: 1 (uma) vaga de garagem' },
+      { tag: 'previsao_entrega', rotulo: 'Previsão de entrega', placeholder: 'Ex: dezembro de 2028' },
+      { tag: 'prazo_tolerancia_dias', rotulo: 'Prazo de tolerância na entrega (dias)', tipo: 'number', default: '180' },
+      { tag: 'indice_correcao_saldo_obra', rotulo: 'Índice de correção do saldo durante a obra', default: 'INCC-DI' },
+      { tag: 'indice_correcao_saldo_pos_entrega', rotulo: 'Índice de correção do saldo após entrega/habite-se', default: 'IGP-M' },
+      { tag: 'observacoes_gerais_venda', rotulo: 'Observações gerais da venda', tipo: 'textarea', full: true },
+      { tag: 'valor_proposta', rotulo: 'Valor da proposta (R$)', placeholder: 'Ex: 380.000,00' },
+      { tag: 'valor_proposta_extenso', rotulo: 'Valor por extenso (sugestão automática)', full: true },
+      { tag: 'valor_sinal', rotulo: 'Valor do sinal de negócio (R$)' },
+      { tag: 'percentual_sinal', rotulo: 'Sinal — percentual do valor da proposta (%)', tipo: 'number', default: '10' },
+      { tag: 'forma_pagamento_proposta', rotulo: 'Forma de pagamento (detalhado)', tipo: 'textarea', full: true, placeholder: 'Ex: sinal de R$ 38.000,00; entrada de R$ 42.000,00 em 10x; saldo de R$ 300.000,00 financiado na entrega das chaves' },
+      { tag: 'responsavel_documentacao', rotulo: 'Documentação a ser paga por', tipo: 'select', opcoes: ['incorporadora/construtora', 'comprador(a)'] },
+      { tag: 'prazo_aceite_dias', rotulo: 'Prazo de aceite da proposta (dias)', tipo: 'number', default: '5' },
+      { tag: 'testemunha1_nome', rotulo: 'Testemunha 1 — nome' },
+      { tag: 'testemunha1_cpf', rotulo: 'Testemunha 1 — CPF' },
+      { tag: 'testemunha2_nome', rotulo: 'Testemunha 2 — nome' },
+      { tag: 'testemunha2_cpf', rotulo: 'Testemunha 2 — CPF' },
+    ],
+  },
+  {
     id: 'retirada_chaves',
     arquivo: 'termo_retirada_chaves.docx',
     titulo: 'Termo de Entrega de Chaves',
@@ -7925,7 +7961,7 @@ function documentoDocForm(modelo, modoEdicao) {
   }
   if (modelo.imovel) html += qualificacaoImovelDocHtml();
   if (modelo.empresaParceira) html += qualificacaoEmpresaDocHtml('parceira', 'Imobiliária Parceira');
-  if (modelo.empresaConstrutora) html += qualificacaoEmpresaDocHtml('construtora', 'Construtora/Incorporadora (Destinatária)');
+  if (modelo.empresaConstrutora) html += qualificacaoEmpresaDocHtml('construtora', modelo.rotuloConstrutora || 'Construtora/Incorporadora (Destinatária)');
   (modelo.campos || []).forEach((c) => { html += campoDocHtml(c); });
   html += `
     <div class="modal-actions">

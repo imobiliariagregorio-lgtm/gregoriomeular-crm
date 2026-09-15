@@ -472,6 +472,36 @@
       disclaimer(),
     ],
 
+    // 3-B. PROPOSTA DE COMPRA COM SINAL DE RESERVA — IMÓVEL NA PLANTA (vendedora = incorporadora/construtora)
+    proposta_compra_planta: [
+      titulo('PROPOSTA DE COMPRA E VENDA COM SINAL DE RESERVA — IMÓVEL NA PLANTA'),
+      identificacao(),
+      labelPar('INCORPORADORA/CONSTRUTORA (VENDEDORA):', '{construtora_razao_social}, CNPJ nº {construtora_cnpj}, com sede em {construtora_endereco}, neste ato representada por {construtora_representante_nome}, CPF nº {construtora_representante_cpf}.'),
+      labelPar('PROPONENTE (comprador(a)):', '{proponente_nome}, {proponente_nacionalidade}, {proponente_estado_civil}, {proponente_profissao}, portador(a) do RG nº {proponente_rg} e CPF nº {proponente_cpf}, residente e domiciliado(a) em {proponente_endereco}, telefone {proponente_telefone}, e-mail {proponente_email}.'),
+      labelPar('EMPREENDIMENTO:', '{nome_empreendimento}, situado em {endereco_empreendimento}, registro de incorporação nº {registro_incorporacao}.'),
+      labelPar('UNIDADE OBJETO DA PROPOSTA:', 'unidade nº {numero_unidade}{#bloco_torre_pavimento}, {bloco_torre_pavimento}{/bloco_torre_pavimento}, com área privativa aproximada de {area_privativa_m2} m²{#vaga_garagem}, {vaga_garagem}{/vaga_garagem}.'),
+      labelPar('PREVISÃO DE ENTREGA:', '{previsao_entrega}, observado o prazo de tolerância de {prazo_tolerancia_dias} dias corridos, contados dessa data, usualmente admitido pela jurisprudência para obras em construção.'),
+      labelPar('OBSERVAÇÕES GERAIS DA VENDA:', '{observacoes_gerais_venda}'),
+      par('O(A) PROPONENTE acima qualificado(a) apresenta, por intermédio de {imobiliaria_nome}, CRECI {imobiliaria_creci}, através do(a) corretor(a) {corretor_nome} (CRECI {corretor_creci}), a presente proposta de compra da unidade acima descrita, nos termos seguintes:', { margin: [0, 10, 0, 14] }),
+      clausula(1, 'do valor da proposta', 'O valor proposto para a compra é de R$ {valor_proposta} ({valor_proposta_extenso}).'),
+      clausula(2, 'do sinal de negócio', 'Junto com esta proposta, o(a) PROPONENTE entrega, a título de sinal de negócio e princípio de pagamento, o valor de R$ {valor_sinal} ({percentual_sinal}% do valor da proposta), que ficará sob a administração de {imobiliaria_nome} até a manifestação da INCORPORADORA/CONSTRUTORA.'),
+      clausula(3, 'da forma de pagamento', '{forma_pagamento_proposta}'),
+      clausula(4, 'da correção monetária do saldo', 'Enquanto pendente a conclusão da obra, o saldo devedor será corrigido pelo índice {indice_correcao_saldo_obra}. Após a expedição do habite-se e/ou entrega das chaves, a correção do saldo remanescente passará a ser feita pelo índice {indice_correcao_saldo_pos_entrega}.'),
+      clausula(5, 'da documentação', 'A documentação relativa à transferência da unidade será paga por: {responsavel_documentacao}.'),
+      clausula(6, 'do prazo de aceite', 'A presente proposta vincula o(a) PROPONENTE pelo prazo de {prazo_aceite_dias} dias corridos, contados desta data, findo o qual, na ausência de manifestação expressa da INCORPORADORA/CONSTRUTORA, poderá ser considerada sem efeito, com devolução integral do sinal.'),
+      clausula(7, 'das arras', 'O presente negócio é realizado de acordo com o art. 420 do Código Civil, sendo que o sinal de negócio faz parte dos honorários da imobiliária pela sua intermediação. Havendo arrependimento por parte do(a) PROPONENTE, este(a) perderá o sinal de negócio em favor da INCORPORADORA/CONSTRUTORA; havendo arrependimento por parte da INCORPORADORA/CONSTRUTORA, esta deverá devolver ao(à) PROPONENTE o valor do sinal ora recebido, mais o seu equivalente.'),
+      subitem('Parágrafo primeiro: o valor pago como sinal de negócio e princípio de pagamento fará parte do pagamento do preço estipulado, aplicando-se o disposto nos arts. 418 e 419 do Código Civil.'),
+      subitem('Parágrafo segundo: caso seja utilizado cheque referente ao sinal de negócio, este terá caráter pró-solvendo, dando-se por quitado somente após compensação bancária.'),
+      clausula(8, 'do atraso na entrega da obra', 'Observado o prazo de tolerância indicado no quadro-resumo, eventual atraso na entrega que o exceda assegurará ao(à) PROPONENTE os direitos e garantias previstos na legislação consumerista e na Lei nº 4.591/64, sem prejuízo de indenização por perdas e danos porventura cabível, na forma da lei.'),
+      clausula(9, 'dos esclarecimentos sobre o empreendimento', 'O(A) PROPONENTE declara que recebeu todos os esclarecimentos do Corretor de Imóveis referentes ao empreendimento, ao estágio da obra, ao memorial de incorporação e a eventuais ônus incidentes, conforme prevê o art. 723 e parágrafo único do Código Civil.'),
+      clausula(10, 'da proteção de dados', 'As partes autorizam o tratamento dos dados pessoais constantes deste documento pela imobiliária interveniente, exclusivamente para as finalidades relacionadas a esta proposta, nos termos da Lei nº 13.709/2018 (LGPD).'),
+      clausula(11, 'do foro', 'Fica eleito o foro da comarca de {cidade_contrato} para dirimir quaisquer dúvidas oriundas deste documento.'),
+      par('E, por estarem assim justos, firmam a presente proposta em vias de igual teor e forma, na presença das testemunhas abaixo.', { margin: [0, 14, 0, 0] }),
+      assinaturas(['PROPONENTE — {proponente_nome}', 'INCORPORADORA/CONSTRUTORA — {construtora_razao_social}', 'IMOBILIÁRIA INTERVENIENTE — {imobiliaria_nome}']),
+      testemunhas(),
+      disclaimer(),
+    ],
+
     // 4. TERMO DE ENTREGA/RETIRADA DE CHAVES (modelo próprio Gregório | Meu Lar)
     retirada_chaves: [
       titulo('TERMO DE ENTREGA DE CHAVES DO IMÓVEL'),
