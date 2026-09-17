@@ -8139,12 +8139,28 @@ function bindDocumentoDocForm(modelo, registroEdicao) {
   });
 }
 
-// Depois de gerar um contrato de locação (residencial ou comercial), oferece
-// criar de uma vez o registro em `contratos` com os mesmos dados — evita
-// digitar tudo de novo manualmente. Só oferece pra locação por enquanto
-// (compra/venda e visita ficam pra depois, por serem tabelas/fluxos diferentes).
+// Depois de gerar um documento, oferece já criar/atualizar o registro
+// correspondente no sistema — evita digitar tudo de novo manualmente.
+// - Locação e Compra e Venda: cria um contrato em `contratos`.
+// - Proposta de Compra (com/sem incorporadora) e Ficha de Visita: avança
+//   (ou cria) o lead da pessoa envolvida na etapa certa do funil.
 function ofertarCriarContratoDeDocumento(modelo, dados) {
-  if (modelo.id !== 'locacao' && modelo.id !== 'locacao_comercial') return;
+  if (modelo.id === 'locacao' || modelo.id === 'locacao_comercial') {
+    return ofertarCriarContratoLocacao(modelo, dados);
+  }
+  if (modelo.id === 'compra_venda') {
+    return ofertarCriarContratoVenda(modelo, dados);
+  }
+  if (modelo.id === 'proposta_compra' || modelo.id === 'proposta_compra_planta') {
+    return ofertarAvancarLeadDeDocumento(dados, 'proponente', 'proposta', 'compra');
+  }
+  if (modelo.id === 'ficha_visita_reserva') {
+    const interesse = (dados.interesse_visita || '').toLowerCase().startsWith('loca') ? 'locacao' : 'compra';
+    return ofertarAvancarLeadDeDocumento(dados, 'visitante', 'visita_feita', interesse);
+  }
+}
+
+function ofertarCriarContratoLocacao(modelo, dados) {
   if (!confirm('Documento gerado. Deseja já criar o contrato de locação no sistema com estes mesmos dados?')) return;
 
   const prefill = {
@@ -8171,6 +8187,78 @@ function ofertarCriarContratoDeDocumento(modelo, dados) {
     if (faltando.length) {
       toast(`Contrato pré-preenchido com os valores do documento — mas selecione manualmente: ${faltando.join(', ')} (não foram escolhidos da lista de cadastro ao gerar o documento, foram digitados à mão).`);
     }
+  })();
+}
+
+function ofertarCriarContratoVenda(modelo, dados) {
+  if (!confirm('Documento gerado. Deseja já criar o contrato de venda no sistema com estes mesmos dados?')) return;
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const prefill = {
+    imovel_id: dados.imovel_id_real || '',
+    tipo: 'venda',
+    status: 'ativo',
+    comprador_locatario_id: dados.comprador_pessoa_id || '',
+    vendedor_locador_id: dados.vendedor_pessoa_id || '',
+    valor: parseValorBR(dados.valor_venda) || '',
+    data_inicio: hoje,
+    comissao_valor: parseValorBR(dados.valor_comissao) || '',
+  };
+
+  (async () => {
+    openModal(await contratoForm(prefill));
+    bindContratoForm();
+    const faltando = [];
+    if (!prefill.imovel_id) faltando.push('imóvel');
+    if (!prefill.comprador_locatario_id) faltando.push('comprador');
+    if (!prefill.vendedor_locador_id) faltando.push('vendedor');
+    if (faltando.length) {
+      toast(`Contrato pré-preenchido com os valores do documento — mas selecione manualmente: ${faltando.join(', ')} (não foram escolhidos da lista de cadastro ao gerar o documento, foram digitados à mão).`);
+    }
+  })();
+}
+
+// Avança (ou cria) o lead da pessoa envolvida no documento (proponente/visitante)
+// pra etapa indicada do funil. Procura primeiro um lead já existente (por
+// pessoa vinculada ou telefone); só cria um novo se realmente não achar nenhum.
+function ofertarAvancarLeadDeDocumento(dados, prefixo, etapaAlvo, interesse) {
+  const nome = dados[`${prefixo}_nome`];
+  const telefone = dados[`${prefixo}_telefone`];
+  const email = dados[`${prefixo}_email`];
+  const pessoaId = dados[`${prefixo}_pessoa_id`] || null;
+  if (!nome && !telefone) return; // nada preenchido, nada a fazer
+
+  const nomeEtapa = LEAD_STATUS_LABELS?.[etapaAlvo] || etapaAlvo.replace(/_/g, ' ');
+  if (!confirm(`Documento gerado. Deseja registrar/avançar "${nome}" no funil de leads (etapa: ${nomeEtapa})?`)) return;
+
+  (async () => {
+    let query = supabase.from('leads').select('id,nome,status').limit(1);
+    query = pessoaId ? query.eq('pessoa_id', pessoaId) : query.eq('telefone', telefone || '__sem_telefone__');
+    const { data: existentes } = await query;
+    const existente = existentes?.[0];
+
+    if (existente) {
+      const { error } = await supabase.from('leads').update({ status: etapaAlvo, imovel_id: dados.imovel_id_real || undefined }).eq('id', existente.id);
+      if (error) { toast('Erro ao avançar lead: ' + error.message, true); console.error(error); return; }
+      toast(`Lead de "${existente.nome}" avançado para "${nomeEtapa}".`);
+    } else {
+      const payload = {
+        nome: nome || 'Sem nome',
+        telefone: telefone || '',
+        email: email || null,
+        origem: 'presencial',
+        interesse,
+        imovel_id: dados.imovel_id_real || null,
+        pessoa_id: pessoaId,
+        corretor_id: currentUsuario?.id || null,
+        status: etapaAlvo,
+      };
+      const { error } = await supabase.from('leads').insert(payload);
+      if (error) { toast('Erro ao criar lead: ' + error.message, true); console.error(error); return; }
+      toast(`Lead de "${nome}" criado já na etapa "${nomeEtapa}".`);
+    }
+    loadLeads();
+    loadDashboard();
   })();
 }
 
