@@ -8128,6 +8128,7 @@ function bindDocumentoDocForm(modelo, registroEdicao) {
         await gerarDocumentoDocx(modelo, dados);
         toast('Documento gerado com sucesso.');
         closeModal();
+        ofertarCriarContratoDeDocumento(modelo, dados);
       }
     } catch (err) {
       console.error(err);
@@ -8138,10 +8139,47 @@ function bindDocumentoDocForm(modelo, registroEdicao) {
   });
 }
 
+// Depois de gerar um contrato de locação (residencial ou comercial), oferece
+// criar de uma vez o registro em `contratos` com os mesmos dados — evita
+// digitar tudo de novo manualmente. Só oferece pra locação por enquanto
+// (compra/venda e visita ficam pra depois, por serem tabelas/fluxos diferentes).
+function ofertarCriarContratoDeDocumento(modelo, dados) {
+  if (modelo.id !== 'locacao' && modelo.id !== 'locacao_comercial') return;
+  if (!confirm('Documento gerado. Deseja já criar o contrato de locação no sistema com estes mesmos dados?')) return;
+
+  const prefill = {
+    imovel_id: dados.imovel_id_real || '',
+    tipo: 'locacao',
+    status: 'ativo',
+    comprador_locatario_id: dados.locatario_pessoa_id || '',
+    vendedor_locador_id: dados.locador_pessoa_id || '',
+    valor: parseValorBR(dados.valor_aluguel) || '',
+    data_inicio: dados.data_inicio || '',
+    data_fim: dados.data_termino || '',
+    dia_vencimento: dados.dia_vencimento || '',
+    multa_percentual: dados.multa_atraso_percentual || '',
+    juros_diario_percentual: dados.juros_mora_percentual || '',
+  };
+
+  (async () => {
+    openModal(await contratoForm(prefill));
+    bindContratoForm();
+    const faltando = [];
+    if (!prefill.imovel_id) faltando.push('imóvel');
+    if (!prefill.comprador_locatario_id) faltando.push('locatário');
+    if (!prefill.vendedor_locador_id) faltando.push('locador');
+    if (faltando.length) {
+      toast(`Contrato pré-preenchido com os valores do documento — mas selecione manualmente: ${faltando.join(', ')} (não foram escolhidos da lista de cadastro ao gerar o documento, foram digitados à mão).`);
+    }
+  })();
+}
+
 async function coletarDadosDocumentoDoc(modelo) {
   const dados = {};
   (modelo.pessoas || []).forEach((p) => {
     CAMPOS_PESSOA_DOC.forEach(([campo]) => { dados[`${p.prefixo}_${campo}`] = ($(`#doc-${p.prefixo}-${campo}`)?.value || '').trim(); });
+    const picker = $(`.doc-pessoa-picker[data-prefixo="${p.prefixo}"]`);
+    if (picker && picker.value) dados[`${p.prefixo}_pessoa_id`] = picker.value;
   });
   if (modelo.fiadorOpcional) {
     const temFiador = $('#doc-tem-fiador').checked;
@@ -8155,6 +8193,8 @@ async function coletarDadosDocumentoDoc(modelo) {
     ['imovel_endereco_completo', 'imovel_matricula', 'imovel_tipo', 'imovel_area_total', 'imovel_area_construida'].forEach((tag) => {
       dados[tag] = ($(`#doc-${tag}`)?.value || '').trim();
     });
+    const imovelPicker = $('.doc-imovel-picker');
+    if (imovelPicker && imovelPicker.value) dados.imovel_id_real = imovelPicker.value;
   }
   if (modelo.empresaParceira) {
     ['razao_social', 'cnpj', 'creci', 'endereco', 'representante_nome', 'representante_cpf'].forEach((campo) => {
