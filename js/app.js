@@ -1187,6 +1187,7 @@ document.addEventListener('click', async (e) => {
       <p><strong>Telefone:</strong> ${l.telefone}</p>
       <p><strong>E-mail:</strong> ${l.email || '—'}</p>
       <p><strong>Origem:</strong> ${l.origem}</p>
+      ${(l.campanha || l.utm_campaign || l.anuncio) ? `<p><strong>Campanha:</strong> ${[l.campanha || l.utm_campaign, l.conjunto, l.anuncio].filter(Boolean).join(' · ')}</p>` : ''}
       <p><strong>Observações:</strong> ${l.observacoes || '—'}</p>
       ${l.status === 'perdido' && l.motivo_perda ? `<p><strong>Motivo da perda:</strong> ${l.motivo_perda}</p>` : ''}
       <p><strong>Criado em:</strong> ${dateTime(l.criado_em)}</p>
