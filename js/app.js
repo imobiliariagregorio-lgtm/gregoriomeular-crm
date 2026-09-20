@@ -1028,7 +1028,7 @@ function renderLeadsTable() {
 
   tbody.innerHTML = filtrados.map((l) => `
     <tr>
-      <td><strong>${l.nome}</strong></td>
+      <td>${nomeLeadEditavelHtml(l)}</td>
       <td>${l.telefone}</td>
       <td>${l.origem}</td>
       <td>${l.interesse || '—'}</td>
@@ -1164,6 +1164,64 @@ document.addEventListener('change', async (e) => {
   }
 });
 
+// ---------------------------------------------------------------------
+// Nome do lead editável direto no card (funil, lista e detalhe)
+// ---------------------------------------------------------------------
+function nomeLeadEditavelHtml(l) {
+  return `<span class="lead-nome-wrap" data-id="${l.id}"><strong class="lead-nome-txt">${escapeHtml(l.nome)}</strong><button type="button" class="lead-nome-edit" data-action="lead-nome-editar" data-id="${l.id}" title="Corrigir nome" aria-label="Corrigir nome do lead">✏️</button></span>`;
+}
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action="lead-nome-editar"], [data-action="lead-nome-salvar"], [data-action="lead-nome-cancelar"]');
+  if (!btn) return;
+  const acao = btn.dataset.action;
+  const wrap = btn.closest('.lead-nome-wrap');
+  if (!wrap) return;
+  const id = wrap.dataset.id;
+
+  if (acao === 'lead-nome-editar') {
+    const atual = wrap.querySelector('.lead-nome-txt')?.textContent || '';
+    wrap.dataset.nomeAtual = atual;
+    wrap.classList.add('editando');
+    wrap.innerHTML = `<input type="text" class="lead-nome-input" value="${escapeHtml(atual)}" maxlength="120" aria-label="Nome do lead"><button type="button" class="lead-nome-ok" data-action="lead-nome-salvar" title="Salvar">✓</button><button type="button" class="lead-nome-cancel" data-action="lead-nome-cancelar" title="Cancelar">✕</button>`;
+    const inp = wrap.querySelector('.lead-nome-input');
+    inp.focus(); inp.select();
+    return;
+  }
+
+  const restaurar = (nome) => {
+    wrap.classList.remove('editando');
+    wrap.innerHTML = `<strong class="lead-nome-txt">${escapeHtml(nome)}</strong><button type="button" class="lead-nome-edit" data-action="lead-nome-editar" data-id="${id}" title="Corrigir nome" aria-label="Corrigir nome do lead">✏️</button>`;
+  };
+
+  if (acao === 'lead-nome-cancelar') { restaurar(wrap.dataset.nomeAtual || ''); return; }
+
+  // salvar
+  const novo = (wrap.querySelector('.lead-nome-input')?.value || '').trim().replace(/\s+/g, ' ');
+  const antigo = wrap.dataset.nomeAtual || '';
+  if (!novo) { toast('O nome não pode ficar vazio.', true); return; }
+  if (novo === antigo) { restaurar(antigo); return; }
+  btn.disabled = true;
+  const { error } = await supabase.from('leads').update({ nome: novo }).eq('id', id);
+  if (error) { btn.disabled = false; toast('Não foi possível corrigir o nome.', true); console.error(error); return; }
+  restaurar(novo);
+  const emCache = leadsCache.find((x) => x.id === id);
+  if (emCache) emCache.nome = novo;
+  // sincroniza o mesmo lead em outras telas abertas (lista, funil, título do detalhe)
+  $$(`.lead-nome-wrap[data-id="${id}"]`).forEach((w) => {
+    if (w === wrap || w.classList.contains('editando')) return;
+    const t = w.querySelector('.lead-nome-txt'); if (t) t.textContent = novo;
+  });
+  toast('Nome do lead atualizado.');
+});
+
+document.addEventListener('keydown', (e) => {
+  if (!e.target.classList?.contains('lead-nome-input')) return;
+  const wrap = e.target.closest('.lead-nome-wrap');
+  if (e.key === 'Enter') { e.preventDefault(); wrap.querySelector('[data-action="lead-nome-salvar"]').click(); }
+  if (e.key === 'Escape') { e.preventDefault(); wrap.querySelector('[data-action="lead-nome-cancelar"]').click(); }
+});
+
 async function carregarInteracoesLead(leadId) {
   const { data, error } = await supabase.from('interacoes').select('*').eq('lead_id', leadId).order('criado_em', { ascending: true });
   const wrap = $('#leadInteracoesLista');
@@ -1183,7 +1241,7 @@ document.addEventListener('click', async (e) => {
     const { data: l } = await supabase.from('leads').select('*').eq('id', e.target.dataset.id).single();
     if (!l) return;
     openModal(`
-      <h2>${l.nome}</h2>
+      <h2>${nomeLeadEditavelHtml(l)}</h2>
       <p><strong>Telefone:</strong> ${l.telefone}</p>
       <p><strong>E-mail:</strong> ${l.email || '—'}</p>
       <p><strong>Origem:</strong> ${l.origem}</p>
@@ -1467,7 +1525,7 @@ async function loadFunil() {
         <div class="kanban-cards">
           ${doColuna.length ? doColuna.map((l) => `
             <div class="kanban-card">
-              <strong>${l.nome}</strong>
+              ${nomeLeadEditavelHtml(l)}
               <small>${l.telefone || ''}</small>
               <small>${l.interesse || 'interesse não informado'}</small>
               ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}

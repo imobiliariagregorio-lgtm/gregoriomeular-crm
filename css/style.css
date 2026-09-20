@@ -827,3 +827,14 @@ html[data-theme="claro"] .bot-toggle{ color:#FFFFFF; }
 
   @media print{#view-treinamento .topbar, #view-treinamento .nav-card, #view-treinamento .print-btn{display:none !important;}#view-treinamento .layout{display:block; padding:0;}#view-treinamento section.role{box-shadow:none; border:none; page-break-before:always; padding:0; margin:0 0 40px;}#view-treinamento section.role:first-of-type{page-break-before:auto;}#view-treinamento .exercise{break-inside:avoid;}#view-treinamento{background:#fff;}
   }
+
+/* Nome do lead editável no card */
+.lead-nome-wrap{display:inline-flex;align-items:center;gap:6px;max-width:100%;}
+.lead-nome-txt{overflow-wrap:anywhere;}
+.lead-nome-edit{background:none;border:0;cursor:pointer;font-size:.72rem;opacity:.45;padding:2px 4px;border-radius:5px;line-height:1;}
+.lead-nome-edit:hover,.lead-nome-edit:focus-visible{opacity:1;background:rgba(245,130,32,.18);}
+.lead-nome-wrap.editando{display:flex;width:100%;}
+.lead-nome-input{flex:1;min-width:0;background:#fff;color:#0F2747;border:1.5px solid var(--orange);border-radius:6px;padding:4px 8px;font-size:.85rem;font-weight:600;}
+.lead-nome-ok,.lead-nome-cancel{border:0;cursor:pointer;border-radius:6px;padding:4px 8px;font-size:.8rem;font-weight:700;color:#fff;}
+.lead-nome-ok{background:var(--orange);}
+.lead-nome-cancel{background:#4B5563;}
