@@ -962,13 +962,14 @@ async function loadRanking() {
 // =====================================================================
 // LEADS
 // =====================================================================
-const LEAD_STATUSES = ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3', 'busca_qualificada', 'visita_agendada', 'visita_feita', 'alterar_busca', 'proposta', 'documentacao', 'assinaturas', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120', 'perdido'];
+const LEAD_STATUSES = ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3', 'busca_qualificada', 'consulta_simulacao', 'visita_agendada', 'visita_feita', 'alterar_busca', 'proposta', 'documentacao', 'assinaturas', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120', 'perdido'];
 const LEAD_STATUS_LABELS = {
   novo: 'Novo',
   tentativa_1: '1ª Tentativa',
   tentativa_2: '2ª Tentativa',
   tentativa_3: '3ª Tentativa',
   busca_qualificada: 'Busca Qualificada',
+  consulta_simulacao: 'Consulta Simulação',
   visita_agendada: 'Visita Agendada',
   visita_feita: 'Visita Feita',
   alterar_busca: 'Alterar Busca',
