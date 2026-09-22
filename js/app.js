@@ -988,13 +988,32 @@ const INTERESSES_LEAD = ['compra', 'venda', 'locacao', 'avaliacao', 'outro'];
 
 let leadsCache = [];
 let leadsCorretoresCache = [];
+// Filtro "por corretor" na lista de Leads — só admin/gerente veem e usam (mesmo padrão do Funil e da Captação).
+let leadsFiltroCorretorId = '';
+let leadsFiltroCorretoresCarregados = false;
 
 async function loadLeads() {
   const tbody = $('#leadsTable tbody');
   const filtro = $('#leadStatusFilter').value;
 
+  const wrapFiltroCorretor = $('#leadsFiltroCorretorWrap');
+  if (wrapFiltroCorretor) wrapFiltroCorretor.hidden = !podeVerFinanceiro;
+
+  if (podeVerFinanceiro && !leadsFiltroCorretoresCarregados) {
+    const { data: todosCorretores } = await supabase.from('usuarios').select('id,nome').order('nome');
+    const selectFiltro = $('#leadsFiltroCorretor');
+    (todosCorretores || []).forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nome;
+      selectFiltro.appendChild(opt);
+    });
+    leadsFiltroCorretoresCarregados = true;
+  }
+
   let query = supabase.from('leads').select('*, usuarios(nome)').order('criado_em', { ascending: false });
   if (filtro) query = query.eq('status', filtro);
+  if (podeVerFinanceiro && leadsFiltroCorretorId) query = query.eq('corretor_id', leadsFiltroCorretorId);
 
   const [{ data, error }, { data: corretores }] = await Promise.all([
     query,
@@ -1071,6 +1090,10 @@ document.addEventListener('click', async (e) => {
 
 $('#leadStatusFilter').addEventListener('change', loadLeads);
 $('#leadsSearch').addEventListener('input', renderLeadsTable);
+$('#leadsFiltroCorretor')?.addEventListener('change', (e) => {
+  leadsFiltroCorretorId = e.target.value;
+  loadLeads();
+});
 
 async function leadForm(l = {}) {
   const [{ data: imoveis }, { data: corretores }] = await Promise.all([
