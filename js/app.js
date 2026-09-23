@@ -4859,6 +4859,7 @@ function bindContratoForm() {
   $('#contratoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('#c-id').value;
+    const statusAnterior = c.status || null;
     const payload = {
       imovel_id: $('#c-imovel').value,
       tipo: $('#c-tipo').value,
@@ -4885,9 +4886,53 @@ function bindContratoForm() {
       : await supabase.from('contratos').insert(payload);
 
     if (error) { toast('Erro ao salvar contrato: ' + error.message, true); console.error(error); return; }
-    toast('Contrato salvo com sucesso.');
+
+    // Contrato de locação virou encerrado/cancelado agora: qualquer cobrança já gerada
+    // e ainda não paga fica sem repasse futuro de verdade, e ficava aparecendo pra
+    // sempre no financeiro como se fosse ativa (caso real: Gregório, 22/09/2026).
+    // Pergunta na hora se o inquilino ainda deve — se não deve, cancela já.
+    const virouEncerradoOuCancelado = id && payload.tipo === 'locacao'
+      && ['encerrado', 'cancelado'].includes(payload.status) && statusAnterior !== payload.status;
+
+    if (virouEncerradoOuCancelado) {
+      const { data: emAberto } = await supabase
+        .from('cobrancas')
+        .select('*')
+        .eq('contrato_id', id)
+        .is('data_pagamento', null);
+
+      if (emAberto && emAberto.length > 0) {
+        const total = emAberto.reduce((s, cb) => s + Number(cb.valor_base), 0);
+        const qtd = emAberto.length;
+        const inquilinoDeve = confirm(
+          `Este contrato tem ${qtd} cobrança${qtd > 1 ? 's' : ''} em aberto, totalizando ${money(total)}.\n\n` +
+          `O inquilino ainda deve esse valor?\n\n` +
+          `OK = Sim, ele deve (a cobrança continua aparecendo no financeiro)\n` +
+          `Cancelar = Não deve nada (a cobrança é cancelada agora)`
+        );
+        if (!inquilinoDeve) {
+          await supabase.from('auditoria').insert(
+            emAberto.map((cb) => ({
+              tabela: 'cobrancas', registro_id: cb.id, acao: 'delete',
+              usuario_nome: currentUsuario?.nome || null,
+              dados_antes: cb, dados_depois: null,
+            }))
+          );
+          await supabase.from('cobrancas').delete().in('id', emAberto.map((cb) => cb.id));
+          toast('Contrato encerrado e cobrança(s) em aberto cancelada(s).');
+        } else {
+          toast('Contrato encerrado. A(s) cobrança(s) em aberto continua(m) no financeiro.');
+        }
+      } else {
+        toast('Contrato salvo com sucesso.');
+      }
+    } else {
+      toast('Contrato salvo com sucesso.');
+    }
+
     closeModal();
     loadContratos();
+    loadCobrancas();
   });
 }
 
@@ -5070,7 +5115,7 @@ async function loadCobrancas() {
   const wrap = $('#cobrancasGrupos');
   const { data, error } = await supabase
     .from('cobrancas')
-    .select('*, contratos(id, dia_repasse, multa_percentual, juros_diario_percentual, comissao_percentual, comissao_valor, comissao_valor_liquido, comissao_status, imoveis(titulo), pessoas!contratos_comprador_locatario_id_fkey(nome), usuarios(nome)), cobranca_ajustes(*)')
+    .select('*, contratos(id, status, dia_repasse, multa_percentual, juros_diario_percentual, comissao_percentual, comissao_valor, comissao_valor_liquido, comissao_status, imoveis(titulo), pessoas!contratos_comprador_locatario_id_fkey(nome), usuarios(nome)), cobranca_ajustes(*)')
     .order('data_vencimento', { ascending: true });
 
   if (error) { wrap.innerHTML = `<p class="empty-state">Erro ao carregar cobranças.</p>`; console.error(error); return; }
@@ -5129,7 +5174,11 @@ function renderCobrancasCards() {
   const termo = semAcento(($('#cobrancasSearch')?.value || '').trim());
   let filtradas = termo
     ? cobrancasCache.filter((cb) => semAcento([cb.contrato.imoveis?.titulo, cb.contrato.pessoas?.nome].filter(Boolean).join(' ')).includes(termo))
-    : cobrancasCache;
+    // Contrato encerrado/cancelado não tem repasse futuro de verdade — some do quadro
+    // principal do financeiro pra não confundir com o mês corrente. Continua achável
+    // buscando pelo nome do imóvel/cliente (ex.: pra conferir uma pendência que ficou
+    // aberta de propósito, quando o inquilino ainda deve).
+    : cobrancasCache.filter((cb) => !['encerrado', 'cancelado'].includes(cb.contrato.status));
 
   if (filtroCobrancasAtraso) filtradas = filtradas.filter((cb) => cb.statusReal === 'atrasado');
   if (filtroFaixaVencimento) filtradas = filtradas.filter((cb) => String(cb.diaRepasse) === filtroFaixaVencimento && cb.statusReal !== 'pago');
@@ -5241,8 +5290,11 @@ async function loadRepasses() {
   if (!wrap) return;
   const { data, error } = await supabase
     .from('cobrancas')
-    .select('*, contratos!inner(tipo, taxa_administracao_percentual, dia_repasse, data_inicio, retem_primeiro_aluguel, imoveis(titulo), pessoas!contratos_vendedor_locador_id_fkey(nome)), cobranca_ajustes(*)')
+    .select('*, contratos!inner(tipo, status, taxa_administracao_percentual, dia_repasse, data_inicio, retem_primeiro_aluguel, imoveis(titulo), pessoas!contratos_vendedor_locador_id_fkey(nome)), cobranca_ajustes(*)')
     .eq('contratos.tipo', 'locacao')
+    // Contrato encerrado/cancelado não gera mais repasse de verdade — mesmo motivo
+    // do filtro em loadCobrancas (Gregório, 22/09/2026): parava aparecendo pra sempre.
+    .not('contratos.status', 'in', '(encerrado,cancelado)')
     .order('data_vencimento', { ascending: false });
 
   if (error) { wrap.innerHTML = `<p class="empty-state">Erro ao carregar repasses.</p>`; console.error(error); return; }
