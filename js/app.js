@@ -1512,6 +1512,8 @@ const FUNIL_COLUNAS = LEAD_STATUSES.map((status) => ({ status, label: LEAD_STATU
 
 let funilCorretorFiltro = '';
 let funilCorretoresCarregados = false;
+let funilLeadsCache = [];
+let funilBusca = '';
 
 async function loadFunil() {
   const wrap = $('#funilFiltroCorretorWrap');
@@ -1540,9 +1542,30 @@ async function loadFunil() {
   const board = $('#kanbanBoard');
   if (error) { board.innerHTML = '<p class="table-empty">Erro ao carregar o funil.</p>'; console.error(error); return; }
 
-  const leads = data || [];
+  funilLeadsCache = data || [];
+  renderFunilBoard();
+}
+
+// Filtra e desenha o quadro a partir do cache já carregado — usado tanto pelo
+// loadFunil (após buscar do banco) quanto pela busca por nome/telefone (sem
+// precisar recarregar do servidor a cada letra digitada).
+function renderFunilBoard() {
+  const board = $('#kanbanBoard');
+  const termo = semAcento((funilBusca || '').trim());
+  const leads = termo
+    ? funilLeadsCache.filter((l) => semAcento([l.nome, l.telefone].filter(Boolean).join(' ')).includes(termo))
+    : funilLeadsCache;
+
+  if (termo && !leads.length) {
+    board.innerHTML = '<p class="table-empty">Nenhum lead encontrado para essa busca.</p>';
+    return;
+  }
+
   board.innerHTML = FUNIL_COLUNAS.map((col) => {
     const doColuna = leads.filter((l) => l.status === col.status);
+    // Com busca ativa, some a coluna sem resultado — sobra só onde o lead procurado está,
+    // em vez de ele ficar perdido numa coluna com centenas de cards (ex.: "1ª Tentativa").
+    if (termo && !doColuna.length) return '';
     return `
       <div class="kanban-col">
         <div class="kanban-col-head"><span>${col.label}</span><span class="kanban-col-count">${doColuna.length}</span></div>
@@ -1564,6 +1587,11 @@ async function loadFunil() {
     `;
   }).join('');
 }
+
+$('#funilBusca')?.addEventListener('input', (e) => {
+  funilBusca = e.target.value;
+  renderFunilBoard();
+});
 
 // =====================================================================
 // FUNIL DE CAPTAÇÃO (imóveis em captação — NÃO é lead)
