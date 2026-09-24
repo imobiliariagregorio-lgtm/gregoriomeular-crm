@@ -242,6 +242,7 @@ select.status-select{background:var(--navy-800);color:var(--white);border:1px so
 .kanban-card strong{font-size:.85rem;}
 .kanban-card small{color:var(--gray-text);font-size:.72rem;}
 .kanban-card-corretor{display:inline-block;align-self:flex-start;background:var(--orange);color:var(--white);font-size:.65rem;font-weight:700;border-radius:6px;padding:2px 7px;}
+.kanban-card-historico{align-self:flex-start;padding:3px 8px;font-size:.68rem;}
 .kanban-empty{color:var(--gray-text);font-size:.75rem;text-align:center;padding:14px 4px;}
 
 /* =========== RELATÓRIOS =========== */

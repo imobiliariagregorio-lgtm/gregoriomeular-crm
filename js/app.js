@@ -1553,6 +1553,7 @@ async function loadFunil() {
               <small>${l.telefone || ''}</small>
               <small>${l.interesse || 'interesse não informado'}</small>
               ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
+              <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
               <select class="status-select" data-id="${l.id}" data-action="lead-status">
                 ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${LEAD_STATUS_LABELS[s]}</option>`).join('')}
               </select>
