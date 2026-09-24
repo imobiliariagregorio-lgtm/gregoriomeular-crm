@@ -1011,7 +1011,9 @@ async function loadLeads() {
     leadsFiltroCorretoresCarregados = true;
   }
 
-  let query = supabase.from('leads').select('*, usuarios(nome)').order('criado_em', { ascending: false });
+  let query = supabase.from('leads').select('*, usuarios(nome)')
+    .order('atualizado_em', { ascending: false, nullsFirst: false })
+    .order('criado_em', { ascending: false });
   if (filtro) query = query.eq('status', filtro);
   if (podeVerFinanceiro && leadsFiltroCorretorId) query = query.eq('corretor_id', leadsFiltroCorretorId);
 
@@ -1167,7 +1169,8 @@ $('#newLeadBtn').addEventListener('click', async () => {
 document.addEventListener('change', async (e) => {
   if (e.target.dataset.action === 'lead-status') {
     const novoStatus = e.target.value;
-    const payload = { status: novoStatus };
+    const agora = new Date().toISOString();
+    const payload = { status: novoStatus, atualizado_em: agora };
     if (novoStatus === 'perdido') {
       const motivo = window.prompt('Motivo da perda do negócio (preço, financiamento, concorrente, desistência...):', '');
       if (motivo && motivo.trim()) payload.motivo_perda = motivo.trim();
@@ -1175,18 +1178,48 @@ document.addEventListener('change', async (e) => {
     const { error } = await supabase.from('leads').update(payload).eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível atualizar o status.', true); return; }
     toast('Status do lead atualizado.');
+    aplicarAtualizacaoLeadLocal(e.target.dataset.id, payload);
     loadDashboard();
-    if ($('#view-funil') && !$('#view-funil').hidden) loadFunil();
   }
   if (e.target.dataset.action === 'lead-corretor') {
-    const { error } = await supabase.from('leads').update({ corretor_id: e.target.value || null }).eq('id', e.target.dataset.id);
+    const agora = new Date().toISOString();
+    const payload = { corretor_id: e.target.value || null, atualizado_em: agora };
+    const { error } = await supabase.from('leads').update(payload).eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível trocar o corretor.', true); return; }
     toast('Corretor do lead atualizado.');
+    // corretor_id sozinho não reflete o nome do corretor no card/linha — recarrega os
+    // dois pra trazer o usuarios(nome) atualizado do servidor, já na ordem nova.
     loadLeads();
-    loadDashboard();
     if ($('#view-funil') && !$('#view-funil').hidden) loadFunil();
+    loadDashboard();
   }
 });
+
+// ---------------------------------------------------------------------
+// "Subir para cabeçalho": o último lead acessado (aberto pra ver) ou editado
+// (status, corretor, nome, busca do cliente, nova interação) fica no topo da
+// lista de Leads e no topo da sua coluna no Funil de Vendas. A ordem "de
+// verdade" vem do banco (order by atualizado_em) — o que fazemos aqui é só
+// aplicar a mesma mudança nos caches já carregados na tela, pra reordenar na
+// hora, sem esperar um recarregamento completo.
+function comparaAtualizacao(a, b) {
+  const ta = new Date(a.atualizado_em || a.criado_em).getTime();
+  const tb = new Date(b.atualizado_em || b.criado_em).getTime();
+  return tb - ta;
+}
+
+function aplicarAtualizacaoLeadLocal(id, patch) {
+  const emLista = leadsCache.find((l) => l.id === id);
+  if (emLista) Object.assign(emLista, patch);
+  const emFunil = funilLeadsCache.find((l) => l.id === id);
+  if (emFunil) Object.assign(emFunil, patch);
+
+  leadsCache.sort(comparaAtualizacao);
+  funilLeadsCache.sort(comparaAtualizacao);
+
+  if (emLista && $('#leadsTable')) renderLeadsTable();
+  if (emFunil && $('#kanbanBoard')) renderFunilBoard();
+}
 
 // ---------------------------------------------------------------------
 // Nome do lead editável direto no card (funil, lista e detalhe)
@@ -1226,16 +1259,16 @@ document.addEventListener('click', async (e) => {
   if (!novo) { toast('O nome não pode ficar vazio.', true); return; }
   if (novo === antigo) { restaurar(antigo); return; }
   btn.disabled = true;
-  const { error } = await supabase.from('leads').update({ nome: novo }).eq('id', id);
+  const agoraNome = new Date().toISOString();
+  const { error } = await supabase.from('leads').update({ nome: novo, atualizado_em: agoraNome }).eq('id', id);
   if (error) { btn.disabled = false; toast('Não foi possível corrigir o nome.', true); console.error(error); return; }
   restaurar(novo);
-  const emCache = leadsCache.find((x) => x.id === id);
-  if (emCache) emCache.nome = novo;
   // sincroniza o mesmo lead em outras telas abertas (lista, funil, título do detalhe)
   $$(`.lead-nome-wrap[data-id="${id}"]`).forEach((w) => {
     if (w === wrap || w.classList.contains('editando')) return;
     const t = w.querySelector('.lead-nome-txt'); if (t) t.textContent = novo;
   });
+  aplicarAtualizacaoLeadLocal(id, { nome: novo, atualizado_em: agoraNome });
   toast('Nome do lead atualizado.');
 });
 
@@ -1262,8 +1295,11 @@ async function carregarInteracoesLead(leadId) {
 
 document.addEventListener('click', async (e) => {
   if (e.target.dataset.action === 'lead-view') {
-    const { data: l } = await supabase.from('leads').select('*').eq('id', e.target.dataset.id).single();
+    // Abrir o histórico já conta como "acesso": some pra cabeçalho da lista/coluna.
+    const agoraVer = new Date().toISOString();
+    const { data: l } = await supabase.from('leads').update({ atualizado_em: agoraVer }).eq('id', e.target.dataset.id).select('*').single();
     if (!l) return;
+    aplicarAtualizacaoLeadLocal(l.id, { atualizado_em: agoraVer });
     openModal(`
       <h2>${nomeLeadEditavelHtml(l)}</h2>
       <p><strong>Telefone:</strong> ${l.telefone}</p>
@@ -1331,6 +1367,7 @@ document.addEventListener('click', async (e) => {
         valor_min: $('#lb-valor-min').value ? Number($('#lb-valor-min').value) : null,
         valor_max: $('#lb-valor-max').value ? Number($('#lb-valor-max').value) : null,
         quartos_min: $('#lb-quartos').value ? Number($('#lb-quartos').value) : null,
+        atualizado_em: new Date().toISOString(),
       };
       const { error } = await supabase.from('leads').update(payload).eq('id', l.id);
       if (error) { toast('Não foi possível salvar a busca.', true); console.error(error); return; }
@@ -1352,6 +1389,10 @@ document.addEventListener('click', async (e) => {
       if (error) { toast('Não foi possível salvar a anotação.', true); console.error(error); return; }
       $('#int-mensagem').value = '';
       carregarInteracoesLead(l.id);
+      // Registrar uma interação também conta como "editar" o lead — some pra cabeçalho.
+      const agoraInteracao = new Date().toISOString();
+      await supabase.from('leads').update({ atualizado_em: agoraInteracao }).eq('id', l.id);
+      aplicarAtualizacaoLeadLocal(l.id, { atualizado_em: agoraInteracao });
     });
   }
 });
@@ -1531,7 +1572,9 @@ async function loadFunil() {
     funilCorretoresCarregados = true;
   }
 
-  let query = supabase.from('leads').select('*, usuarios(id,nome)').order('criado_em', { ascending: false });
+  let query = supabase.from('leads').select('*, usuarios(id,nome)')
+    .order('atualizado_em', { ascending: false, nullsFirst: false })
+    .order('criado_em', { ascending: false });
   if (podeVerFinanceiro) {
     if (funilCorretorFiltro) query = query.eq('corretor_id', funilCorretorFiltro);
   } else if (currentUsuario) {
