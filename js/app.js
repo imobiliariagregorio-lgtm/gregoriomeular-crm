@@ -638,9 +638,14 @@ async function carregarPainelExecutivoLocacao() {
   idsCobrancasAtraso = new Set(recebimentosAtraso.map((cb) => cb.id));
   idsRepassesAtraso = new Set(repassesAtraso.map((r) => r.id));
 
+  // "Parado" = sem interação há mais de 5 dias (e não desde a criação do lead).
+  const candidatosParados = leadsParados || [];
+  await anexaUltimaInteracao(candidatosParados);
+  const leadsParadosReais = candidatosParados.filter(leadParado);
+
   renderPainelAlertas({
     contratosSemDiaRepasse: locacaoAtivos.filter((c) => !c.dia_repasse),
-    leadsParados: leadsParados || [],
+    leadsParados: leadsParadosReais,
     imoveisSemFoto: (imoveisSemFoto || []).filter((im) => !im.fotos || im.fotos.length === 0),
     recebimentosAtraso,
     repassesAtraso,
@@ -707,7 +712,7 @@ function renderPainelAlertas({ contratosSemDiaRepasse, leadsParados, imoveisSemF
     },
     {
       qtd: leadsParados.length,
-      texto: `<strong>${leadsParados.length}</strong> lead${leadsParados.length === 1 ? '' : 's'} parado${leadsParados.length === 1 ? '' : 's'} há mais de 5 dias sem avançar no funil — risco de esfriar.`,
+      texto: `<strong>${leadsParados.length}</strong> lead${leadsParados.length === 1 ? '' : 's'} parado${leadsParados.length === 1 ? '' : 's'} sem interação há mais de 5 dias — risco de esfriar.`,
       nivel: 'atencao',
       tipo: 'leads_parados',
     },
@@ -1037,13 +1042,12 @@ function renderLeadsTable() {
     : leadsCache;
 
   if (filtroLeadsParados) {
-    const limite = Date.now() - 5 * 24 * 60 * 60 * 1000;
-    filtrados = filtrados.filter((l) => ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3'].includes(l.status) && new Date(l.criado_em).getTime() < limite);
+    filtrados = filtrados.filter(leadParado);
   }
   if (banner) {
     banner.hidden = !filtroLeadsParados;
     if (filtroLeadsParados) {
-      banner.innerHTML = `<span>🔔 Mostrando <strong>${filtrados.length}</strong> lead${filtrados.length === 1 ? '' : 's'} parado${filtrados.length === 1 ? '' : 's'} há mais de 5 dias.</span><button type="button" class="btn btn-ghost btn-sm" data-action="limpar-filtro-alerta" data-tela="leads">Limpar filtro</button>`;
+      banner.innerHTML = `<span>🔔 Mostrando <strong>${filtrados.length}</strong> lead${filtrados.length === 1 ? '' : 's'} parado${filtrados.length === 1 ? '' : 's'} sem interação há mais de 5 dias.</span><button type="button" class="btn btn-ghost btn-sm" data-action="limpar-filtro-alerta" data-tela="leads">Limpar filtro</button>`;
     }
   }
 
@@ -1217,6 +1221,15 @@ async function anexaUltimaInteracao(leads) {
   const mapa = new Map();
   respostas.forEach(({ data }) => (data || []).forEach((r) => mapa.set(r.lead_id, r.ultima_interacao_em)));
   leads.forEach((l) => { l.ultima_interacao_em = mapa.get(l.id) || null; });
+}
+
+// Lead parado: ainda no começo do funil e sem interação há mais de 5 dias
+// (sem nenhuma interação registrada, vale a data de criação).
+const LEAD_PARADO_DIAS = 5;
+function leadParado(l) {
+  if (!['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3'].includes(l.status)) return false;
+  const referencia = new Date(l.ultima_interacao_em || l.criado_em).getTime();
+  return referencia < Date.now() - LEAD_PARADO_DIAS * 24 * 60 * 60 * 1000;
 }
 
 function diaSP(d) {
