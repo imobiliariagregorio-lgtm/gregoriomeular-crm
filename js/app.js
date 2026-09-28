@@ -1022,8 +1022,9 @@ async function loadLeads() {
     leadsCorretoresCache.length ? Promise.resolve({ data: leadsCorretoresCache }) : supabase.from('usuarios').select('id,nome').eq('ativo', true).order('nome'),
   ]);
   if (corretores) leadsCorretoresCache = corretores;
-  if (error) { tbody.innerHTML = emptyRow(7, 'Erro ao carregar leads.'); console.error(error); return; }
+  if (error) { tbody.innerHTML = emptyRow(8, 'Erro ao carregar leads.'); console.error(error); return; }
   leadsCache = data || [];
+  await anexaUltimaInteracao(leadsCache);
   renderLeadsTable();
 }
 
@@ -1046,7 +1047,7 @@ function renderLeadsTable() {
     }
   }
 
-  if (!filtrados.length) { tbody.innerHTML = emptyRow(7, filtroLeadsParados ? 'Nenhum lead parado — tudo em dia! 🎉' : (leadsCache.length ? 'Nenhum lead encontrado para essa busca.' : 'Nenhum lead encontrado.')); return; }
+  if (!filtrados.length) { tbody.innerHTML = emptyRow(8, filtroLeadsParados ? 'Nenhum lead parado — tudo em dia! 🎉' : (leadsCache.length ? 'Nenhum lead encontrado para essa busca.' : 'Nenhum lead encontrado.')); return; }
 
   tbody.innerHTML = filtrados.map((l) => `
     <tr>
@@ -1054,6 +1055,7 @@ function renderLeadsTable() {
       <td>${l.telefone}</td>
       <td>${l.origem}</td>
       <td>${l.interesse || '—'}</td>
+      <td>${ultimaInteracaoHtml(l)}</td>
       <td>
         <select class="status-select" data-id="${l.id}" data-action="lead-status">
           ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${LEAD_STATUS_LABELS[s]}</option>`).join('')}
@@ -1202,6 +1204,34 @@ document.addEventListener('change', async (e) => {
 // verdade" vem do banco (order by atualizado_em) — o que fazemos aqui é só
 // aplicar a mesma mudança nos caches já carregados na tela, pra reordenar na
 // hora, sem esperar um recarregamento completo.
+// "Última interação": há quantos dias o cliente teve contato registrado (mensagem
+// recebida/enviada ou anotação). Vem da view leads_ultima_interacao, que já ignora
+// as notas automáticas da roleta ("Lead repassado automaticamente...").
+async function anexaUltimaInteracao(leads) {
+  if (!leads.length) return;
+  const ids = leads.map((l) => l.id);
+  const lotes = [];
+  for (let i = 0; i < ids.length; i += 150) lotes.push(ids.slice(i, i + 150));
+  const respostas = await Promise.all(lotes.map((lote) =>
+    supabase.from('leads_ultima_interacao').select('lead_id, ultima_interacao_em').in('lead_id', lote)));
+  const mapa = new Map();
+  respostas.forEach(({ data }) => (data || []).forEach((r) => mapa.set(r.lead_id, r.ultima_interacao_em)));
+  leads.forEach((l) => { l.ultima_interacao_em = mapa.get(l.id) || null; });
+}
+
+function diaSP(d) {
+  return new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); // AAAA-MM-DD
+}
+
+function ultimaInteracaoHtml(l) {
+  if (!l.ultima_interacao_em) return '<span class="ui-badge ui-nenhum" title="Nenhuma interação registrada">Sem contato</span>';
+  const dias = Math.round((new Date(diaSP(new Date())) - new Date(diaSP(l.ultima_interacao_em))) / 86400000);
+  const texto = dias <= 0 ? 'Hoje' : dias === 1 ? 'Ontem' : `${dias} dias`;
+  const cls = dias <= 2 ? 'ui-ok' : dias <= 6 ? 'ui-alerta' : 'ui-critico';
+  const quando = new Date(l.ultima_interacao_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  return `<span class="ui-badge ${cls}" title="Última interação: ${quando}">${texto}</span>`;
+}
+
 function comparaAtualizacao(a, b) {
   const ta = new Date(a.atualizado_em || a.criado_em).getTime();
   const tb = new Date(b.atualizado_em || b.criado_em).getTime();
@@ -1392,7 +1422,7 @@ document.addEventListener('click', async (e) => {
       // Registrar uma interação também conta como "editar" o lead — some pra cabeçalho.
       const agoraInteracao = new Date().toISOString();
       await supabase.from('leads').update({ atualizado_em: agoraInteracao }).eq('id', l.id);
-      aplicarAtualizacaoLeadLocal(l.id, { atualizado_em: agoraInteracao });
+      aplicarAtualizacaoLeadLocal(l.id, { atualizado_em: agoraInteracao, ultima_interacao_em: agoraInteracao });
     });
   }
 });
@@ -1586,6 +1616,7 @@ async function loadFunil() {
   if (error) { board.innerHTML = '<p class="table-empty">Erro ao carregar o funil.</p>'; console.error(error); return; }
 
   funilLeadsCache = data || [];
+  await anexaUltimaInteracao(funilLeadsCache);
   renderFunilBoard();
 }
 
@@ -1618,6 +1649,7 @@ function renderFunilBoard() {
               ${nomeLeadEditavelHtml(l)}
               <small>${l.telefone || ''}</small>
               <small>${l.interesse || 'interesse não informado'}</small>
+              <small>${ultimaInteracaoHtml(l)}</small>
               ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
               <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
               <select class="status-select" data-id="${l.id}" data-action="lead-status">

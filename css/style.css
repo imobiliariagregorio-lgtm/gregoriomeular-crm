@@ -839,3 +839,10 @@ html[data-theme="claro"] .bot-toggle{ color:#FFFFFF; }
 .lead-nome-ok,.lead-nome-cancel{border:0;cursor:pointer;border-radius:6px;padding:4px 8px;font-size:.8rem;font-weight:700;color:#fff;}
 .lead-nome-ok{background:var(--orange);}
 .lead-nome-cancel{background:#4B5563;}
+
+/* Selo "última interação" (Leads e Funil) */
+.ui-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.ui-ok { background: rgba(34, 197, 94, .18); color: #22c55e; }
+.ui-alerta { background: rgba(245, 130, 32, .2); color: #F58220; }
+.ui-critico { background: rgba(239, 68, 68, .2); color: #ef4444; }
+.ui-nenhum { background: rgba(148, 163, 184, .18); color: #94a3b8; }
