@@ -391,7 +391,7 @@ async function loadDashboard() {
   const tbody = $('#dashLeadsTable tbody');
   if (error || !data?.length) { tbody.innerHTML = emptyRow(1, 'Nenhum lead ainda.'); return; }
   tbody.innerHTML = data.map((l) => `
-    <tr><td><strong>${l.nome}</strong></td><td>${l.telefone}</td><td>${l.origem}</td><td>${statusPill(l.status)}</td></tr>
+    <tr><td><strong>${l.nome}</strong></td><td>${l.telefone}</td><td>${origemLabel(l.origem)}</td><td>${statusPill(l.status)}</td></tr>
   `).join('');
 
   if (podeVerFinanceiro) {
@@ -989,6 +989,20 @@ const LEAD_STATUS_LABELS = {
 };
 
 const ORIGENS_LEAD = ['site', 'whatsapp', 'instagram', 'facebook', 'indicacao', 'portal_imoveis', 'placas', 'google', 'ligacao', 'presencial', 'outro'];
+// Como cada origem aparece na tela (Leads, Funil, Dashboard). Sem entrada aqui, mostra
+// o valor cru salvo no banco. 'olx_zap' é gravado automaticamente pelo webhook do Grupo
+// OLX (ZAP Imóveis, Viva Real, OLX) — não aparece pro corretor escolher na mão.
+const ORIGEM_LABELS = {
+  portal_imoveis: 'Portal de Imóveis',
+  imovelweb: 'Imovelweb',
+  olx_zap: 'OLX ZAP',
+  oferta_ativa: 'Oferta Ativa',
+  ligacao: 'Ligação',
+  indicacao: 'Indicação',
+};
+function origemLabel(o) {
+  return ORIGEM_LABELS[o] || (o || '').replace(/_/g, ' ');
+}
 const INTERESSES_LEAD = ['compra', 'venda', 'locacao', 'avaliacao', 'outro'];
 
 let leadsCache = [];
@@ -1057,7 +1071,7 @@ function renderLeadsTable() {
     <tr>
       <td>${nomeLeadEditavelHtml(l)}</td>
       <td>${l.telefone}</td>
-      <td>${l.origem}</td>
+      <td>${origemLabel(l.origem)}</td>
       <td>${l.interesse || '—'}</td>
       <td>${ultimaInteracaoHtml(l)}</td>
       <td>
@@ -1347,7 +1361,7 @@ document.addEventListener('click', async (e) => {
       <h2>${nomeLeadEditavelHtml(l)}</h2>
       <p><strong>Telefone:</strong> ${l.telefone}</p>
       <p><strong>E-mail:</strong> ${l.email || '—'}</p>
-      <p><strong>Origem:</strong> ${l.origem}</p>
+      <p><strong>Origem:</strong> ${origemLabel(l.origem)}</p>
       ${(l.campanha || l.utm_campaign || l.anuncio) ? `<p><strong>Campanha:</strong> ${[l.campanha || l.utm_campaign, l.conjunto, l.anuncio].filter(Boolean).join(' · ')}</p>` : ''}
       <p><strong>Observações:</strong> ${l.observacoes || '—'}</p>
       ${l.status === 'perdido' && l.motivo_perda ? `<p><strong>Motivo da perda:</strong> ${l.motivo_perda}</p>` : ''}
