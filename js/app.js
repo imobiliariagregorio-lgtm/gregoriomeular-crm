@@ -274,7 +274,7 @@ $('#forgotForm').addEventListener('submit', async (e) => {
 // =====================================================================
 // NAVEGAÇÃO ENTRE VIEWS
 // =====================================================================
-const VIEWS = ['dashboard', 'leads', 'oferta_ativa', 'funil', 'captacao', 'imoveis', 'pessoas', 'visitas', 'vistorias', 'contratos', 'gerador', 'historico_docs', 'financeiro', 'relatorios', 'auditoria', 'equipe', 'depoimentos', 'hero', 'momentos', 'site', 'tutorial', 'aprovacoes', 'treinamento'];
+const VIEWS = ['dashboard', 'leads', 'oferta_ativa', 'funil', 'captacao', 'imoveis', 'pessoas', 'visitas', 'vistorias', 'contratos', 'gerador', 'historico_docs', 'financeiro', 'relatorios', 'auditoria', 'equipe', 'depoimentos', 'hero', 'momentos', 'site', 'tutorial', 'aprovacoes', 'treinamento', 'consorcios'];
 
 function navigateTo(view) {
   VIEWS.forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
@@ -292,6 +292,7 @@ function navigateTo(view) {
   if (view === 'leads') { leadsNaoVistos = 0; atualizarBadgeLeads(); loadLeads(); }
   if (view === 'oferta_ativa') loadOfertaAtiva();
   if (view === 'funil') loadFunil();
+  if (view === 'consorcios') loadConsorcios();
   if (view === 'captacao') loadCaptacao();
   if (view === 'imoveis') loadImoveis();
   if (view === 'pessoas') loadPessoas();
@@ -1003,7 +1004,21 @@ const ORIGEM_LABELS = {
 function origemLabel(o) {
   return ORIGEM_LABELS[o] || (o || '').replace(/_/g, ' ');
 }
-const INTERESSES_LEAD = ['compra', 'venda', 'locacao', 'avaliacao', 'outro'];
+const INTERESSES_LEAD = ['compra', 'venda', 'locacao', 'avaliacao', 'outro', 'consorcio', 'carta_contemplada'];
+// CONSÓRCIO (29/09/2026): lead de consórcio é um lead SEPARADO do de imóvel (mesma tabela,
+// interesse = consorcio | carta_contemplada), com roleta própria (usuarios.atende_consorcio).
+// "Encaminhar" cria um lead novo ligado ao original por lead_origem_id.
+const INTERESSES_CONSORCIO = ['consorcio', 'carta_contemplada'];
+const INTERESSE_LABELS = { consorcio: '🏦 Consórcio', carta_contemplada: '🏦 Carta contemplada' };
+const BENS_CONSORCIO = ['Imóvel', 'Terreno', 'Veículo', 'Construção ou reforma', 'Carta contemplada', 'Outro'];
+const STATUS_LEAD_ENCERRADOS = ['perdido', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120'];
+function leadEhConsorcio(l) { return INTERESSES_CONSORCIO.includes(l?.interesse); }
+function interesseLabel(i) { return INTERESSE_LABELS[i] || (i || '—').replace(/_/g, ' '); }
+function numOuNull(v) { return v === '' || v == null ? null : Number(v); }
+function bemConsorcioOptionsHtml(sel) {
+  const lista = sel && !BENS_CONSORCIO.includes(sel) ? [...BENS_CONSORCIO, sel] : BENS_CONSORCIO;
+  return lista.map((b) => `<option value="${escapeHtml(b)}" ${b === sel ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
+}
 
 let leadsCache = [];
 let leadsCorretoresCache = [];
@@ -1055,6 +1070,9 @@ function renderLeadsTable() {
     ? leadsCache.filter((l) => semAcento([l.nome, l.telefone].filter(Boolean).join(' ')).includes(termo))
     : leadsCache;
 
+  const tipoFiltro = $('#leadTipoFilter')?.value || '';
+  if (tipoFiltro === 'consorcio') filtrados = filtrados.filter(leadEhConsorcio);
+  if (tipoFiltro === 'imoveis') filtrados = filtrados.filter((l) => !leadEhConsorcio(l));
   if (filtroLeadsParados) {
     filtrados = filtrados.filter(leadParado);
   }
@@ -1072,7 +1090,7 @@ function renderLeadsTable() {
       <td>${nomeLeadEditavelHtml(l)}</td>
       <td>${l.telefone}</td>
       <td>${origemLabel(l.origem)}</td>
-      <td>${l.interesse || '—'}</td>
+      <td>${interesseLabel(l.interesse)}</td>
       <td>${ultimaInteracaoHtml(l)}</td>
       <td>
         <select class="status-select" data-id="${l.id}" data-action="lead-status">
@@ -1088,6 +1106,9 @@ function renderLeadsTable() {
       <td>
         <button class="btn btn-ghost btn-sm" data-action="lead-view" data-id="${l.id}">Ver</button>
         <button class="btn btn-ghost btn-sm" data-action="lead-para-captacao" data-id="${l.id}" title="Cliente quer vender/locar imóvel, ou é construtora/incorporadora">→ Captação</button>
+        ${leadEhConsorcio(l)
+          ? `<button class="btn btn-ghost btn-sm" data-action="lead-encaminhar" data-destino="imoveis" data-id="${l.id}" title="O cliente também quer comprar ou alugar imóvel">→ Imóveis</button>`
+          : `<button class="btn btn-ghost btn-sm" data-action="lead-encaminhar" data-destino="consorcio" data-id="${l.id}" title="O cliente quer consórcio ou carta contemplada">→ Consórcio</button>`}
       </td>
     </tr>
   `).join('');
@@ -1110,8 +1131,145 @@ document.addEventListener('click', async (e) => {
   bindCaptacaoForm();
 });
 
+// ---- Encaminhar lead: imóvel <-> consórcio (cria um lead NOVO, ligado ao original) ----
+async function encaminharLeadForm(lead, destino) {
+  const paraConsorcio = destino === 'consorcio';
+  let q = supabase.from('usuarios').select('id,nome').eq('ativo', true).order('nome');
+  if (paraConsorcio) q = q.eq('atende_consorcio', true);
+  const { data: corretores } = await q;
+  const nomeDestino = paraConsorcio ? 'consórcio' : 'imóveis';
+  const nomeOutro = paraConsorcio ? 'imóvel' : 'consórcio';
+  const camposDestino = paraConsorcio ? `
+      <div class="form-row"><label>Tipo</label>
+        <select id="enc-interesse">${INTERESSES_CONSORCIO.map((i) => `<option value="${i}">${interesseLabel(i)}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Bem desejado</label><select id="enc-bem">${bemConsorcioOptionsHtml(lead.tipo_imovel_busca ? 'Imóvel' : 'Imóvel')}</select></div>
+      <div class="form-row"><label>Crédito desejado (R$)</label><input type="number" id="enc-credito" min="0" step="1000" value="${lead.valor_max ?? ''}"></div>
+      <div class="form-row"><label>Parcela que cabe no bolso (R$)</label><input type="number" id="enc-parcela" min="0" step="10"></div>`
+    : `
+      <div class="form-row full"><label>Interesse</label>
+        <select id="enc-interesse">${['compra', 'locacao', 'venda', 'avaliacao'].map((i) => `<option value="${i}">${i}</option>`).join('')}</select></div>`;
+  return `
+    <h2>Encaminhar para ${nomeDestino}</h2>
+    <p class="modal-subtitle">Cria um novo lead de ${nomeDestino} para <strong>${escapeHtml(lead.nome)}</strong>, ligado a este.</p>
+    <form class="modal-form" id="encaminharForm">
+      ${camposDestino}
+      <div class="form-row full"><label>Corretor do novo lead${paraConsorcio ? ' (só quem atende consórcio)' : ''}</label>
+        <select id="enc-corretor">
+          <option value="">Distribuir automaticamente${paraConsorcio ? ' (roleta de consórcio)' : ''}</option>
+          ${(corretores || []).map((c) => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('')}
+        </select></div>
+      <div class="form-row full"><label>O que fazer com o lead original</label>
+        <label class="check-row"><input type="radio" name="enc-original" value="ativo" checked> Continuar ativo (o cliente ainda quer ${nomeOutro})</label>
+        <label class="check-row"><input type="radio" name="enc-original" value="perdido"> Fechar como perdido: migrou para ${nomeDestino}</label></div>
+      <div class="form-row full"><label>Observação para o novo corretor</label><textarea id="enc-obs" rows="2"></textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelEncaminhar">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Encaminhar</button>
+      </div>
+    </form>`;
+}
+
+async function encaminharLead(leadId, destino) {
+  const { data: lead } = await supabase.from('leads').select('*').eq('id', leadId).single();
+  if (!lead) { toast('Lead não encontrado.', true); return; }
+  const paraConsorcio = destino === 'consorcio';
+  const nomeDestino = paraConsorcio ? 'consórcio' : 'imóveis';
+  openModal(await encaminharLeadForm(lead, destino), { persistente: true });
+  $('#cancelEncaminhar').addEventListener('click', closeModal);
+  $('#encaminharForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = ev.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Encaminhando...';
+    const reabilita = () => { btn.disabled = false; btn.textContent = 'Encaminhar'; };
+
+    // Aviso de duplicidade: já existe lead aberto do mesmo tipo pra esse cliente?
+    let qd = supabase.from('leads').select('id,nome,interesse,status').not('status', 'in', `(${STATUS_LEAD_ENCERRADOS.join(',')})`);
+    qd = lead.pessoa_id ? qd.eq('pessoa_id', lead.pessoa_id) : qd.eq('telefone', lead.telefone);
+    const { data: abertos } = await qd;
+    const iguais = (abertos || []).filter((a) => a.id !== lead.id
+      && (paraConsorcio ? INTERESSES_CONSORCIO.includes(a.interesse) : !INTERESSES_CONSORCIO.includes(a.interesse)));
+    if (iguais.length && !window.confirm(`Este cliente já tem lead aberto de ${nomeDestino} (${iguais.map((a) => `${a.nome}, ${LEAD_STATUS_LABELS[a.status] || a.status}`).join('; ')}). Criar outro mesmo assim?`)) {
+      reabilita();
+      return;
+    }
+
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const obs = $('#enc-obs').value.trim();
+    const novo = {
+      pessoa_id: lead.pessoa_id || null,
+      nome: lead.nome,
+      telefone: lead.telefone,
+      email: lead.email || null,
+      origem: lead.origem || 'outro',
+      interesse: $('#enc-interesse').value,
+      status: 'novo',
+      corretor_id: $('#enc-corretor').value || null,
+      lead_origem_id: lead.id,
+      observacoes: [`Encaminhado do lead de ${paraConsorcio ? 'imóveis' : 'consórcio'} em ${hoje}.`, obs].filter(Boolean).join(' | '),
+    };
+    if (paraConsorcio) {
+      novo.bem_consorcio = $('#enc-bem').value || null;
+      novo.credito_desejado = numOuNull($('#enc-credito').value);
+      novo.parcela_desejada = numOuNull($('#enc-parcela').value);
+    }
+    const { error } = await supabase.from('leads').insert(novo);
+    if (error) { toast('Erro ao encaminhar: ' + error.message, true); console.error(error); reabilita(); return; }
+
+    // Lead original: continua ativo (padrão) ou fecha como perdido. Sempre deixa registro nas observações.
+    const perder = ev.target.querySelector('input[name="enc-original"]:checked')?.value === 'perdido';
+    const patch = {
+      observacoes: [lead.observacoes, `Encaminhado para ${nomeDestino} em ${hoje}.`].filter(Boolean).join(' | '),
+      atualizado_em: new Date().toISOString(),
+    };
+    if (perder) { patch.status = 'perdido'; patch.motivo_perda = `Migrou para ${nomeDestino}`; }
+    const { error: erroOrig } = await supabase.from('leads').update(patch).eq('id', lead.id);
+    if (erroOrig) console.error(erroOrig);
+
+    toast(`Lead encaminhado para ${nomeDestino}.`);
+    closeModal();
+    loadLeads();
+    if ($('#view-funil') && !$('#view-funil').hidden) loadFunil();
+    loadDashboard();
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.dataset.action !== 'lead-encaminhar') return;
+  encaminharLead(e.target.dataset.id, e.target.dataset.destino);
+});
+
+// ---- Vínculos entre leads (encaminhados) e bloco de dados do consórcio no detalhe do lead ----
+function blocoConsorcioLeadHtml(l) {
+  return `
+    <h3 style="margin-top:18px;">🏦 Consórcio</h3>
+    <form class="modal-form" id="leadConsorcioForm">
+      <div class="form-row"><label>Tipo</label>
+        <select id="lc-interesse">${INTERESSES_CONSORCIO.map((i) => `<option value="${i}" ${i === l.interesse ? 'selected' : ''}>${interesseLabel(i)}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Bem desejado</label><select id="lc-bem"><option value="">—</option>${bemConsorcioOptionsHtml(l.bem_consorcio)}</select></div>
+      <div class="form-row"><label>Crédito desejado (R$)</label><input type="number" id="lc-credito" min="0" step="1000" value="${l.credito_desejado ?? ''}"></div>
+      <div class="form-row"><label>Parcela desejada (R$)</label><input type="number" id="lc-parcela" min="0" step="10" value="${l.parcela_desejada ?? ''}"></div>
+      <div class="form-row"><label>Entrada ou lance (R$)</label><input type="number" id="lc-entrada" min="0" step="500" value="${l.entrada_disponivel ?? ''}"></div>
+      <div class="modal-actions"><button type="submit" class="btn btn-primary btn-sm">💾 Salvar dados do consórcio</button></div>
+    </form>`;
+}
+
+async function carregarVinculosLead(l) {
+  const el = $('#leadVinculos');
+  if (!el) return;
+  const [{ data: origem }, { data: derivados }] = await Promise.all([
+    l.lead_origem_id ? supabase.from('leads').select('id,nome,interesse,status').eq('id', l.lead_origem_id).maybeSingle() : Promise.resolve({ data: null }),
+    supabase.from('leads').select('id,nome,interesse,status').eq('lead_origem_id', l.id),
+  ]);
+  const link = (x) => `<button type="button" class="link-btn" data-action="lead-view" data-id="${x.id}">${escapeHtml(x.nome)} (${interesseLabel(x.interesse)}, ${LEAD_STATUS_LABELS[x.status] || x.status})</button>`;
+  const itens = [];
+  if (origem) itens.push(`Encaminhado de: ${link(origem)}`);
+  (derivados || []).forEach((d) => itens.push(`Encaminhado para: ${link(d)}`));
+  el.innerHTML = itens.length ? `🔗 ${itens.join(' · ')}` : '';
+}
+
 $('#leadStatusFilter').addEventListener('change', loadLeads);
 $('#leadsSearch').addEventListener('input', renderLeadsTable);
+$('#leadTipoFilter')?.addEventListener('change', renderLeadsTable);
 $('#leadsFiltroCorretor')?.addEventListener('change', (e) => {
   leadsFiltroCorretorId = e.target.value;
   loadLeads();
@@ -1125,6 +1283,12 @@ async function leadForm(l = {}) {
   return `
     <h2>Novo lead</h2>
     <form class="modal-form" id="leadForm">
+      <div class="form-row full"><label>Tipo de lead</label>
+        <select id="l-tipo">
+          <option value="imovel">Imóvel (compra, venda, locação, avaliação...)</option>
+          <option value="consorcio">Consórcio ou carta contemplada</option>
+        </select>
+      </div>
       <div class="form-row full"><label>Nome</label><input required id="l-nome" value="${l.nome || ''}"></div>
       <div class="form-row"><label>Telefone</label><input required id="l-telefone" value="${l.telefone || ''}"></div>
       <div class="form-row"><label>E-mail</label><input type="email" id="l-email" value="${l.email || ''}"></div>
@@ -1137,7 +1301,13 @@ async function leadForm(l = {}) {
           ${INTERESSES_LEAD.map((i) => `<option value="${i}">${i}</option>`).join('')}
         </select>
       </div>
-      <div class="form-row full"><label>Imóvel de interesse (opcional)</label>
+      <div class="doc-fieldset" id="l-consorcio-campos" hidden>
+        <div class="form-row"><label>Bem desejado</label><select id="l-bem">${bemConsorcioOptionsHtml('Imóvel')}</select></div>
+        <div class="form-row"><label>Crédito desejado (R$)</label><input type="number" id="l-credito" min="0" step="1000"></div>
+        <div class="form-row"><label>Parcela que cabe no bolso (R$)</label><input type="number" id="l-parcela" min="0" step="10"></div>
+        <div class="form-row"><label>Entrada ou lance disponível (R$)</label><input type="number" id="l-entrada" min="0" step="500"></div>
+      </div>
+      <div class="form-row full" id="l-imovel-wrap"><label>Imóvel de interesse (opcional)</label>
         <select id="l-imovel">
           <option value="">—</option>
           ${(imoveis || []).map((im) => `<option value="${im.id}">${im.titulo}</option>`).join('')}
@@ -1158,8 +1328,25 @@ async function leadForm(l = {}) {
   `;
 }
 
+// Alterna o formulário entre lead de imóvel e lead de consórcio (interesse, campos e imóvel).
+function bindLeadTipo() {
+  const tipo = $('#l-tipo');
+  if (!tipo) return;
+  const aplicar = () => {
+    const cons = tipo.value === 'consorcio';
+    $('#l-consorcio-campos').hidden = !cons;
+    $('#l-imovel-wrap').hidden = cons;
+    const opcoes = cons ? INTERESSES_CONSORCIO : INTERESSES_LEAD.filter((i) => !INTERESSES_CONSORCIO.includes(i));
+    $('#l-interesse').innerHTML = (cons ? '' : '<option value="">—</option>')
+      + opcoes.map((i) => `<option value="${i}">${cons ? interesseLabel(i) : i}</option>`).join('');
+  };
+  tipo.addEventListener('change', aplicar);
+  aplicar();
+}
+
 $('#newLeadBtn').addEventListener('click', async () => {
   openModal(await leadForm());
+  bindLeadTipo();
   $('#cancelLead').addEventListener('click', closeModal);
   $('#leadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1176,6 +1363,14 @@ $('#newLeadBtn').addEventListener('click', async () => {
       observacoes: $('#l-obs').value.trim() || null,
       status: 'novo',
     };
+    if ($('#l-tipo').value === 'consorcio') {
+      // Lead de consórcio: sem imóvel; o corretor (se vazio) vem da roleta de consórcio.
+      payload.imovel_id = null;
+      payload.bem_consorcio = $('#l-bem').value || null;
+      payload.credito_desejado = numOuNull($('#l-credito').value);
+      payload.parcela_desejada = numOuNull($('#l-parcela').value);
+      payload.entrada_disponivel = numOuNull($('#l-entrada').value);
+    }
     const { error } = await supabase.from('leads').insert(payload);
     btn.disabled = false; btn.textContent = 'Salvar lead';
     if (error) { toast('Erro ao salvar lead: ' + error.message, true); console.error(error); return; }
@@ -1366,6 +1561,13 @@ document.addEventListener('click', async (e) => {
       <p><strong>Observações:</strong> ${l.observacoes || '—'}</p>
       ${l.status === 'perdido' && l.motivo_perda ? `<p><strong>Motivo da perda:</strong> ${l.motivo_perda}</p>` : ''}
       <p><strong>Criado em:</strong> ${dateTime(l.criado_em)}</p>
+      <div id="leadVinculos" class="muted" style="margin:6px 0 2px;"></div>
+      <div class="table-actions-cell" style="margin:8px 0;">
+        ${leadEhConsorcio(l)
+          ? `<button type="button" class="btn btn-ghost btn-sm" data-action="lead-encaminhar" data-destino="imoveis" data-id="${l.id}">→ Encaminhar para imóveis</button>`
+          : `<button type="button" class="btn btn-ghost btn-sm" data-action="lead-encaminhar" data-destino="consorcio" data-id="${l.id}">→ Encaminhar para consórcio</button>`}
+      </div>
+      ${leadEhConsorcio(l) ? blocoConsorcioLeadHtml(l) : ''}
 
       <h3 style="margin-top:18px;">🔎 Busca do cliente</h3>
       <form class="modal-form" id="leadBuscaForm">
@@ -1415,6 +1617,23 @@ document.addEventListener('click', async (e) => {
       </form>
     `);
     carregarInteracoesLead(l.id);
+    carregarVinculosLead(l);
+    $('#leadConsorcioForm')?.addEventListener('submit', async (e4) => {
+      e4.preventDefault();
+      const payload = {
+        interesse: $('#lc-interesse').value,
+        bem_consorcio: $('#lc-bem').value || null,
+        credito_desejado: numOuNull($('#lc-credito').value),
+        parcela_desejada: numOuNull($('#lc-parcela').value),
+        entrada_disponivel: numOuNull($('#lc-entrada').value),
+        atualizado_em: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('leads').update(payload).eq('id', l.id);
+      if (error) { toast('Não foi possível salvar os dados do consórcio.', true); console.error(error); return; }
+      toast('Dados do consórcio atualizados.');
+      loadLeads();
+      if ($('#view-funil') && !$('#view-funil').hidden) loadFunil();
+    });
     $('#leadBuscaForm').addEventListener('submit', async (e3) => {
       e3.preventDefault();
       const payload = {
@@ -1675,7 +1894,7 @@ function renderFunilBoard() {
             <div class="kanban-card">
               ${nomeLeadEditavelHtml(l)}
               <small>${l.telefone || ''}</small>
-              <small>${l.interesse || 'interesse não informado'}</small>
+              <small>${l.interesse ? interesseLabel(l.interesse) : 'interesse não informado'}</small>
               <small>${ultimaInteracaoHtml(l)}</small>
               ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
               <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
@@ -6333,6 +6552,138 @@ async function aplicarMarcaDagua(file, opcoes = {}) {
 }
 
 // =====================================================================
+// CONSÓRCIOS — planos de consórcio novo (Servopa) exibidos em /consorcios no site
+// Só gerente e admin (tabela planos_consorcio: RLS). O site lê a view pública, que só
+// traz planos com "Publicado" ligado e validade em dia — sem taxas e campos internos.
+// =====================================================================
+let consorciosCache = [];
+const SEGMENTOS_CONSORCIO = { imovel: 'Imóvel', veiculo: 'Veículo', servicos: 'Construção, reforma e serviços' };
+function moneyCentavos(v) { return v == null || v === '' ? '—' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+function dataBR(d) { return d ? String(d).split('-').reverse().join('/') : '—'; }
+
+async function loadConsorcios() {
+  const tbody = $('#consorciosTable tbody');
+  const { data, error } = await supabase.from('planos_consorcio').select('*').order('segmento').order('credito');
+  if (error) { tbody.innerHTML = emptyRow(9, 'Erro ao carregar os planos.'); console.error(error); return; }
+  consorciosCache = data || [];
+  if (!consorciosCache.length) { tbody.innerHTML = emptyRow(9, 'Nenhum plano cadastrado ainda.'); return; }
+  const hoje = new Date().toISOString().slice(0, 10);
+  tbody.innerHTML = consorciosCache.map((p) => `
+    <tr>
+      <td>${SEGMENTOS_CONSORCIO[p.segmento] || p.segmento}</td>
+      <td><strong>${money(p.credito)}</strong></td>
+      <td>${moneyCentavos(p.parcela_promocional)}</td>
+      <td>${p.prazo_min_meses && p.prazo_max_meses ? `${p.prazo_min_meses} a ${p.prazo_max_meses} meses` : '—'}</td>
+      <td>${p.segunda_parcela ? dataBR(p.segunda_parcela) : '—'}</td>
+      <td>${p.validade ? dataBR(p.validade) : '—'}${p.validade && p.validade < hoje ? ' <span class="badge-oculto">Vencido</span>' : ''}</td>
+      <td>${p.taxa_adm_pct != null && p.parcela_cheia != null ? '✅' : '<span class="badge-oculto" title="Falta taxa de administração ou parcela cheia">Incompleto</span>'}</td>
+      <td><label class="check-row"><input type="checkbox" data-action="plano-publicar" data-id="${p.id}" ${p.publicado ? 'checked' : ''}> ${p.publicado ? 'No site' : 'Rascunho'}</label></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" data-action="plano-editar" data-id="${p.id}">Editar</button>
+        ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="plano-excluir" data-id="${p.id}">Excluir</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function planoForm(p = {}) {
+  const v = (x) => (x == null ? '' : x);
+  return `
+    <h2>${p.id ? 'Editar plano' : 'Novo plano de consórcio'}</h2>
+    <p class="modal-subtitle">Administradora: Servopa. Só publique depois de confirmar as condições com a administradora. Valores no site são simulação.</p>
+    <form class="modal-form" id="planoForm">
+      <div class="form-row"><label>Segmento</label>
+        <select id="pl-segmento">${Object.entries(SEGMENTOS_CONSORCIO).map(([k, n]) => `<option value="${k}" ${k === (p.segmento || 'imovel') ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Grupo</label><input id="pl-grupo" value="${escapeHtml(v(p.grupo))}"></div>
+      <div class="form-row"><label>Crédito (R$)</label><input required type="number" id="pl-credito" min="0" step="1000" value="${v(p.credito)}"></div>
+      <div class="form-row"><label>Parcela promocional (R$)</label><input type="number" id="pl-parcela-promo" min="0" step="0.01" value="${v(p.parcela_promocional)}"></div>
+      <div class="form-row"><label>Parcela cheia (R$)</label><input type="number" id="pl-parcela-cheia" min="0" step="0.01" value="${v(p.parcela_cheia)}"></div>
+      <div class="form-row"><label>2ª parcela em</label><input type="date" id="pl-segunda" value="${v(p.segunda_parcela)}"></div>
+      <div class="form-row"><label>Prazo mínimo (meses)</label><input type="number" id="pl-prazo-min" min="1" value="${v(p.prazo_min_meses)}"></div>
+      <div class="form-row"><label>Prazo máximo (meses)</label><input type="number" id="pl-prazo-max" min="1" value="${v(p.prazo_max_meses)}"></div>
+      <div class="form-row"><label>Taxa de administração (%)</label><input type="number" id="pl-taxa" min="0" step="0.01" value="${v(p.taxa_adm_pct)}"></div>
+      <div class="form-row"><label>Fundo de reserva (%)</label><input type="number" id="pl-fundo" min="0" step="0.01" value="${v(p.fundo_reserva_pct)}"></div>
+      <div class="form-row"><label>Seguro (%)</label><input type="number" id="pl-seguro" min="0" step="0.0001" value="${v(p.seguro_pct)}"></div>
+      <div class="form-row"><label>Validade da oferta</label><input type="date" id="pl-validade" value="${v(p.validade)}"></div>
+      <div class="form-row full"><label class="check-row"><input type="checkbox" id="pl-publicado" ${p.publicado ? 'checked' : ''}> Publicado no site</label></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelPlano">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar plano</button>
+      </div>
+    </form>`;
+}
+
+function abrirPlanoForm(p = {}) {
+  openModal(planoForm(p), { persistente: true });
+  $('#cancelPlano').addEventListener('click', closeModal);
+  $('#planoForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      administradora: 'servopa',
+      segmento: $('#pl-segmento').value,
+      grupo: $('#pl-grupo').value.trim() || null,
+      credito: Number($('#pl-credito').value),
+      parcela_promocional: numOuNull($('#pl-parcela-promo').value),
+      parcela_cheia: numOuNull($('#pl-parcela-cheia').value),
+      segunda_parcela: $('#pl-segunda').value || null,
+      prazo_min_meses: numOuNull($('#pl-prazo-min').value),
+      prazo_max_meses: numOuNull($('#pl-prazo-max').value),
+      taxa_adm_pct: numOuNull($('#pl-taxa').value),
+      fundo_reserva_pct: numOuNull($('#pl-fundo').value),
+      seguro_pct: numOuNull($('#pl-seguro').value),
+      validade: $('#pl-validade').value || null,
+      publicado: $('#pl-publicado').checked,
+      atualizado_em: new Date().toISOString(),
+    };
+    if (payload.publicado && (payload.taxa_adm_pct == null || payload.parcela_cheia == null)
+      && !window.confirm('Este plano está sem taxa de administração ou parcela cheia. Publicar mesmo assim?')) return;
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    const { error } = p.id
+      ? await supabase.from('planos_consorcio').update(payload).eq('id', p.id)
+      : await supabase.from('planos_consorcio').insert(payload);
+    btn.disabled = false; btn.textContent = 'Salvar plano';
+    if (error) { toast('Erro ao salvar o plano: ' + error.message, true); console.error(error); return; }
+    toast('Plano salvo.');
+    closeModal();
+    loadConsorcios();
+  });
+}
+
+$('#newPlanoBtn')?.addEventListener('click', () => abrirPlanoForm());
+
+document.addEventListener('click', async (e) => {
+  const acao = e.target.dataset.action;
+  if (acao === 'plano-editar') {
+    const p = consorciosCache.find((x) => x.id === e.target.dataset.id);
+    if (p) abrirPlanoForm(p);
+  }
+  if (acao === 'plano-excluir') {
+    const p = consorciosCache.find((x) => x.id === e.target.dataset.id);
+    if (!p || !window.confirm(`Excluir o plano de ${money(p.credito)}? Isso não pode ser desfeito.`)) return;
+    const { error } = await supabase.from('planos_consorcio').delete().eq('id', p.id);
+    if (error) { toast('Não foi possível excluir o plano.', true); console.error(error); return; }
+    toast('Plano excluído.');
+    loadConsorcios();
+  }
+});
+
+document.addEventListener('change', async (e) => {
+  if (e.target.dataset.action !== 'plano-publicar') return;
+  const p = consorciosCache.find((x) => x.id === e.target.dataset.id);
+  if (!p) return;
+  const publicar = e.target.checked;
+  if (publicar && (p.taxa_adm_pct == null || p.parcela_cheia == null)
+    && !window.confirm('Este plano está sem taxa de administração ou parcela cheia. Publicar mesmo assim?')) {
+    e.target.checked = false;
+    return;
+  }
+  const { error } = await supabase.from('planos_consorcio').update({ publicado: publicar, atualizado_em: new Date().toISOString() }).eq('id', p.id);
+  if (error) { toast('Não foi possível alterar a publicação.', true); console.error(error); e.target.checked = !publicar; return; }
+  toast(publicar ? 'Plano publicado no site.' : 'Plano voltou para rascunho.');
+  loadConsorcios();
+});
+
+// =====================================================================
 // EQUIPE
 // =====================================================================
 async function loadEquipe() {
@@ -6348,7 +6699,7 @@ async function loadEquipe() {
       <td>${u.cargo}</td>
       <td>${u.email}</td>
       <td>${u.ativo ? '✅' : '—'}</td>
-      <td>${u.recebe_leads === false ? '<span class="badge-oculto">Pausado</span>' : '✅'}</td>
+      <td>${u.recebe_leads === false ? '<span class="badge-oculto">Pausado</span>' : '✅'}${u.atende_consorcio ? ' <span class="badge-mini" title="Atende leads de consórcio">🏦</span>' : ''}</td>
       <td>${u.visivel_no_site === false ? '<span class="badge-oculto">Oculto do site</span>' : '—'}</td>
       <td class="nav-financeiro" ${podeVerFinanceiro ? '' : 'hidden'}>
         ${u.auth_user_id
@@ -6391,6 +6742,7 @@ function usuarioForm(u = {}) {
       <div class="form-row full"><label class="check-row"><input type="checkbox" id="u-ativo" ${u.ativo !== false ? 'checked' : ''}> Ativo</label></div>
       <div class="form-row full"><label class="check-row"><input type="checkbox" id="u-recebe-leads" ${u.recebe_leads !== false ? 'checked' : ''}> Recebe leads na roleta automática</label></div>
       <p style="grid-column:1/-1;font-size:.78rem;color:var(--gray-text);margin-top:-8px;">Desmarque pra tirar temporariamente esse corretor do rodízio de novos leads (ex: férias, fora do escritório) sem desativar o acesso dele ao sistema.</p>
+      <div class="form-row full"><label class="check-row"><input type="checkbox" id="u-atende-consorcio" ${u.atende_consorcio ? 'checked' : ''}> Atende leads de consórcio (entra na roleta de consórcio; precisa estar com "Recebe leads" marcado)</label></div>
       <div class="form-row full"><label class="check-row"><input type="checkbox" id="u-visivel-site" ${(u.id ? u.visivel_no_site !== false : false) ? 'checked' : ''}> Aparecer na página de equipe do site</label></div>
       ${!u.id ? '<p style="grid-column:1/-1;font-size:.78rem;color:var(--gray-text);">Novo integrante começa oculto do site — marque a opção acima quando quiser publicá-lo. Depois de salvar, crie o login dele em Supabase → Authentication → Users com esse mesmo e-mail, para ele conseguir acessar o CRM.</p>' : ''}
       <div class="modal-actions">
@@ -6497,6 +6849,7 @@ function bindUsuarioForm() {
       meta_mensal: $('#u-meta').value ? Number($('#u-meta').value) : null,
       ativo: $('#u-ativo').checked,
       recebe_leads: $('#u-recebe-leads').checked,
+      atende_consorcio: $('#u-atende-consorcio').checked,
       visivel_no_site: $('#u-visivel-site').checked,
       foto_url: fotoUrl && fotoUrl.startsWith('blob:') ? null : fotoUrl,
     };
@@ -7224,6 +7577,7 @@ const TUTORIAL_TOPICOS = [
   { titulo: 'Como edito os textos e redes sociais do site?', texto: 'Em "Conteúdo do Site" (só gerente/admin), dá pra editar o texto do "Sobre Nós", da página "Alugar ou vender meu imóvel", o rodapé e os links das redes sociais (Instagram, Facebook, WhatsApp, YouTube).' },
   { titulo: 'Como adiciono fotos que giram na home do site?', texto: 'Vá em "Fotos do Site" → "+ Nova foto", envie a imagem e escreva uma legenda opcional. Use o botão "Ativa no site" para escolher quais fotos aparecem no momento.' },
   { titulo: 'Como uso o bot de ajuda (❓)?', texto: 'Clique no botão redondo com "❓" no canto da tela e digite sua dúvida em texto normal, por exemplo "como cadastro um imóvel". O bot procura nesse mesmo tutorial e responde na hora.' },
+  { titulo: 'Como funciona o lead de consórcio?', texto: 'Consórcio e carta contemplada são leads separados dos de imóvel. Em Leads → "+ Novo lead", escolha "Tipo de lead: Consórcio" e preencha bem, crédito e parcela. Se o cliente de imóvel também quer consórcio, use "→ Consórcio" na linha do lead: o sistema cria um novo lead ligado ao original, com um corretor que atende consórcio, e você escolhe se o lead de imóvel continua ativo. Os planos do site ficam em Vendas → Consórcios (só gerente e admin).' },
   { titulo: 'Como cadastro um lead manualmente?', texto: 'Vá em Leads → "+ Novo lead" e preencha nome, telefone, origem e interesse. Se deixar o corretor em branco, o sistema distribui automaticamente para o corretor ativo com menos leads no mês.' },
   { titulo: 'Como funciona o Funil de Vendas (Kanban)?', texto: 'Mostra os leads organizados por etapa. Ao mudar um lead para "perdido", o sistema pede o motivo da perda — isso ajuda a entender por que negócios não fecham.' },
   { titulo: 'Onde vejo o histórico de conversa com um lead?', texto: 'Clique em "Ver" na tela de Leads. Lá aparece todo o histórico de interações (ligações, WhatsApp, e-mails) e dá pra adicionar uma nova anotação.' },

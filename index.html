@@ -72,6 +72,7 @@
           <button class="nav-item" data-view="oferta_ativa">📇 Oferta Ativa</button>
           <button class="nav-item" data-view="funil">🗂️ Funil de Vendas</button>
           <button class="nav-item" data-view="captacao">🏗️ Funil de Captação</button>
+          <button class="nav-item nav-financeiro" data-view="consorcios" hidden>🏦 Consórcios (planos)</button>
           <button class="nav-item" data-view="visitas">📅 Visitas</button>
           <a class='nav-item' href='/simulador' rel='noopener' target='_blank'>🧮 Simulador de Parcelas</a>
           <a class='nav-item' href='/consultor' rel='noopener' target='_blank'>🧭 Consultor de Produto</a>
@@ -234,6 +235,11 @@
           <option value="pos_venda_120">Pós-venda 120 dias</option>
           <option value="perdido">Lead Frio Perdido</option>
         </select>
+        <select id="leadTipoFilter">
+          <option value="">Imóveis e consórcio</option>
+          <option value="imoveis">Só imóveis</option>
+          <option value="consorcio">Só consórcio</option>
+        </select>
         <span id="leadsFiltroCorretorWrap" class="nav-financeiro" hidden>
           <select id="leadsFiltroCorretor">
             <option value="">Todos os corretores</option>
@@ -244,6 +250,23 @@
       <div class="table-wrap">
         <table id="leadsTable">
           <thead><tr><th>Nome</th><th>Telefone</th><th>Origem</th><th>Interesse</th><th>Últ. interação</th><th>Status</th><th>Corretor</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== CONSÓRCIOS (planos) ===== -->
+    <section class="view" id="view-consorcios" hidden>
+      <div class="view-head">
+        <div><h1>Consórcios</h1><p>Planos de consórcio novo (Servopa) exibidos em /consorcios no site</p></div>
+        <button class="btn btn-primary nav-financeiro" id="newPlanoBtn" hidden>+ Novo plano</button>
+      </div>
+      <div class="alerta-filtro-banner">
+        <span>Um plano só aparece no site com <strong>Publicado</strong> ligado e a validade em dia. Valores são simulação e podem mudar. Complete taxa de administração e parcela cheia antes de publicar.</span>
+      </div>
+      <div class="table-wrap">
+        <table id="consorciosTable">
+          <thead><tr><th>Segmento</th><th>Crédito</th><th>Parcela promocional</th><th>Prazo</th><th>2ª parcela</th><th>Validade</th><th>Dados</th><th>No site</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
