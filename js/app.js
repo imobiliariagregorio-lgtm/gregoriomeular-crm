@@ -5154,7 +5154,7 @@ document.addEventListener('click', async (e) => {
     const { data: c } = await supabase.from('contratos').select('*').eq('id', e.target.dataset.id).single();
     if (!c) return;
     openModal(await contratoForm(c));
-    bindContratoForm();
+    bindContratoForm(c);
     ligarCalculoComissao();
   }
 });
@@ -5200,7 +5200,7 @@ document.addEventListener('click', (e) => {
   if (btnRenovar) abrirRenovarContratoForm(btnRenovar.dataset.id, btnRenovar.dataset.fimAtual, btnRenovar.dataset.valorAtual);
 });
 
-function bindContratoForm() {
+function bindContratoForm(c = {}) {
   $('#cancelContrato').addEventListener('click', closeModal);
 
   const contratoId = $('#c-id').value;
@@ -8799,7 +8799,7 @@ function ofertarCriarContratoLocacao(modelo, dados) {
 
   (async () => {
     openModal(await contratoForm(prefill));
-    bindContratoForm();
+    bindContratoForm(prefill);
     const faltando = [];
     if (!prefill.imovel_id) faltando.push('imóvel');
     if (!prefill.comprador_locatario_id) faltando.push('locatário');
@@ -8827,7 +8827,7 @@ function ofertarCriarContratoVenda(modelo, dados) {
 
   (async () => {
     openModal(await contratoForm(prefill));
-    bindContratoForm();
+    bindContratoForm(prefill);
     const faltando = [];
     if (!prefill.imovel_id) faltando.push('imóvel');
     if (!prefill.comprador_locatario_id) faltando.push('comprador');
