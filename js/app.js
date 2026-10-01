@@ -1061,33 +1061,32 @@ function melhorOpcaoConsorcio(l, planos, cartas) {
 
   const candCartas = (cartas || [])
     .filter((c) => !seg || c.segmento === seg)
-    .map((c) => ({ ...c, _tipo: 'carta', _parc: c.parcela_atual ?? c.parcela_cheia, _score: pontua(Number(c.credito), Number(c.parcela_atual ?? c.parcela_cheia)) }))
-    .sort((a, b) => a._score - b._score);
+    .map((c) => {
+      const parcOpc = c.parcela_atual ?? c.parcela_cheia;
+      // Entrada relevante (cobre metade do repasse ou mais) puxa a carta pra cima no ranking
+      // mesmo com pontuação um pouco pior — é a situação onde ela realmente compensa.
+      const entradaCobreRepasse = !!(c.valor_repasse && entrada >= Number(c.valor_repasse) * 0.5);
+      let score = pontua(Number(c.credito), Number(parcOpc));
+      if (entradaCobreRepasse) score = Math.max(score - 0.15, 0);
+      return { ...c, _tipo: 'carta', _parc: parcOpc, _score: score, _entradaCobreRepasse: entradaCobreRepasse };
+    });
   const candPlanos = (planos || [])
     .filter((p) => !seg || p.segmento === seg)
-    .map((p) => ({ ...p, _tipo: 'plano', _parc: p.parcela_promocional ?? p.parcela_cheia, _score: pontua(Number(p.credito), Number(p.parcela_promocional ?? p.parcela_cheia)) }))
-    .sort((a, b) => a._score - b._score);
+    .map((p) => ({ ...p, _tipo: 'plano', _parc: p.parcela_promocional ?? p.parcela_cheia, _score: pontua(Number(p.credito), Number(p.parcela_promocional ?? p.parcela_cheia)) }));
 
-  const melhorCarta = candCartas[0] || null;
-  const melhorPlano = candPlanos[0] || null;
-  if (!melhorCarta && !melhorPlano) return { seg, credito, parcela, entrada, melhor: null, alternativas: [], dica: 'Nenhuma carta em andamento nem plano novo cadastrado nesse segmento ainda — confirme disponibilidade com a administradora antes de prometer prazo.' };
+  // Ranking único (cartas + planos juntos) — no máximo 5 recomendações no total.
+  const candidatos = [...candCartas, ...candPlanos].sort((a, b) => a._score - b._score);
+  if (!candidatos.length) return { seg, credito, parcela, entrada, melhor: null, alternativas: [], dica: 'Nenhuma carta em andamento nem plano novo cadastrado nesse segmento ainda — confirme disponibilidade com a administradora antes de prometer prazo.' };
 
-  // Entrada relevante (cobre metade do repasse ou mais) puxa pra carta em andamento mesmo
-  // com pontuação um pouco pior — é a situação onde ela realmente compensa.
-  const entradaCobreRepasse = melhorCarta && melhorCarta.valor_repasse && entrada >= Number(melhorCarta.valor_repasse) * 0.5;
-  let melhor;
-  if (melhorCarta && melhorPlano) {
-    melhor = entradaCobreRepasse || melhorCarta._score <= melhorPlano._score ? melhorCarta : melhorPlano;
-  } else {
-    melhor = melhorCarta || melhorPlano;
-  }
-  const alternativas = [melhorCarta, melhorPlano].filter((x) => x && x !== melhor);
+  const top5 = candidatos.slice(0, 5);
+  const melhor = top5[0];
+  const alternativas = top5.slice(1);
 
   const notas = [];
   if (melhor._tipo === 'carta') {
     const pct = melhor.parcelas_pagas && melhor.prazo_total_meses ? Math.round((melhor.parcelas_pagas / melhor.prazo_total_meses) * 100) : null;
     notas.push(`Carta em andamento${pct != null ? `, ${pct}% já pago` : ''}${melhor.contemplada ? ' e JÁ CONTEMPLADA — crédito liberado na hora' : ' — ainda não contemplada, mas entra no grupo mais adiantado'}.`);
-    if (melhor.valor_repasse) notas.push(entradaCobreRepasse ? 'A entrada do cliente cobre bem o valor de repasse — boa hora de fechar essa carta.' : `Repasse de ${money(melhor.valor_repasse)} — confirme se o cliente consegue cobrir à vista ou parcelado com a administradora.`);
+    if (melhor.valor_repasse) notas.push(melhor._entradaCobreRepasse ? 'A entrada do cliente cobre bem o valor de repasse — boa hora de fechar essa carta.' : `Repasse de ${money(melhor.valor_repasse)} — confirme se o cliente consegue cobrir à vista ou parcelado com a administradora.`);
   } else {
     notas.push('Plano novo Servopa — sem fila de espera por uma cota específica, mas a contemplação é por sorteio ou lance.');
     if (!entrada) notas.push('Cliente sem entrada informada — plano novo é mais fácil de encaixar sem lance inicial.');
@@ -1126,7 +1125,7 @@ async function dicaConsorcioDetalheHtml(l) {
       <strong>💡 Dica de venda</strong>
       <p><strong>Melhor opção agora:</strong> ${resumoOfertaConsorcio(r.melhor)}</p>
       <p>${escapeHtml(r.dica)}</p>
-      ${r.alternativas.length ? `<p class="muted">Outra opção: ${r.alternativas.map(resumoOfertaConsorcio).join(' · ')}</p>` : ''}
+      ${r.alternativas.length ? `<p class="muted" style="margin-bottom:2px;">Outras opções:</p><ul class="dica-consorcio-alt-lista">${r.alternativas.map((a) => `<li>${resumoOfertaConsorcio(a)}</li>`).join('')}</ul>` : ''}
     </div>`;
 }
 

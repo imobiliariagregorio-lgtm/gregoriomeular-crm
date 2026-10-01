@@ -858,3 +858,5 @@ html[data-theme="claro"] .bot-toggle{ color:#FFFFFF; }
 .dica-consorcio-box strong{color:var(--orange-light,#ffb27a);}
 .dica-consorcio-box p{margin:6px 0 0;font-size:.88rem;line-height:1.4;}
 .dica-consorcio-mini{display:block;color:var(--orange-light,#ffb27a);font-size:.72rem;margin-top:2px;}
+.dica-consorcio-alt-lista{margin:0 0 2px 18px;padding:0;font-size:.85rem;}
+.dica-consorcio-alt-lista li{margin:2px 0;}
