@@ -969,7 +969,7 @@ async function loadRanking() {
 // =====================================================================
 // LEADS
 // =====================================================================
-const LEAD_STATUSES = ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3', 'busca_qualificada', 'consulta_simulacao', 'visita_agendada', 'visita_feita', 'alterar_busca', 'proposta', 'documentacao', 'assinaturas', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120', 'perdido'];
+const LEAD_STATUSES = ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3', 'busca_qualificada', 'consulta_simulacao', 'visita_agendada', 'visita_feita', 'alterar_busca', 'proposta', 'documentacao', 'assinaturas', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120', 'perdido', 'perdido_definitivo'];
 const LEAD_STATUS_LABELS = {
   novo: 'Novo',
   tentativa_1: '1ª Tentativa',
@@ -988,6 +988,7 @@ const LEAD_STATUS_LABELS = {
   pos_venda_90: 'Pós-venda 90 dias',
   pos_venda_120: 'Pós-venda 120 dias',
   perdido: 'Frio (retomar depois)',
+  perdido_definitivo: 'Perdido (definitivo)',
 };
 
 const ORIGENS_LEAD = ['site', 'whatsapp', 'instagram', 'facebook', 'indicacao', 'portal_imoveis', 'placas', 'google', 'ligacao', 'presencial', 'outro'];
@@ -1012,7 +1013,7 @@ const INTERESSES_LEAD = ['compra', 'venda', 'locacao', 'avaliacao', 'outro', 'co
 const INTERESSES_CONSORCIO = ['consorcio', 'carta_contemplada'];
 const INTERESSE_LABELS = { consorcio: '🏦 Consórcio', carta_contemplada: '🏦 Carta contemplada' };
 const BENS_CONSORCIO = ['Imóvel', 'Terreno', 'Veículo', 'Construção ou reforma', 'Carta contemplada', 'Outro'];
-const STATUS_LEAD_ENCERRADOS = ['perdido', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120'];
+const STATUS_LEAD_ENCERRADOS = ['perdido', 'perdido_definitivo', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120'];
 function leadEhConsorcio(l) { return INTERESSES_CONSORCIO.includes(l?.interesse); }
 function interesseLabel(i) { return INTERESSE_LABELS[i] || (i || '—').replace(/_/g, ' '); }
 function numOuNull(v) { return v === '' || v == null ? null : Number(v); }
@@ -1498,7 +1499,7 @@ document.addEventListener('change', async (e) => {
     const novoStatus = e.target.value;
     const agora = new Date().toISOString();
     const payload = { status: novoStatus, atualizado_em: agora };
-    if (novoStatus === 'perdido') {
+    if (novoStatus === 'perdido' || novoStatus === 'perdido_definitivo') {
       const motivo = window.prompt('Motivo da perda do negócio (preço, financiamento, concorrente, desistência...):', '');
       if (motivo && motivo.trim()) payload.motivo_perda = motivo.trim();
     }
@@ -1675,7 +1676,7 @@ document.addEventListener('click', async (e) => {
       <p><strong>Origem:</strong> ${origemLabel(l.origem)}</p>
       ${(l.campanha || l.utm_campaign || l.anuncio) ? `<p><strong>Campanha:</strong> ${[l.campanha || l.utm_campaign, l.conjunto, l.anuncio].filter(Boolean).join(' · ')}</p>` : ''}
       <p><strong>Observações:</strong> ${l.observacoes || '—'}</p>
-      ${l.status === 'perdido' && l.motivo_perda ? `<p><strong>Motivo da perda:</strong> ${l.motivo_perda}</p>` : ''}
+      ${(l.status === 'perdido' || l.status === 'perdido_definitivo') && l.motivo_perda ? `<p><strong>Motivo da perda:</strong> ${l.motivo_perda}</p>` : ''}
       <p><strong>Criado em:</strong> ${dateTime(l.criado_em)}</p>
       <div id="leadVinculos" class="muted" style="margin:6px 0 2px;"></div>
       <div class="table-actions-cell" style="margin:8px 0;">
