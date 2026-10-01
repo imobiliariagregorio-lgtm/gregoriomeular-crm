@@ -987,7 +987,7 @@ const LEAD_STATUS_LABELS = {
   pos_venda_60: 'Pós-venda 60 dias',
   pos_venda_90: 'Pós-venda 90 dias',
   pos_venda_120: 'Pós-venda 120 dias',
-  perdido: 'Lead Frio Perdido',
+  perdido: 'Frio (retomar depois)',
 };
 
 const ORIGENS_LEAD = ['site', 'whatsapp', 'instagram', 'facebook', 'indicacao', 'portal_imoveis', 'placas', 'google', 'ligacao', 'presencial', 'outro'];
