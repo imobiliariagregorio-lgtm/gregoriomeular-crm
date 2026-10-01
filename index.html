@@ -255,18 +255,32 @@
       </div>
     </section>
 
-    <!-- ===== CONSÓRCIOS (planos) ===== -->
+    <!-- ===== CONSÓRCIOS (planos + cartas em andamento) ===== -->
     <section class="view" id="view-consorcios" hidden>
       <div class="view-head">
-        <div><h1>Consórcios</h1><p>Planos de consórcio novo (Servopa) exibidos em /consorcios no site</p></div>
+        <div><h1>Consórcios</h1><p>Planos novos (Servopa) exibidos em /consorcios no site, e cartas em andamento pra repasse (uso interno)</p></div>
         <button class="btn btn-primary nav-financeiro" id="newPlanoBtn" hidden>+ Novo plano</button>
+        <button class="btn btn-primary nav-financeiro" id="newCartaBtn" hidden>+ Nova carta em andamento</button>
       </div>
-      <div class="alerta-filtro-banner">
+      <div class="filters-bar">
+        <button type="button" class="btn btn-ghost btn-sm" id="abaConsorcioPlanos" data-aba="planos">Planos novos</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="abaConsorcioCartas" data-aba="cartas">Cartas em andamento</button>
+      </div>
+      <div class="alerta-filtro-banner" id="consorciosPlanosWrap">
         <span>Um plano só aparece no site com <strong>Publicado</strong> ligado e a validade em dia. Valores são simulação e podem mudar. Complete taxa de administração e parcela cheia antes de publicar.</span>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap" id="consorciosPlanosTableWrap">
         <table id="consorciosTable">
           <thead><tr><th>Segmento</th><th>Crédito</th><th>Parcela promocional</th><th>Prazo</th><th>2ª parcela</th><th>Validade</th><th>Dados</th><th>No site</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="alerta-filtro-banner" id="consorciosCartasWrap" hidden>
+        <span>Cartas em andamento não aparecem no site — uso interno pro corretor oferecer repasse. O nome do titular é só pra controle da equipe.</span>
+      </div>
+      <div class="table-wrap" id="consorciosCartasTableWrap" hidden>
+        <table id="cartasConsorcioTable">
+          <thead><tr><th>Segmento</th><th>Crédito</th><th>Parcela</th><th>Pagas / Prazo</th><th>Repasse</th><th>Titular</th><th>Status</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -310,7 +324,14 @@
       <div class="view-head">
         <div><h1>Funil de Vendas</h1><p>Acompanhamento do lead até a assinatura</p></div>
       </div>
-      <div class="filters-bar"><input type="search" id="funilBusca" placeholder="Buscar por nome ou telefone..."></div>
+      <div class="filters-bar">
+        <input type="search" id="funilBusca" placeholder="Buscar por nome ou telefone...">
+        <select id="funilFiltroTipo">
+          <option value="">Imóveis e consórcio</option>
+          <option value="imoveis">Só imóveis</option>
+          <option value="consorcio">Só consórcio</option>
+        </select>
+      </div>
       <div class="filters-bar nav-financeiro" id="funilFiltroCorretorWrap" hidden>
         <select id="funilFiltroCorretor">
           <option value="">Todos os corretores</option>

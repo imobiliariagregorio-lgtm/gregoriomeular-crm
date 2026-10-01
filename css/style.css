@@ -846,3 +846,15 @@ html[data-theme="claro"] .bot-toggle{ color:#FFFFFF; }
 .ui-alerta { background: rgba(245, 130, 32, .2); color: #F58220; }
 .ui-critico { background: rgba(239, 68, 68, .2); color: #ef4444; }
 .ui-nenhum { background: rgba(148, 163, 184, .18); color: #94a3b8; }
+
+/* Consórcio: cartas em andamento, dica de venda, abas */
+.status-pill.status-disponivel{background:rgba(76,175,125,.2);color:#7bd6a6;}
+.status-pill.status-reservada{background:rgba(255,182,72,.18);color:#ffb648;}
+.status-pill.status-vendida{background:var(--navy-600);color:var(--gray-text);}
+.status-pill.status-indisponivel{background:rgba(224,85,95,.2);color:#f0868d;}
+.btn-ghost-ativo{background:var(--orange);border-color:var(--orange);color:#fff;}
+.btn-ghost-ativo:hover{color:#fff;}
+.dica-consorcio-box{background:rgba(245,130,32,.08);border:1px solid rgba(245,130,32,.35);border-radius:10px;padding:10px 14px;margin:8px 0 14px;}
+.dica-consorcio-box strong{color:var(--orange-light,#ffb27a);}
+.dica-consorcio-box p{margin:6px 0 0;font-size:.88rem;line-height:1.4;}
+.dica-consorcio-mini{display:block;color:var(--orange-light,#ffb27a);font-size:.72rem;margin-top:2px;}

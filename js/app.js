@@ -292,7 +292,7 @@ function navigateTo(view) {
   if (view === 'leads') { leadsNaoVistos = 0; atualizarBadgeLeads(); loadLeads(); }
   if (view === 'oferta_ativa') loadOfertaAtiva();
   if (view === 'funil') loadFunil();
-  if (view === 'consorcios') loadConsorcios();
+  if (view === 'consorcios') mostrarAbaConsorcio('planos');
   if (view === 'captacao') loadCaptacao();
   if (view === 'imoveis') loadImoveis();
   if (view === 'pessoas') loadPessoas();
@@ -1020,6 +1020,117 @@ function bemConsorcioOptionsHtml(sel) {
   return lista.map((b) => `<option value="${escapeHtml(b)}" ${b === sel ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('');
 }
 
+
+// ---- Motor de recomendação de consórcio (planos novos x cartas em andamento) ----
+// Compara o que o lead pediu (bem/crédito/parcela/entrada) com as ofertas disponíveis
+// e devolve a melhor opção + 1-2 alternativas + uma dica curta de estratégia pro corretor.
+// Regra simples e transparente (sem IA): quanto mais perto do crédito/parcela pedidos,
+// melhor a pontuação; entrada disponível favorece carta em andamento (pula a fila).
+let ofertasConsorcioCache = null; // { planos: [...], cartas: [...] } — carregado 1x por sessão
+async function garantirOfertasConsorcio() {
+  if (ofertasConsorcioCache) return ofertasConsorcioCache;
+  const [{ data: planos }, { data: cartas }] = await Promise.all([
+    supabase.from('planos_consorcio').select('*').eq('publicado', true),
+    supabase.from('cartas_consorcio').select('*').eq('status', 'disponivel'),
+  ]);
+  ofertasConsorcioCache = { planos: planos || [], cartas: cartas || [] };
+  return ofertasConsorcioCache;
+}
+function invalidarOfertasConsorcio() { ofertasConsorcioCache = null; }
+
+function mapBemParaSegmento(bem) {
+  if (bem === 'Imóvel' || bem === 'Terreno') return 'imovel';
+  if (bem === 'Veículo') return 'veiculo';
+  if (bem === 'Construção ou reforma') return 'servicos';
+  return null; // Carta contemplada / Outro / vazio — não restringe segmento
+}
+
+function melhorOpcaoConsorcio(l, planos, cartas) {
+  if (!leadEhConsorcio(l)) return null;
+  const seg = mapBemParaSegmento(l.bem_consorcio);
+  const credito = Number(l.credito_desejado) || null;
+  const parcela = Number(l.parcela_desejada) || null;
+  const entrada = Number(l.entrada_disponivel) || 0;
+
+  const pontua = (cred, parc) => {
+    let p = 0, pesos = 0;
+    if (credito && cred) { p += Math.abs(cred - credito) / credito; pesos++; }
+    if (parcela && parc) { p += Math.abs(parc - parcela) / parcela; pesos++; }
+    return pesos ? p / pesos : 0.5; // sem dado pra comparar = nem bom nem ruim
+  };
+
+  const candCartas = (cartas || [])
+    .filter((c) => !seg || c.segmento === seg)
+    .map((c) => ({ ...c, _tipo: 'carta', _parc: c.parcela_atual ?? c.parcela_cheia, _score: pontua(Number(c.credito), Number(c.parcela_atual ?? c.parcela_cheia)) }))
+    .sort((a, b) => a._score - b._score);
+  const candPlanos = (planos || [])
+    .filter((p) => !seg || p.segmento === seg)
+    .map((p) => ({ ...p, _tipo: 'plano', _parc: p.parcela_promocional ?? p.parcela_cheia, _score: pontua(Number(p.credito), Number(p.parcela_promocional ?? p.parcela_cheia)) }))
+    .sort((a, b) => a._score - b._score);
+
+  const melhorCarta = candCartas[0] || null;
+  const melhorPlano = candPlanos[0] || null;
+  if (!melhorCarta && !melhorPlano) return { seg, credito, parcela, entrada, melhor: null, alternativas: [], dica: 'Nenhuma carta em andamento nem plano novo cadastrado nesse segmento ainda — confirme disponibilidade com a administradora antes de prometer prazo.' };
+
+  // Entrada relevante (cobre metade do repasse ou mais) puxa pra carta em andamento mesmo
+  // com pontuação um pouco pior — é a situação onde ela realmente compensa.
+  const entradaCobreRepasse = melhorCarta && melhorCarta.valor_repasse && entrada >= Number(melhorCarta.valor_repasse) * 0.5;
+  let melhor;
+  if (melhorCarta && melhorPlano) {
+    melhor = entradaCobreRepasse || melhorCarta._score <= melhorPlano._score ? melhorCarta : melhorPlano;
+  } else {
+    melhor = melhorCarta || melhorPlano;
+  }
+  const alternativas = [melhorCarta, melhorPlano].filter((x) => x && x !== melhor);
+
+  const notas = [];
+  if (melhor._tipo === 'carta') {
+    const pct = melhor.parcelas_pagas && melhor.prazo_total_meses ? Math.round((melhor.parcelas_pagas / melhor.prazo_total_meses) * 100) : null;
+    notas.push(`Carta em andamento${pct != null ? `, ${pct}% já pago` : ''}${melhor.contemplada ? ' e JÁ CONTEMPLADA — crédito liberado na hora' : ' — ainda não contemplada, mas entra no grupo mais adiantado'}.`);
+    if (melhor.valor_repasse) notas.push(entradaCobreRepasse ? 'A entrada do cliente cobre bem o valor de repasse — boa hora de fechar essa carta.' : `Repasse de ${money(melhor.valor_repasse)} — confirme se o cliente consegue cobrir à vista ou parcelado com a administradora.`);
+  } else {
+    notas.push('Plano novo Servopa — sem fila de espera por uma cota específica, mas a contemplação é por sorteio ou lance.');
+    if (!entrada) notas.push('Cliente sem entrada informada — plano novo é mais fácil de encaixar sem lance inicial.');
+  }
+  if (parcela && melhor._parc && melhor._parc > parcela * 1.15) {
+    notas.push(`A parcela dessa opção (${money(melhor._parc)}) está acima do que o cliente pediu (${money(parcela)}) — ofereça um prazo maior ou um crédito um pouco menor.`);
+  }
+  if (credito && melhor.credito && Math.abs(Number(melhor.credito) - credito) / credito > 0.15) {
+    notas.push(`O crédito dessa opção (${money(melhor.credito)}) está bem diferente do pedido (${money(credito)}) — alinhe a expectativa com o cliente.`);
+  }
+
+  return { seg, credito, parcela, entrada, melhor, alternativas, dica: notas.join(' ') };
+}
+
+function resumoOfertaConsorcio(o) {
+  if (!o) return '';
+  return `${o._tipo === 'carta' ? '🔁 Carta em andamento' : '🆕 Plano novo'} · ${SEGMENTOS_CONSORCIO[o.segmento] || o.segmento} · ${money(o.credito)} · parcela ${money(o._parc)}`;
+}
+
+function dicaConsorcioResumoHtml(l) {
+  if (!ofertasConsorcioCache) return '';
+  const r = melhorOpcaoConsorcio(l, ofertasConsorcioCache.planos, ofertasConsorcioCache.cartas);
+  if (!r || !r.melhor) return '';
+  return `<small class="dica-consorcio-mini">💡 ${resumoOfertaConsorcio(r.melhor)}</small>`;
+}
+
+async function dicaConsorcioDetalheHtml(l) {
+  const { planos, cartas } = await garantirOfertasConsorcio();
+  const r = melhorOpcaoConsorcio(l, planos, cartas);
+  if (!r) return '';
+  if (!r.melhor) {
+    return `<div class="dica-consorcio-box"><strong>💡 Dica de venda</strong><p>${r.dica}</p></div>`;
+  }
+  return `
+    <div class="dica-consorcio-box">
+      <strong>💡 Dica de venda</strong>
+      <p><strong>Melhor opção agora:</strong> ${resumoOfertaConsorcio(r.melhor)}</p>
+      <p>${escapeHtml(r.dica)}</p>
+      ${r.alternativas.length ? `<p class="muted">Outra opção: ${r.alternativas.map(resumoOfertaConsorcio).join(' · ')}</p>` : ''}
+    </div>`;
+}
+
+
 let leadsCache = [];
 let leadsCorretoresCache = [];
 // Filtro "por corretor" na lista de Leads — só admin/gerente veem e usam (mesmo padrão do Funil e da Captação).
@@ -1242,6 +1353,7 @@ document.addEventListener('click', (e) => {
 function blocoConsorcioLeadHtml(l) {
   return `
     <h3 style="margin-top:18px;">🏦 Consórcio</h3>
+    <div id="leadDicaConsorcio"><p class="muted">Calculando a melhor opção...</p></div>
     <form class="modal-form" id="leadConsorcioForm">
       <div class="form-row"><label>Tipo</label>
         <select id="lc-interesse">${INTERESSES_CONSORCIO.map((i) => `<option value="${i}" ${i === l.interesse ? 'selected' : ''}>${interesseLabel(i)}</option>`).join('')}</select></div>
@@ -1618,6 +1730,9 @@ document.addEventListener('click', async (e) => {
     `);
     carregarInteracoesLead(l.id);
     carregarVinculosLead(l);
+    if (leadEhConsorcio(l)) {
+      dicaConsorcioDetalheHtml(l).then((html) => { const el = $('#leadDicaConsorcio'); if (el) el.innerHTML = html; });
+    }
     $('#leadConsorcioForm')?.addEventListener('submit', async (e4) => {
       e4.preventDefault();
       const payload = {
@@ -1631,6 +1746,8 @@ document.addEventListener('click', async (e) => {
       const { error } = await supabase.from('leads').update(payload).eq('id', l.id);
       if (error) { toast('Não foi possível salvar os dados do consórcio.', true); console.error(error); return; }
       toast('Dados do consórcio atualizados.');
+      Object.assign(l, payload);
+      dicaConsorcioDetalheHtml(l).then((html) => { const el = $('#leadDicaConsorcio'); if (el) el.innerHTML = html; });
       loadLeads();
       if ($('#view-funil') && !$('#view-funil').hidden) loadFunil();
     });
@@ -1831,6 +1948,7 @@ let funilCorretorFiltro = '';
 let funilCorretoresCarregados = false;
 let funilLeadsCache = [];
 let funilBusca = '';
+let funilFiltroTipo = '';
 
 async function loadFunil() {
   const wrap = $('#funilFiltroCorretorWrap');
@@ -1863,6 +1981,7 @@ async function loadFunil() {
 
   funilLeadsCache = data || [];
   await anexaUltimaInteracao(funilLeadsCache);
+  if (funilLeadsCache.some(leadEhConsorcio)) await garantirOfertasConsorcio();
   renderFunilBoard();
 }
 
@@ -1872,12 +1991,14 @@ async function loadFunil() {
 function renderFunilBoard() {
   const board = $('#kanbanBoard');
   const termo = semAcento((funilBusca || '').trim());
-  const leads = termo
+  let leads = termo
     ? funilLeadsCache.filter((l) => semAcento([l.nome, l.telefone].filter(Boolean).join(' ')).includes(termo))
     : funilLeadsCache;
+  if (funilFiltroTipo === 'imoveis') leads = leads.filter((l) => !leadEhConsorcio(l));
+  else if (funilFiltroTipo === 'consorcio') leads = leads.filter(leadEhConsorcio);
 
-  if (termo && !leads.length) {
-    board.innerHTML = '<p class="table-empty">Nenhum lead encontrado para essa busca.</p>';
+  if ((termo || funilFiltroTipo) && !leads.length) {
+    board.innerHTML = '<p class="table-empty">Nenhum lead encontrado para esse filtro.</p>';
     return;
   }
 
@@ -1885,7 +2006,7 @@ function renderFunilBoard() {
     const doColuna = leads.filter((l) => l.status === col.status);
     // Com busca ativa, some a coluna sem resultado — sobra só onde o lead procurado está,
     // em vez de ele ficar perdido numa coluna com centenas de cards (ex.: "1ª Tentativa").
-    if (termo && !doColuna.length) return '';
+    if ((termo || funilFiltroTipo) && !doColuna.length) return '';
     return `
       <div class="kanban-col">
         <div class="kanban-col-head"><span>${col.label}</span><span class="kanban-col-count">${doColuna.length}</span></div>
@@ -1894,7 +2015,9 @@ function renderFunilBoard() {
             <div class="kanban-card">
               ${nomeLeadEditavelHtml(l)}
               <small>${l.telefone || ''}</small>
-              <small>${l.interesse ? interesseLabel(l.interesse) : 'interesse não informado'}</small>
+              ${leadEhConsorcio(l)
+                ? `<small>${interesseLabel(l.interesse)}${l.bem_consorcio ? ' · ' + escapeHtml(l.bem_consorcio) : ''}${l.credito_desejado ? ' · ' + money(l.credito_desejado) : ''}</small>${dicaConsorcioResumoHtml(l)}`
+                : `<small>${l.interesse ? interesseLabel(l.interesse) : 'interesse não informado'}</small>`}
               <small>${ultimaInteracaoHtml(l)}</small>
               ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
               <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
@@ -1908,6 +2031,11 @@ function renderFunilBoard() {
     `;
   }).join('');
 }
+
+$('#funilFiltroTipo')?.addEventListener('change', (e) => {
+  funilFiltroTipo = e.target.value;
+  renderFunilBoard();
+});
 
 $('#funilBusca')?.addEventListener('input', (e) => {
   funilBusca = e.target.value;
@@ -6682,6 +6810,135 @@ document.addEventListener('change', async (e) => {
   toast(publicar ? 'Plano publicado no site.' : 'Plano voltou para rascunho.');
   loadConsorcios();
 });
+
+// =====================================================================
+// CARTAS DE CONSÓRCIO EM ANDAMENTO — pra repasse (uso interno, não aparece no site)
+// Alimenta a "Dica de venda" no detalhe do lead e no Funil. Só gerente/admin (RLS).
+// =====================================================================
+let cartasConsorcioCache = [];
+const STATUS_CARTA_LABELS = { disponivel: 'Disponível', reservada: 'Reservada', vendida: 'Vendida', indisponivel: 'Indisponível' };
+
+async function loadCartasConsorcio() {
+  const tbody = $('#cartasConsorcioTable tbody');
+  const { data, error } = await supabase.from('cartas_consorcio').select('*, leads(nome)').order('segmento').order('credito');
+  if (error) { tbody.innerHTML = emptyRow(8, 'Erro ao carregar as cartas.'); console.error(error); return; }
+  cartasConsorcioCache = data || [];
+  invalidarOfertasConsorcio(); // a lista mudou — a próxima dica de venda busca de novo
+  if (!cartasConsorcioCache.length) { tbody.innerHTML = emptyRow(8, 'Nenhuma carta em andamento cadastrada ainda.'); return; }
+  tbody.innerHTML = cartasConsorcioCache.map((c) => `
+    <tr>
+      <td>${SEGMENTOS_CONSORCIO[c.segmento] || c.segmento}${c.contemplada ? ' <span class="badge-mini" title="Já contemplada">🏆</span>' : ''}</td>
+      <td><strong>${money(c.credito)}</strong></td>
+      <td>${moneyCentavos(c.parcela_atual ?? c.parcela_cheia)}</td>
+      <td>${c.parcelas_pagas != null && c.prazo_total_meses ? `${c.parcelas_pagas} / ${c.prazo_total_meses} (${Math.round((c.parcelas_pagas / c.prazo_total_meses) * 100)}%)` : '—'}</td>
+      <td>${moneyCentavos(c.valor_repasse)}</td>
+      <td>${escapeHtml(c.dono_nome || '—')}${c.lead_reservado_id ? `<br><small class="muted">Reservada: ${escapeHtml(c.leads?.nome || 'lead')}</small>` : ''}</td>
+      <td><span class="status-pill status-${c.status}">${STATUS_CARTA_LABELS[c.status] || c.status}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" data-action="carta-editar" data-id="${c.id}">Editar</button>
+        ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="carta-excluir" data-id="${c.id}">Excluir</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function cartaConsorcioForm(c = {}) {
+  const v = (x) => (x == null ? '' : x);
+  return `
+    <h2>${c.id ? 'Editar carta em andamento' : 'Nova carta em andamento'}</h2>
+    <p class="modal-subtitle">Uso interno — não aparece no site. Serve pra alimentar a dica de venda dos corretores.</p>
+    <form class="modal-form" id="cartaConsorcioForm">
+      <div class="form-row"><label>Administradora</label>
+        <select id="ct-adm">
+          ${['servopa', 'embracon', 'hs', 'bradesco', 'alfa'].map((a) => `<option value="${a}" ${a === (c.administradora || 'servopa') ? 'selected' : ''}>${a[0].toUpperCase() + a.slice(1)}</option>`).join('')}
+        </select></div>
+      <div class="form-row"><label>Segmento</label>
+        <select id="ct-segmento">${Object.entries(SEGMENTOS_CONSORCIO).map(([k, n]) => `<option value="${k}" ${k === (c.segmento || 'imovel') ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Grupo</label><input id="ct-grupo" value="${escapeHtml(v(c.grupo))}"></div>
+      <div class="form-row"><label>Crédito (R$)</label><input required type="number" id="ct-credito" min="0" step="1000" value="${v(c.credito)}"></div>
+      <div class="form-row"><label>Parcela atual (R$)</label><input type="number" id="ct-parcela-atual" min="0" step="0.01" value="${v(c.parcela_atual)}"></div>
+      <div class="form-row"><label>Parcela cheia (R$)</label><input type="number" id="ct-parcela-cheia" min="0" step="0.01" value="${v(c.parcela_cheia)}"></div>
+      <div class="form-row"><label>Parcelas já pagas</label><input type="number" id="ct-parcelas-pagas" min="0" value="${v(c.parcelas_pagas)}"></div>
+      <div class="form-row"><label>Prazo total (meses)</label><input type="number" id="ct-prazo" min="1" value="${v(c.prazo_total_meses)}"></div>
+      <div class="form-row"><label>Valor de repasse (R$)</label><input type="number" id="ct-repasse" min="0" step="100" value="${v(c.valor_repasse)}"></div>
+      <div class="form-row"><label>Titular atual (interno)</label><input id="ct-dono" value="${escapeHtml(v(c.dono_nome))}" placeholder="Não aparece no site"></div>
+      <div class="form-row"><label>Status</label>
+        <select id="ct-status">${Object.entries(STATUS_CARTA_LABELS).map(([k, n]) => `<option value="${k}" ${k === (c.status || 'disponivel') ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div class="form-row full"><label class="check-row"><input type="checkbox" id="ct-contemplada" ${c.contemplada ? 'checked' : ''}> Já contemplada (crédito liberado na hora)</label></div>
+      <div class="form-row full"><label>Observações</label><textarea id="ct-obs" rows="2">${escapeHtml(v(c.observacoes))}</textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelCarta">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar carta</button>
+      </div>
+    </form>`;
+}
+
+function abrirCartaConsorcioForm(c = {}) {
+  openModal(cartaConsorcioForm(c), { persistente: true });
+  $('#cancelCarta').addEventListener('click', closeModal);
+  $('#cartaConsorcioForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      administradora: $('#ct-adm').value,
+      segmento: $('#ct-segmento').value,
+      grupo: $('#ct-grupo').value.trim() || null,
+      credito: Number($('#ct-credito').value),
+      parcela_atual: numOuNull($('#ct-parcela-atual').value),
+      parcela_cheia: numOuNull($('#ct-parcela-cheia').value),
+      parcelas_pagas: numOuNull($('#ct-parcelas-pagas').value),
+      prazo_total_meses: numOuNull($('#ct-prazo').value),
+      valor_repasse: numOuNull($('#ct-repasse').value),
+      dono_nome: $('#ct-dono').value.trim() || null,
+      status: $('#ct-status').value,
+      contemplada: $('#ct-contemplada').checked,
+      observacoes: $('#ct-obs').value.trim() || null,
+      atualizado_em: new Date().toISOString(),
+    };
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    const { error } = c.id
+      ? await supabase.from('cartas_consorcio').update(payload).eq('id', c.id)
+      : await supabase.from('cartas_consorcio').insert(payload);
+    btn.disabled = false; btn.textContent = 'Salvar carta';
+    if (error) { toast('Erro ao salvar a carta: ' + error.message, true); console.error(error); return; }
+    toast('Carta salva.');
+    closeModal();
+    loadCartasConsorcio();
+  });
+}
+
+$('#newCartaBtn')?.addEventListener('click', () => abrirCartaConsorcioForm());
+
+document.addEventListener('click', async (e) => {
+  const acao = e.target.dataset.action;
+  if (acao === 'carta-editar') {
+    const c = cartasConsorcioCache.find((x) => x.id === e.target.dataset.id);
+    if (c) abrirCartaConsorcioForm(c);
+  }
+  if (acao === 'carta-excluir') {
+    const c = cartasConsorcioCache.find((x) => x.id === e.target.dataset.id);
+    if (!c || !window.confirm(`Excluir a carta de ${money(c.credito)}? Isso não pode ser desfeito.`)) return;
+    const { error } = await supabase.from('cartas_consorcio').delete().eq('id', c.id);
+    if (error) { toast('Não foi possível excluir a carta.', true); console.error(error); return; }
+    toast('Carta excluída.');
+    loadCartasConsorcio();
+  }
+});
+
+// Abas Planos novos / Cartas em andamento, dentro da mesma tela "Consórcios".
+function mostrarAbaConsorcio(aba) {
+  const ehPlanos = aba === 'planos';
+  $('#consorciosPlanosWrap').hidden = !ehPlanos;
+  $('#consorciosPlanosTableWrap').hidden = !ehPlanos;
+  $('#consorciosCartasWrap').hidden = ehPlanos;
+  $('#consorciosCartasTableWrap').hidden = ehPlanos;
+  $('#newPlanoBtn').hidden = !ehPlanos || !podeVerFinanceiro;
+  $('#newCartaBtn').hidden = ehPlanos || !podeVerFinanceiro;
+  $('#abaConsorcioPlanos').classList.toggle('btn-ghost-ativo', ehPlanos);
+  $('#abaConsorcioCartas').classList.toggle('btn-ghost-ativo', !ehPlanos);
+  if (ehPlanos) loadConsorcios(); else loadCartasConsorcio();
+}
+$('#abaConsorcioPlanos')?.addEventListener('click', () => mostrarAbaConsorcio('planos'));
+$('#abaConsorcioCartas')?.addEventListener('click', () => mostrarAbaConsorcio('cartas'));
 
 // =====================================================================
 // EQUIPE
