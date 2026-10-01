@@ -1577,12 +1577,16 @@ function aplicarAtualizacaoLeadLocal(id, patch) {
   if (emLista) Object.assign(emLista, patch);
   const emFunil = funilLeadsCache.find((l) => l.id === id);
   if (emFunil) Object.assign(emFunil, patch);
+  const emFunilConsorcio = funilConsorcioLeadsCache.find((l) => l.id === id);
+  if (emFunilConsorcio) Object.assign(emFunilConsorcio, patch);
 
   leadsCache.sort(comparaAtualizacao);
   funilLeadsCache.sort(comparaAtualizacao);
+  funilConsorcioLeadsCache.sort(comparaAtualizacao);
 
   if (emLista && $('#leadsTable')) renderLeadsTable();
   if (emFunil && $('#kanbanBoard')) renderFunilBoard();
+  if (emFunilConsorcio && $('#kanbanBoardConsorcio')) renderFunilConsorcioBoard();
 }
 
 // ---------------------------------------------------------------------
