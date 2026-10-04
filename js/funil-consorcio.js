@@ -108,7 +108,21 @@
     .fc-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
     .fc-duas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-top:14px;}
     .fc-duas .panel{overflow-x:auto;}
-    .fc-grade .stat-value{font-size:1.55rem;overflow-wrap:anywhere;}
+    .fc-grade .stat-value{font-size:clamp(1.2rem,1.7vw,1.55rem);white-space:nowrap;}
+    .fc-clicavel{cursor:pointer;transition:transform .12s,box-shadow .12s;}
+    .fc-clicavel:hover,.fc-clicavel:focus-visible{transform:translateY(-2px);outline:none;box-shadow:0 0 0 1px var(--orange,#FF6A1A);}
+    .fc-card-dica{font-size:.72rem;color:var(--orange,#FF6A1A);margin-top:6px;font-weight:600;}
+    .fc-card-dica.fc-ok{color:#6fd3a0;}
+    .fc-link{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer;text-decoration:underline dotted;}
+    .fc-link:hover{color:var(--orange,#FF6A1A);}
+    .fc-fazer-item{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);}
+    .fc-fazer-item:last-child{border-bottom:0;}
+    .fc-fazer-nome{font-weight:700;}
+    .fc-fazer-texto{font-size:.85rem;margin-top:2px;}
+    .fc-fazer-meta{font-size:.72rem;color:var(--gray-text,#C9D2E0);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+    .fc-fazer-botoes{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+    .fc-fazer-botoes a{text-decoration:none;}
+    @media (max-width:640px){.fc-fazer-item{grid-template-columns:1fr;}.fc-fazer-botoes{justify-content:flex-start;}}
     .fc-tab{width:100%;border-collapse:collapse;font-size:.82rem;}
     .fc-tab th{text-align:left;color:var(--gray-text,#9aa7b8);font-weight:600;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.08);}
     .fc-tab td{padding:6px;border-bottom:1px solid rgba(255,255,255,.04);}
@@ -264,6 +278,7 @@
     leadsPorId = new Map(todos.map((l) => [l.id, l]));
     cacheFunil = { todos, acao: new Map((resAcao.data || []).map((a) => [a.lead_id, a])) };
     desenharFunil(false);
+    aplicarAoAbrir();
   }
 
   function desenharFunil(rolarParaAchado) {
@@ -307,7 +322,7 @@
       if (col.ocultaSeVazia && !doGrupo.length) return '';
       if (busca && !doGrupo.length) return '';                  // buscando, só mostra as colunas com resultado
       return `
-        <div class="kanban-col">
+        <div class="kanban-col" data-col="${col.id}">
           <div class="kanban-col-head"><span>${esc(col.titulo)}<span class="fc-col-dica">${esc(col.dica)}</span></span><span class="kanban-col-count">${doGrupo.length}</span></div>
           <div class="kanban-cards">
             ${doGrupo.length ? doGrupo.map((l) => cartao(l, acao.get(l.id), col, !!busca && idsAchados.has(l.id))).join('') : '<p class="kanban-empty">Nenhum lead aqui.</p>'}
@@ -316,14 +331,44 @@
     }).join('');
 
     if (rolarParaAchado && busca) {
-      // rola só o quadro para o lado (nunca a página inteira, para o campo de busca continuar à vista)
       const primeiro = board.querySelector('.fc-achado');
-      const coluna = primeiro && primeiro.closest('.kanban-col');
-      if (coluna && board.scrollTo) {
-        const esquerda = coluna.getBoundingClientRect().left - board.getBoundingClientRect().left + board.scrollLeft - 12;
-        board.scrollTo({ left: Math.max(0, esquerda), behavior: 'smooth' });
-      }
+      rolarBoardPara(primeiro && primeiro.closest('.kanban-col'));
     }
+  }
+
+  // rola só o quadro para o lado (nunca a página inteira, para o campo de busca continuar à vista)
+  function rolarBoardPara(coluna) {
+    const board = document.getElementById('fcBoard');
+    if (!coluna || !board || !board.scrollTo) return;
+    const esquerda = coluna.getBoundingClientRect().left - board.getBoundingClientRect().left + board.scrollLeft - 12;
+    board.scrollTo({ left: Math.max(0, esquerda), behavior: 'smooth' });
+  }
+
+  // ---- vindo do painel: abre o funil já no ponto certo ----
+  let aoAbrirFunil = null;   // { coluna: 'acompanhar' } ou { achado: true }
+
+  async function abrirFunil(op) {
+    op = op || {};
+    await carregarCorretores('fcFiltroCorretor');
+    const cor = document.getElementById('fcFiltroCorretor');
+    const pc = document.getElementById('pcCorretor');
+    if (gestao() && cor && pc && [...cor.options].some((o) => o.value === pc.value)) cor.value = pc.value;   // leva o corretor escolhido no painel
+    document.getElementById('fcSoAcao').checked = !!op.soAcao;
+    const busca = document.getElementById('fcBusca');
+    busca.value = op.busca || '';
+    document.getElementById('fcBuscaLimpar').hidden = !busca.value;
+    aoAbrirFunil = op.coluna ? { coluna: op.coluna } : (op.busca ? { achado: true } : null);
+    navigateTo('funil_consorcio');
+  }
+
+  function aplicarAoAbrir() {
+    const pendente = aoAbrirFunil;
+    aoAbrirFunil = null;
+    if (!pendente) return;
+    const board = document.getElementById('fcBoard');
+    const achado = board.querySelector('.fc-achado');
+    const alvo = pendente.coluna ? board.querySelector(`[data-col="${pendente.coluna}"]`) : (achado && achado.closest('.kanban-col'));
+    rolarBoardPara(alvo);
   }
 
   function cartao(l, a, col, achado) {
@@ -447,9 +492,27 @@
     if (alvo && alvo.dataset.fc === 'cancelar') fecharModal();
     if (alvo && alvo.dataset.fc === 'salvar-acomp') salvarAcompanhar();
     if (e.target && e.target.id === 'fcModal') fecharModal();
+    const cartaoIr = e.target && e.target.closest ? e.target.closest('[data-fc-ir]') : null;
+    if (cartaoIr) acionarCartao(cartaoIr.dataset.fcIr);
+    const abrirLead = e.target && e.target.closest ? e.target.closest('[data-fc-abrir]') : null;
+    if (abrirLead) abrirFunil({ busca: abrirLead.dataset.fcAbrir });
     if (e.target && e.target.id === 'fcBuscaLimpar') limparBusca();
     if (e.target && e.target.id === 'fcAtualizar') carregarFunil();
     if (e.target && e.target.id === 'pcAtualizar') carregarPainel();
+  });
+
+  function acionarCartao(destino) {
+    if (destino === 'acao') abrirFunil({ soAcao: true });
+    else if (destino === 'acompanhar') abrirFunil({ coluna: 'acompanhar' });
+    else if (destino === 'adesao') abrirFunil({ coluna: 'assinaturas' });
+    else abrirFunil({});
+  }
+  // cartão do painel também abre com Enter ou Espaço (acessível pelo teclado)
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.matches && e.target.matches('[data-fc-ir]')) {
+      e.preventDefault();
+      acionarCartao(e.target.dataset.fcIr);
+    }
   });
 
   let esperaBusca;
@@ -486,6 +549,20 @@
   const linhaFunil = (rotulo, valor, total, verde) =>
     `<div class="fc-barra-linha"><span>${esc(rotulo)}</span><div class="fc-trilho"><div class="fc-barra ${verde ? 'fc-verde' : ''}" style="width:${total ? Math.max(valor / total * 100, valor ? 2 : 0) : 0}%"></div></div><span class="fc-num"><b>${valor}</b> · ${pct(valor, total)}</span></div>`;
 
+  // o número grande do cartão nunca pode quebrar em duas linhas nem passar da borda: a letra diminui até caber
+  function ajustarValoresDoPainel() {
+    document.querySelectorAll('#pcConteudo .stat-value').forEach((el) => {
+      el.style.fontSize = '';
+      let tamanho = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollWidth > el.clientWidth + 1 && tamanho > 13) { tamanho -= 1; el.style.fontSize = tamanho + 'px'; }
+    });
+  }
+  let esperaAjuste;
+  window.addEventListener('resize', () => {
+    clearTimeout(esperaAjuste);
+    esperaAjuste = setTimeout(() => { const v = document.getElementById('view-painel_consorcio'); if (v && !v.hidden) ajustarValoresDoPainel(); }, 120);
+  });
+
   async function carregarPainel() {
     const box = document.getElementById('pcConteudo');
     box.innerHTML = '<p class="table-empty">Carregando…</p>';
@@ -503,24 +580,56 @@
     const notaHistorico = !p.historico_desde || p.historico_desde > inicioPeriodo
       ? `<p class="fc-nota">O histórico de mudanças de etapa começa em ${p.historico_desde ? new Date(p.historico_desde + 'T00:00:00').toLocaleDateString('pt-BR') : 'hoje (ainda sem mudanças)'}. Antes disso, o funil usa só a etapa em que cada lead está agora, então os números do início podem ficar abaixo do real.</p>` : '';
 
-    const stat = (valor, rotulo, classe) => `<div class="stat-card ${classe || ''}"><div class="stat-value">${valor}</div><div class="stat-label">${rotulo}</div></div>`;
+    // valor grande não pode quebrar em duas linhas: de 1 milhão para cima mostra "R$ 1,2 mi"
+    const brlCurto = (v) => { const n = Number(v) || 0; return n >= 1e6 ? 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi' : (brl(n) || 'R$ 0'); };
+    // cartão clicável: leva ao funil (destino) e mostra uma frase curta dizendo o que acontece ao clicar (dica)
+    const stat = (valor, rotulo, classe, destino, dica, dicaOk, titulo) =>
+      `<div class="stat-card ${classe || ''} ${destino ? 'fc-clicavel' : ''}" ${destino ? `role="button" tabindex="0" data-fc-ir="${destino}"` : ''} ${titulo ? `title="${esc(titulo)}"` : ''}>` +
+      `<div class="stat-value">${valor}</div><div class="stat-label">${rotulo}</div>${dica ? `<div class="fc-card-dica ${dicaOk ? 'fc-ok' : ''}">${dica}</div>` : ''}</div>`;
+    const chaveBusca = (nome, tel) => { const d = String(tel || '').replace(/\D/g, ''); return d.length >= 3 ? d : (nome || ''); };
     const ordemEtapas = ETAPAS.map((e) => e[0]).concat(['perdido_definitivo', 'visita_agendada', 'visita_feita']);
     const linhasEtapa = ordemEtapas.filter((s) => etapa[s]).map((s) => `<tr><td>${esc(ROTULO[s] || String(s).replace(/_/g, ' '))}</td><td class="fc-r">${etapa[s]}</td></tr>`).join('');
     const linhasOrigem = (p.por_origem || []).map((o) => `<tr><td>${esc(o.origem)}</td><td class="fc-r">${o.qtd}</td></tr>`).join('');
     const linhasCorretor = (p.por_corretor || []).map((c) => `<tr><td class="fc-nome" title="${esc(c.corretor)}">${esc(c.corretor)}</td><td class="fc-r">${c.novos}</td><td class="fc-r">${c.em_andamento}</td><td class="fc-r">${c.adesoes}</td></tr>`).join('');
-    const linhasRetomada = (p.proximas_retomadas || []).map((r) => `<tr><td class="fc-nome" title="${esc(r.nome)}">${esc(r.nome)}</td><td class="${r.vencida ? 'fc-vencido' : ''}" style="white-space:nowrap;">${esc(dataBR(r.retomar_em))}${r.vencida ? ' ⚠' : ''}</td><td class="fc-nome" title="${esc(r.motivo || '')}">${esc(r.motivo || '—')}</td></tr>`).join('');
+    const linhasRetomada = (p.proximas_retomadas || []).map((r) => `<tr><td class="fc-nome" title="${esc(r.nome)}"><button type="button" class="fc-link" data-fc-abrir="${esc(chaveBusca(r.nome, r.telefone))}">${esc(r.nome)}</button></td><td class="${r.vencida ? 'fc-vencido' : ''}" style="white-space:nowrap;">${esc(dataBR(r.retomar_em))}${r.vencida ? ' ⚠' : ''}</td><td class="fc-nome" title="${esc(r.motivo || '')}">${esc(r.motivo || '—')}</td></tr>`).join('');
     const motivos = ((p.perdidos || {}).motivos || []).map((m) => `<tr><td>${esc(m.motivo)}</td><td class="fc-r">${m.qtd}</td></tr>`).join('');
+
+    // "O que fazer agora": quem, o que fazer e há quanto tempo está parado
+    const acoes = p.acoes || [];
+    const itensFazer = acoes.map((a) => {
+      const instrucao = String(a.titulo || '').replace(/^Consórcio:\s*/i, '');
+      const atraso = Number(a.dias_de_atraso) || 0;
+      const quando = atraso > 0 ? `<span class="fc-vencido">atrasado ${plural(atraso, 'dia', 'dias')}</span>` : '<span>para hoje</span>';
+      const zap = linkWhats(a.telefone);
+      return `<div class="fc-fazer-item">
+        <div>
+          <div class="fc-fazer-nome">${esc(a.nome)}</div>
+          <div class="fc-fazer-texto">${esc(instrucao)}</div>
+          <div class="fc-fazer-meta"><span class="fc-chip">${esc(ROTULO[a.status] || String(a.status).replace(/_/g, ' '))}</span>${quando}${gestao() ? `<span>· ${esc(a.corretor)}</span>` : ''}</div>
+        </div>
+        <div class="fc-fazer-botoes">
+          <button type="button" class="btn btn-primary btn-sm" data-fc-abrir="${esc(chaveBusca(a.nome, a.telefone))}">Abrir no funil</button>
+          ${zap ? `<a class="btn btn-ghost btn-sm" href="${zap}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    const painelFazer = `<div class="panel" id="pcFazer">
+        <div class="panel-head"><h2>O que fazer agora</h2></div>
+        ${itensFazer || '<p class="table-empty">Nada pendente agora. Bom trabalho!</p>'}
+        ${(p.acoes_atrasadas || 0) > acoes.length ? `<p class="fc-nota">Mostrando os ${acoes.length} mais atrasados de ${p.acoes_atrasadas}.</p>` : ''}
+      </div>`;
 
     box.innerHTML = `
       <div class="fc-grade">
-        ${stat(p.novos_no_periodo, 'Leads novos no período')}
-        ${stat(p.em_andamento, 'Em andamento agora')}
-        ${stat(p.em_acompanhamento || 0, 'Em acompanhamento (retomada combinada)')}
-        ${stat(p.acoes_atrasadas, 'Pedem ação agora', p.acoes_atrasadas ? 'stat-danger' : '')}
-        ${stat(f.adesao || 0, 'Adesões (leads do período)', 'stat-success')}
-        ${stat(brl(p.credito_em_andamento) || 'R$ 0', 'Crédito desejado em andamento')}
+        ${stat(p.novos_no_periodo, 'Leads novos no período', '', 'todos', 'Ver no funil →')}
+        ${stat(p.em_andamento, 'Em andamento agora', '', 'todos', 'Ver no funil →')}
+        ${stat(p.em_acompanhamento || 0, 'Em acompanhamento (retomada combinada)', '', p.em_acompanhamento ? 'acompanhar' : '', 'Ver as retomadas →')}
+        ${stat(p.acoes_atrasadas, 'Pedem ação agora', p.acoes_atrasadas ? 'stat-danger' : '', p.acoes_atrasadas ? 'acao' : '', p.acoes_atrasadas ? 'Ver quem e o que fazer →' : 'Nada pendente agora', !p.acoes_atrasadas)}
+        ${stat(f.adesao || 0, 'Adesões (leads do período)', 'stat-success', f.adesao ? 'adesao' : '', 'Ver no funil →')}
+        ${stat(brlCurto(p.credito_em_andamento), 'Crédito desejado em andamento', '', 'todos', 'Ver no funil →', false, brl(p.credito_em_andamento))}
         ${stat(tempoTxt, 'Tempo até o 1º contato (mediana)')}
       </div>
+      ${painelFazer}
       ${notaHistorico}
       <div class="panel">
         <div class="panel-head"><h2>Funil dos leads que chegaram no período</h2></div>
@@ -544,6 +653,7 @@
         <div class="panel"><div class="panel-head"><h2>Perdidos no período: ${(p.perdidos || {}).total || 0}</h2></div>
           ${motivos ? `<table class="fc-tab"><thead><tr><th>Motivo</th><th class="fc-r">Qtd.</th></tr></thead><tbody>${motivos}</tbody></table>` : '<p class="table-empty">Nenhum lead perdido no período.</p>'}</div>
       </div>`;
+    ajustarValoresDoPainel();
   }
 
   window.FunilConsorcio = { carregarFunil, carregarPainel };

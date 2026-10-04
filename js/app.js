@@ -1012,7 +1012,7 @@ const INTERESSES_LEAD = ['compra', 'venda', 'locacao', 'avaliacao', 'outro', 'co
 // "Encaminhar" cria um lead novo ligado ao original por lead_origem_id.
 const INTERESSES_CONSORCIO = ['consorcio', 'carta_contemplada'];
 const INTERESSE_LABELS = { consorcio: '🏦 Consórcio', carta_contemplada: '🏦 Carta contemplada' };
-const BENS_CONSORCIO = ['Imóvel', 'Terreno', 'Veículo', 'Construção ou reforma', 'Carta contemplada', 'Outro'];
+const BENS_CONSORCIO = ['Imóvel', 'Terreno', 'Veículo', 'Construção ou reforma', 'Carta contemplada', 'Investimento', 'Outro'];
 const STATUS_LEAD_ENCERRADOS = ['perdido', 'perdido_definitivo', 'pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120'];
 function leadEhConsorcio(l) { return INTERESSES_CONSORCIO.includes(l?.interesse); }
 function interesseLabel(i) { return INTERESSE_LABELS[i] || (i || '—').replace(/_/g, ' '); }
