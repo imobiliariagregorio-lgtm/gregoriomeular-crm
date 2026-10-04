@@ -25,7 +25,7 @@
     ['busca_qualificada', 'Qualificado'], ['consulta_simulacao', 'Simulação enviada'], ['alterar_busca', 'Ajustando o plano'],
     ['proposta', 'Proposta enviada'], ['documentacao', 'Documentação'], ['assinaturas', 'Assinaturas (adesão)'],
     ['pos_venda_30', 'Pós-venda 30 dias'], ['pos_venda_60', 'Pós-venda 60 dias'], ['pos_venda_90', 'Pós-venda 90 dias'],
-    ['pos_venda_120', 'Pós-venda 120 dias'], ['perdido', 'Perdido'],
+    ['pos_venda_120', 'Pós-venda 120 dias'], ['acompanhar_depois', 'Acompanhar depois'], ['perdido', 'Perdido'],
   ];
   const ROTULO = Object.fromEntries(ETAPAS);
   ROTULO.perdido_definitivo = 'Perdido (definitivo)';
@@ -41,6 +41,7 @@
     { id: 'documentacao', titulo: 'Documentação', dica: 'Cadastro na administradora', st: ['documentacao'] },
     { id: 'assinaturas', titulo: 'Assinaturas', dica: 'Adesão em fechamento', st: ['assinaturas'] },
     { id: 'posvenda', titulo: 'Pós-venda', dica: 'Aqui está o dinheiro do consórcio', st: ['pos_venda_30', 'pos_venda_60', 'pos_venda_90', 'pos_venda_120'] },
+    { id: 'acompanhar', titulo: 'Acompanhar depois', dica: 'Tem potencial, retomada combinada', st: ['acompanhar_depois'] },
     { id: 'outras', titulo: 'Outras etapas', dica: 'Etapas que o consórcio não usa', st: ['visita_agendada', 'visita_feita'], ocultaSeVazia: true },
   ];
 
@@ -57,10 +58,20 @@
   };
   const diasNaEtapa = (l) => Math.max(0, Math.floor((Date.now() - new Date(l.status_alterado_em || l.criado_em).getTime()) / 86400000));
   const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+  const hojeISO = () => new Date().toLocaleDateString('en-CA');                       // AAAA-MM-DD no fuso do usuário
+  const somaDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('en-CA'); };
+  const dataBR = (iso) => { if (!iso) return ''; const [a, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}/${a}`; };
+  const diasAte = (iso) => Math.round((new Date(iso + 'T00:00:00') - new Date(hojeISO() + 'T00:00:00')) / 86400000);   // >0 = no futuro
 
   // ---------- estilo (usa as variáveis de cor do CRM) ----------
   const css = `
     .filters-bar-label input[type=checkbox]{padding:0;width:auto;}
+    .fc-busca{position:relative;flex:1 1 300px;max-width:440px;}
+    .fc-busca input{width:100%;box-sizing:border-box;padding-right:36px;}
+    .fc-busca button{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--gray-text,#C9D2E0);cursor:pointer;font-size:1rem;padding:6px 10px;}
+    .kanban-card.fc-achado{border-color:var(--orange,#FF6A1A);box-shadow:0 0 0 1px var(--orange,#FF6A1A);}
+    .fc-sem-resultado{padding:34px 12px;text-align:center;}
+    @media (max-width:640px){.fc-busca{flex-basis:100%;max-width:none;}}
     .fc-resumo{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;}
     .fc-pilula{background:var(--navy-700,#14335c);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:5px 13px;font-size:.78rem;color:var(--gray-text,#9aa7b8);}
     .fc-pilula b{color:var(--orange,#F58220);}
@@ -81,6 +92,19 @@
     .fc-barra.fc-verde{background:#4caf7d;}
     .fc-num{text-align:right;color:var(--gray-text,#9aa7b8);}
     .fc-num b{color:var(--white,#fff);}
+    .fc-modal{position:fixed;inset:0;background:rgba(3,10,25,.72);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
+    .fc-modal-box{background:var(--navy-700,#142B57);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:22px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+    .fc-modal-box h3{margin:0 0 4px;font-size:1.05rem;}
+    .fc-modal-sub{font-size:.8rem;margin:0 0 14px;}
+    .fc-modal-box label{display:block;font-size:.76rem;color:var(--gray-text,#C9D2E0);margin:12px 0 4px;}
+    .fc-modal-box input[type=date],.fc-modal-box input[type=text]{width:100%;box-sizing:border-box;background:var(--navy-800,#0B1E3D);border:1px solid var(--navy-600,#1D3A6E);color:var(--white,#fff);padding:9px 10px;border-radius:8px;font-size:.9rem;}
+    .fc-rapido{display:flex;flex-wrap:wrap;gap:6px;}
+    .fc-rapido button{background:var(--navy-800,#0B1E3D);border:1px solid var(--navy-600,#1D3A6E);color:var(--white,#fff);border-radius:20px;padding:8px 14px;font-size:.8rem;cursor:pointer;}
+    .fc-modal-acoes .btn{min-height:42px;padding:10px 20px;font-size:.88rem;}
+    .fc-rapido button:hover{border-color:var(--orange,#FF6A1A);}
+    .fc-modal-aviso{background:rgba(255,182,72,.12);border:1px solid rgba(255,182,72,.5);border-radius:8px;padding:8px 10px;font-size:.76rem;color:#ffcf85;margin:12px 0 0;}
+    .fc-modal-acoes{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+    .fc-aviso-decida{background:rgba(255,182,72,.12);border:1px solid rgba(255,182,72,.5);border-radius:7px;padding:4px 7px;font-size:.7rem;color:#ffcf85;}
     .fc-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
     .fc-duas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-top:14px;}
     .fc-duas .panel{overflow-x:auto;}
@@ -117,6 +141,10 @@
       <button class="btn btn-ghost btn-sm" id="fcAtualizar">Atualizar</button>
     </div>
     <div class="filters-bar" id="fcFiltros">
+      <div class="fc-busca">
+        <input type="text" id="fcBusca" placeholder="Buscar cliente por nome ou telefone" autocomplete="off" enterkeyhint="search" aria-label="Buscar cliente por nome ou telefone">
+        <button type="button" id="fcBuscaLimpar" title="Limpar a busca" aria-label="Limpar a busca" hidden>✕</button>
+      </div>
       <select id="fcFiltroCorretor" hidden><option value="">Todos os corretores</option></select>
       <label class="filters-bar-label"><input type="checkbox" id="fcSoAcao"> Só os que pedem ação</label>
       <label class="filters-bar-label"><input type="checkbox" id="fcMostrarPerdidos"> Mostrar perdidos</label>
@@ -177,6 +205,7 @@
   // 1) QUADRO (KANBAN)
   // =====================================================================
   let corretoresCarregados = false;
+  let leadsPorId = new Map();
 
   async function carregarCorretores(selectId) {
     const sel = document.getElementById(selectId);
@@ -187,6 +216,37 @@
     (data || []).forEach((c) => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.nome; sel.appendChild(o); });
     sel.dataset.pronto = '1';
   }
+
+  // ---- busca por nome ou telefone (filtra na tela, sem ir ao banco a cada letra) ----
+  const semAcento = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+  function lerBusca() {
+    const el = document.getElementById('fcBusca');
+    const bruto = (el ? el.value : '').trim();
+    if (!bruto) return null;
+    if (!/[a-zA-ZÀ-ÿ]/.test(bruto)) {                         // só números (com ou sem traços e parênteses) = telefone
+      const digitos = bruto.replace(/\D/g, '');
+      if (digitos.length < 3) return null;                       // 1 ou 2 números mostrariam quase todo mundo
+      const variantes = [digitos];
+      if (digitos.length > 11 && digitos.startsWith('55')) variantes.push(digitos.slice(2));   // aceita o 55 do Brasil
+      return { tipo: 'telefone', variantes, texto: bruto };
+    }
+    const normal = semAcento(bruto);
+    if (normal.length < 2) return null;
+    return { tipo: 'nome', termos: normal.split(/\s+/).filter(Boolean), texto: bruto };       // todas as palavras, em qualquer ordem
+  }
+
+  function bate(l, busca) {
+    if (!busca) return true;
+    if (busca.tipo === 'telefone') {
+      const d = String(l.telefone || '').replace(/\D/g, '');
+      return busca.variantes.some((v) => d.includes(v));
+    }
+    const nome = semAcento(l.nome);
+    return busca.termos.every((t) => nome.includes(t));
+  }
+
+  let cacheFunil = { todos: [], acao: new Map() };
 
   async function carregarFunil() {
     const board = document.getElementById('fcBoard');
@@ -200,41 +260,73 @@
 
     const [resLeads, resAcao] = await Promise.all([q, supabase.rpc('consorcio_leads_com_acao')]);
     if (resLeads.error) { board.innerHTML = '<p class="table-empty">Erro ao carregar o funil de consórcio.</p>'; console.error(resLeads.error); return; }
-    const acao = new Map((resAcao.data || []).map((a) => [a.lead_id, a]));
     const todos = resLeads.data || [];
+    leadsPorId = new Map(todos.map((l) => [l.id, l]));
+    cacheFunil = { todos, acao: new Map((resAcao.data || []).map((a) => [a.lead_id, a])) };
+    desenharFunil(false);
+  }
+
+  function desenharFunil(rolarParaAchado) {
+    const board = document.getElementById('fcBoard');
+    const { todos, acao } = cacheFunil;
+    const busca = lerBusca();
     const soAcao = document.getElementById('fcSoAcao').checked;
-    const mostrarPerdidos = document.getElementById('fcMostrarPerdidos').checked;
+    const perdidosMarcado = document.getElementById('fcMostrarPerdidos').checked;
     const perdidos = todos.filter((l) => l.status === 'perdido' || l.status === 'perdido_definitivo');
     const ativos = todos.filter((l) => !perdidos.includes(l));
-    const lista = soAcao ? ativos.filter((l) => acao.has(l.id)) : ativos;
+    const lista = (soAcao ? ativos.filter((l) => acao.has(l.id)) : ativos).filter((l) => bate(l, busca));
+    // buscando, os perdidos entram na busca mesmo com "Mostrar perdidos" desligado (o cliente pode estar lá)
+    const perdidosVisiveis = (!soAcao && (perdidosMarcado || busca)) ? perdidos.filter((l) => bate(l, busca)) : [];
+    const base = lista.concat(perdidosVisiveis);
 
-    const emAndamento = ativos.filter((l) => !String(l.status).startsWith('pos_venda_')).length;
+    const emAndamento = ativos.filter((l) => !String(l.status).startsWith('pos_venda_') && l.status !== 'acompanhar_depois').length;
+    const acompanhando = ativos.filter((l) => l.status === 'acompanhar_depois').length;
     const clientes = ativos.filter((l) => String(l.status).startsWith('pos_venda_')).length;
     const pedemAcao = ativos.filter((l) => acao.has(l.id)).length;
     document.getElementById('fcResumo').innerHTML =
+      (busca ? `<span class="fc-pilula fc-alerta">Encontrados: <b>${base.length}</b></span>` : '') +
       `<span class="fc-pilula">Em andamento: <b>${emAndamento}</b></span>` +
+      `<span class="fc-pilula">Em acompanhamento: <b>${acompanhando}</b></span>` +
       `<span class="fc-pilula">Clientes no pós-venda: <b>${clientes}</b></span>` +
       `<span class="fc-pilula ${pedemAcao ? 'fc-alerta' : ''}">Pedem ação: <b>${pedemAcao}</b></span>` +
       `<span class="fc-pilula">Perdidos: <b>${perdidos.length}</b></span>`;
 
+    if (busca && !base.length) {
+      const filtros = soAcao || (document.getElementById('fcFiltroCorretor').value);
+      board.innerHTML = `<p class="table-empty fc-sem-resultado">Nenhum cliente encontrado para “${esc(busca.texto)}”.` +
+        (filtros ? '<br>Há filtros ligados (corretor ou “Só os que pedem ação”). Desligue-os para buscar em todos os leads.' : '') + '</p>';
+      return;
+    }
+
     const colunas = COLUNAS.slice();
-    if (mostrarPerdidos) colunas.push({ id: 'perdidos', titulo: 'Perdidos', dica: 'Motivo registrado no lead', st: ['perdido', 'perdido_definitivo'] });
-    const base = mostrarPerdidos ? (soAcao ? lista : lista.concat(perdidos)) : lista;
+    if (perdidosMarcado || busca) colunas.push({ id: 'perdidos', titulo: 'Perdidos', dica: 'Motivo registrado no lead', st: ['perdido', 'perdido_definitivo'] });
+    const idsAchados = new Set(base.map((l) => l.id));
 
     board.innerHTML = colunas.map((col) => {
       const doGrupo = base.filter((l) => col.st.includes(l.status));
       if (col.ocultaSeVazia && !doGrupo.length) return '';
+      if (busca && !doGrupo.length) return '';                  // buscando, só mostra as colunas com resultado
       return `
         <div class="kanban-col">
           <div class="kanban-col-head"><span>${esc(col.titulo)}<span class="fc-col-dica">${esc(col.dica)}</span></span><span class="kanban-col-count">${doGrupo.length}</span></div>
           <div class="kanban-cards">
-            ${doGrupo.length ? doGrupo.map((l) => cartao(l, acao.get(l.id), col)).join('') : '<p class="kanban-empty">Nenhum lead aqui.</p>'}
+            ${doGrupo.length ? doGrupo.map((l) => cartao(l, acao.get(l.id), col, !!busca && idsAchados.has(l.id))).join('') : '<p class="kanban-empty">Nenhum lead aqui.</p>'}
           </div>
         </div>`;
     }).join('');
+
+    if (rolarParaAchado && busca) {
+      // rola só o quadro para o lado (nunca a página inteira, para o campo de busca continuar à vista)
+      const primeiro = board.querySelector('.fc-achado');
+      const coluna = primeiro && primeiro.closest('.kanban-col');
+      if (coluna && board.scrollTo) {
+        const esquerda = coluna.getBoundingClientRect().left - board.getBoundingClientRect().left + board.scrollLeft - 12;
+        board.scrollTo({ left: Math.max(0, esquerda), behavior: 'smooth' });
+      }
+    }
   }
 
-  function cartao(l, a, col) {
+  function cartao(l, a, col, achado) {
     const dias = a ? a.dias_na_etapa : diasNaEtapa(l);
     const atraso = a && a.dias_de_atraso > 0;
     const zap = linkWhats(l.telefone);
@@ -243,18 +335,85 @@
     const opcoes = ETAPAS.slice();
     if (!ROTULO[l.status] || l.status === 'perdido_definitivo' || String(l.status).startsWith('visita_')) opcoes.unshift([l.status, ROTULO[l.status] || String(l.status).replace(/_/g, ' ')]);
     return `
-      <div class="kanban-card">
+      <div class="kanban-card ${achado ? 'fc-achado' : ''}">
         <div class="fc-card-nome"><strong>${esc(l.nome)}</strong>${zap ? `<a class="fc-zap" href="${zap}" target="_blank" rel="noopener" title="Chamar no WhatsApp">WhatsApp</a>` : ''}</div>
         <small>${esc(l.telefone || 'sem telefone')}</small>
         ${col.st.length > 1 ? `<span class="fc-etapa">${esc(ROTULO[l.status] || l.status)}</span>` : ''}
         <div>${chips}</div>
-        <span class="fc-tempo ${atraso ? 'fc-vencido' : ''}">⏱ ${dias === 0 ? 'entrou hoje nesta etapa' : plural(dias, 'dia', 'dias') + ' nesta etapa'}</span>
+        ${l.status === 'acompanhar_depois' ? blocoAcompanhar(l) : `<span class="fc-tempo ${atraso ? 'fc-vencido' : ''}">⏱ ${dias === 0 ? 'entrou hoje nesta etapa' : plural(dias, 'dia', 'dias') + ' nesta etapa'}</span>`}
         ${a ? `<div class="fc-acao">⏰ ${esc(a.titulo)}${atraso ? ' (atrasado ' + plural(a.dias_de_atraso, 'dia', 'dias') + ')' : ''}</div>` : ''}
         ${gestao() ? `<span class="kanban-card-corretor">${esc(l.usuarios?.nome || 'Sem corretor')}</span>` : ''}
         <select class="status-select fc-mover" data-fc="mover" data-id="${esc(l.id)}">
           ${opcoes.map(([v, t]) => `<option value="${esc(v)}" ${v === l.status ? 'selected' : ''}>${esc(t)}</option>`).join('')}
         </select>
       </div>`;
+  }
+
+  function blocoAcompanhar(l) {
+    const d = l.retomar_em ? diasAte(l.retomar_em) : null;
+    const vencida = d !== null && d <= 0;
+    const quando = d === null ? 'sem data' : d > 0 ? 'daqui a ' + plural(d, 'dia', 'dias') : d === 0 ? 'hoje' : 'atrasado ' + plural(-d, 'dia', 'dias');
+    return `<span class="fc-tempo ${vencida ? 'fc-vencido' : ''}">📅 Retomar em ${esc(dataBR(l.retomar_em))} (${quando})</span>` +
+      (l.motivo_acompanhar ? `<small>Motivo: ${esc(l.motivo_acompanhar)}</small>` : '') +
+      (l.adiamentos > 0 ? `<small>Adiado ${plural(l.adiamentos, 'vez', 'vezes')}</small>` : '') +
+      (l.adiamentos >= 3 ? '<div class="fc-aviso-decida">Já foi adiado 3 vezes: decida se fecha ou marca como perdido.</div>' : '') +
+      `<button type="button" class="btn btn-ghost btn-sm" data-fc="adiar" data-id="${esc(l.id)}">Adiar retomada</button>`;
+  }
+
+  // ---- janelinha: quando retomar e por quê ----
+  function fecharModal() { const m = document.getElementById('fcModal'); if (m) m.remove(); }
+
+  function abrirModalAcompanhar(lead, modo) {
+    fecharModal();
+    const adiar = modo === 'adiar';
+    const jaAdiou = adiar ? (lead.adiamentos || 0) : 0;
+    const ov = document.createElement('div');
+    ov.className = 'fc-modal';
+    ov.id = 'fcModal';
+    ov.dataset.id = lead.id;
+    ov.dataset.modo = modo;
+    ov.innerHTML = `
+      <div class="fc-modal-box" role="dialog" aria-modal="true">
+        <h3>${adiar ? 'Adiar retomada' : 'Acompanhar depois'}: ${esc(lead.nome)}</h3>
+        <p class="fc-modal-sub">Quando vamos retomar o contato? Até essa data o CRM não cobra nada deste lead.</p>
+        <div class="fc-rapido">${[7, 15, 30, 60, 90].map((n) => `<button type="button" data-fc-dias="${n}">${n} dias</button>`).join('')}</div>
+        <label for="fcData">Retomar em</label>
+        <input type="date" id="fcData" min="${hojeISO()}" value="${somaDias(30)}">
+        <label for="fcMotivo">Motivo</label>
+        <input type="text" id="fcMotivo" maxlength="140" list="fcMotivos" placeholder="Ex.: sem entrada agora" value="${esc(adiar ? (lead.motivo_acompanhar || '') : '')}">
+        <datalist id="fcMotivos">
+          <option value="Sem entrada agora"></option><option value="Esperando 13º, FGTS ou renda"></option><option value="Vai decidir em família"></option>
+          <option value="Quer comparar com outra administradora"></option><option value="Pediu para ligar mais tarde"></option>
+        </datalist>
+        ${jaAdiou >= 2 ? `<p class="fc-modal-aviso">Este lead já foi adiado ${jaAdiou} vezes. Se adiar de novo, o CRM vai pedir que você decida: fechar ou marcar como perdido.</p>` : ''}
+        <div class="fc-modal-acoes">
+          <button type="button" class="btn btn-ghost btn-sm" data-fc="cancelar">Cancelar</button>
+          <button type="button" class="btn btn-primary btn-sm" data-fc="salvar-acomp">Salvar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    setTimeout(() => { const el = document.getElementById(adiar ? 'fcData' : 'fcMotivo'); if (el) el.focus(); }, 30);
+  }
+
+  async function salvarAcompanhar() {
+    const ov = document.getElementById('fcModal');
+    if (!ov) return;
+    const lead = leadsPorId.get(ov.dataset.id);
+    const modo = ov.dataset.modo;
+    const data = document.getElementById('fcData').value;
+    const motivo = document.getElementById('fcMotivo').value.trim();
+    if (!data) { aviso('Escolha a data para retomar.', true); return; }
+    if (data < hojeISO()) { aviso('A data para retomar não pode estar no passado.', true); return; }
+    if (modo === 'entrar' && motivo.length < 3) { aviso('Diga em poucas palavras o motivo.', true); return; }
+    const payload = modo === 'entrar'
+      ? { status: 'acompanhar_depois', retomar_em: data, motivo_acompanhar: motivo }
+      : { retomar_em: data, motivo_acompanhar: motivo || (lead && lead.motivo_acompanhar) || null };
+    const { error } = await supabase.from('leads').update(payload).eq('id', ov.dataset.id);
+    if (error) { aviso('Não foi possível salvar.', true); console.error(error); return; }
+    fecharModal();
+    aviso(modo === 'entrar' ? 'Lead em acompanhamento. Retomada em ' + dataBR(data) + '.' : 'Retomada adiada para ' + dataBR(data) + '.');
+    if (typeof loadDashboard === 'function') { try { loadDashboard(); } catch (e) { /* ignora */ } }
+    carregarFunil();
   }
 
   async function moverLead(id, novoStatus) {
@@ -272,13 +431,52 @@
 
   document.addEventListener('change', (e) => {
     const t = e.target;
-    if (t && t.dataset && t.dataset.fc === 'mover') moverLead(t.dataset.id, t.value);
-    if (t && (t.id === 'fcFiltroCorretor' || t.id === 'fcSoAcao' || t.id === 'fcMostrarPerdidos')) carregarFunil();
+    if (t && t.dataset && t.dataset.fc === 'mover') {
+      const lead = leadsPorId.get(t.dataset.id);
+      if (t.value === 'acompanhar_depois' && lead && lead.status !== 'acompanhar_depois') { t.value = lead.status; abrirModalAcompanhar(lead, 'entrar'); }
+      else moverLead(t.dataset.id, t.value);
+    }
+    if (t && t.id === 'fcFiltroCorretor') carregarFunil();
+    if (t && (t.id === 'fcSoAcao' || t.id === 'fcMostrarPerdidos')) desenharFunil(false);
     if (t && (t.id === 'pcPeriodo' || t.id === 'pcCorretor')) carregarPainel();
   });
   document.addEventListener('click', (e) => {
+    const alvo = e.target && e.target.closest ? e.target.closest('[data-fc],[data-fc-dias]') : null;
+    if (alvo && alvo.dataset.fcDias) { const d = document.getElementById('fcData'); if (d) d.value = somaDias(Number(alvo.dataset.fcDias)); }
+    if (alvo && alvo.dataset.fc === 'adiar') { const lead = leadsPorId.get(alvo.dataset.id); if (lead) abrirModalAcompanhar(lead, 'adiar'); }
+    if (alvo && alvo.dataset.fc === 'cancelar') fecharModal();
+    if (alvo && alvo.dataset.fc === 'salvar-acomp') salvarAcompanhar();
+    if (e.target && e.target.id === 'fcModal') fecharModal();
+    if (e.target && e.target.id === 'fcBuscaLimpar') limparBusca();
     if (e.target && e.target.id === 'fcAtualizar') carregarFunil();
     if (e.target && e.target.id === 'pcAtualizar') carregarPainel();
+  });
+
+  let esperaBusca;
+  function atualizarBusca() {
+    const el = document.getElementById('fcBusca');
+    const limpar = document.getElementById('fcBuscaLimpar');
+    if (limpar) limpar.hidden = !(el && el.value);
+    desenharFunil(true);
+  }
+  function limparBusca() {
+    const el = document.getElementById('fcBusca');
+    if (el) { el.value = ''; el.focus(); }
+    atualizarBusca();
+  }
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'fcBusca') {
+      const limpar = document.getElementById('fcBuscaLimpar');
+      if (limpar) limpar.hidden = !e.target.value;
+      clearTimeout(esperaBusca);
+      esperaBusca = setTimeout(() => desenharFunil(true), 150);
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const el = document.getElementById('fcBusca');
+    if (document.activeElement === el && el.value && !document.getElementById('fcModal')) limparBusca();
+    else fecharModal();
   });
 
   // =====================================================================
@@ -310,12 +508,14 @@
     const linhasEtapa = ordemEtapas.filter((s) => etapa[s]).map((s) => `<tr><td>${esc(ROTULO[s] || String(s).replace(/_/g, ' '))}</td><td class="fc-r">${etapa[s]}</td></tr>`).join('');
     const linhasOrigem = (p.por_origem || []).map((o) => `<tr><td>${esc(o.origem)}</td><td class="fc-r">${o.qtd}</td></tr>`).join('');
     const linhasCorretor = (p.por_corretor || []).map((c) => `<tr><td class="fc-nome" title="${esc(c.corretor)}">${esc(c.corretor)}</td><td class="fc-r">${c.novos}</td><td class="fc-r">${c.em_andamento}</td><td class="fc-r">${c.adesoes}</td></tr>`).join('');
+    const linhasRetomada = (p.proximas_retomadas || []).map((r) => `<tr><td class="fc-nome" title="${esc(r.nome)}">${esc(r.nome)}</td><td class="${r.vencida ? 'fc-vencido' : ''}" style="white-space:nowrap;">${esc(dataBR(r.retomar_em))}${r.vencida ? ' ⚠' : ''}</td><td class="fc-nome" title="${esc(r.motivo || '')}">${esc(r.motivo || '—')}</td></tr>`).join('');
     const motivos = ((p.perdidos || {}).motivos || []).map((m) => `<tr><td>${esc(m.motivo)}</td><td class="fc-r">${m.qtd}</td></tr>`).join('');
 
     box.innerHTML = `
       <div class="fc-grade">
         ${stat(p.novos_no_periodo, 'Leads novos no período')}
         ${stat(p.em_andamento, 'Em andamento agora')}
+        ${stat(p.em_acompanhamento || 0, 'Em acompanhamento (retomada combinada)')}
         ${stat(p.acoes_atrasadas, 'Pedem ação agora', p.acoes_atrasadas ? 'stat-danger' : '')}
         ${stat(f.adesao || 0, 'Adesões (leads do período)', 'stat-success')}
         ${stat(brl(p.credito_em_andamento) || 'R$ 0', 'Crédito desejado em andamento')}
@@ -339,6 +539,8 @@
           ${linhasOrigem ? `<table class="fc-tab"><tbody>${linhasOrigem}</tbody></table>` : '<p class="table-empty">Sem leads no período.</p>'}</div>
         <div class="panel"><div class="panel-head"><h2>Por corretor</h2></div>
           ${linhasCorretor ? `<table class="fc-tab"><thead><tr><th>Corretor</th><th class="fc-r">Novos</th><th class="fc-r" title="Em andamento">Ativos</th><th class="fc-r">Adesões</th></tr></thead><tbody>${linhasCorretor}</tbody></table>` : '<p class="table-empty">Sem dados.</p>'}</div>
+        <div class="panel"><div class="panel-head"><h2>Próximas retomadas</h2></div>
+          ${linhasRetomada ? `<table class="fc-tab"><thead><tr><th>Lead</th><th>Retomar em</th><th>Motivo</th></tr></thead><tbody>${linhasRetomada}</tbody></table>` : '<p class="table-empty">Nenhum lead em acompanhamento.</p>'}</div>
         <div class="panel"><div class="panel-head"><h2>Perdidos no período: ${(p.perdidos || {}).total || 0}</h2></div>
           ${motivos ? `<table class="fc-tab"><thead><tr><th>Motivo</th><th class="fc-r">Qtd.</th></tr></thead><tbody>${motivos}</tbody></table>` : '<p class="table-empty">Nenhum lead perdido no período.</p>'}</div>
       </div>`;
