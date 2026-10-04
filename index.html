@@ -71,7 +71,6 @@
           <button class="nav-item" data-view="leads">🎯 Leads</button>
           <button class="nav-item" data-view="oferta_ativa">📇 Oferta Ativa</button>
           <button class="nav-item" data-view="funil">🗂️ Funil de Vendas</button>
-          <button class="nav-item" data-view="funil_consorcio">🏦 Funil de Consórcio</button>
           <button class="nav-item" data-view="captacao">🏗️ Funil de Captação</button>
           <button class="nav-item nav-financeiro" data-view="consorcios" hidden>🏦 Consórcios (planos)</button>
           <button class="nav-item" data-view="visitas">📅 Visitas</button>
@@ -333,20 +332,6 @@
         </select>
       </div>
       <div class="kanban-board" id="kanbanBoard"></div>
-    </section>
-
-    <!-- ===== FUNIL DE CONSÓRCIO (KANBAN SEPARADO) ===== -->
-    <section class="view" id="view-funil_consorcio" hidden>
-      <div class="view-head">
-        <div><h1>Funil de Consórcio</h1><p>Leads de consórcio e carta contemplada, separado do funil de imóveis</p></div>
-      </div>
-      <div class="filters-bar"><input type="search" id="funilConsorcioBusca" placeholder="Buscar por nome ou telefone..."></div>
-      <div class="filters-bar nav-financeiro" id="funilConsorcioFiltroCorretorWrap" hidden>
-        <select id="funilConsorcioFiltroCorretor">
-          <option value="">Todos os corretores</option>
-        </select>
-      </div>
-      <div class="kanban-board" id="kanbanBoardConsorcio"></div>
     </section>
 
     <!-- ===== FUNIL DE CAPTAÇÃO (KANBAN) ===== -->
@@ -1330,5 +1315,6 @@
 <script src="js/supabase-client.js"></script>
 <script src="js/doc-pdf.js"></script>
 <script src="js/app.js"></script>
+<script src="js/funil-consorcio.js"></script>
 </body>
 </html>

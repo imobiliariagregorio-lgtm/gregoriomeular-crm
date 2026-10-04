@@ -274,7 +274,7 @@ $('#forgotForm').addEventListener('submit', async (e) => {
 // =====================================================================
 // NAVEGAÇÃO ENTRE VIEWS
 // =====================================================================
-const VIEWS = ['dashboard', 'leads', 'oferta_ativa', 'funil', 'funil_consorcio', 'captacao', 'imoveis', 'pessoas', 'visitas', 'vistorias', 'contratos', 'gerador', 'historico_docs', 'financeiro', 'relatorios', 'auditoria', 'equipe', 'depoimentos', 'hero', 'momentos', 'site', 'tutorial', 'aprovacoes', 'treinamento', 'consorcios'];
+const VIEWS = ['dashboard', 'leads', 'oferta_ativa', 'funil', 'captacao', 'imoveis', 'pessoas', 'visitas', 'vistorias', 'contratos', 'gerador', 'historico_docs', 'financeiro', 'relatorios', 'auditoria', 'equipe', 'depoimentos', 'hero', 'momentos', 'site', 'tutorial', 'aprovacoes', 'treinamento', 'consorcios'];
 
 function navigateTo(view) {
   VIEWS.forEach((v) => { $(`#view-${v}`).hidden = v !== view; });
@@ -292,7 +292,6 @@ function navigateTo(view) {
   if (view === 'leads') { leadsNaoVistos = 0; atualizarBadgeLeads(); loadLeads(); }
   if (view === 'oferta_ativa') loadOfertaAtiva();
   if (view === 'funil') loadFunil();
-  if (view === 'funil_consorcio') loadFunilConsorcio();
   if (view === 'consorcios') mostrarAbaConsorcio('planos');
   if (view === 'captacao') loadCaptacao();
   if (view === 'imoveis') loadImoveis();
@@ -1578,16 +1577,12 @@ function aplicarAtualizacaoLeadLocal(id, patch) {
   if (emLista) Object.assign(emLista, patch);
   const emFunil = funilLeadsCache.find((l) => l.id === id);
   if (emFunil) Object.assign(emFunil, patch);
-  const emFunilConsorcio = funilConsorcioLeadsCache.find((l) => l.id === id);
-  if (emFunilConsorcio) Object.assign(emFunilConsorcio, patch);
 
   leadsCache.sort(comparaAtualizacao);
   funilLeadsCache.sort(comparaAtualizacao);
-  funilConsorcioLeadsCache.sort(comparaAtualizacao);
 
   if (emLista && $('#leadsTable')) renderLeadsTable();
   if (emFunil && $('#kanbanBoard')) renderFunilBoard();
-  if (emFunilConsorcio && $('#kanbanBoardConsorcio')) renderFunilConsorcioBoard();
 }
 
 // ---------------------------------------------------------------------
@@ -1949,205 +1944,10 @@ document.addEventListener('click', async (e) => {
 // =====================================================================
 function atualizarFunilVisivel() {
   if ($('#view-funil') && !$('#view-funil').hidden) loadFunil();
-  if ($('#view-funil_consorcio') && !$('#view-funil_consorcio').hidden) loadFunilConsorcio();
 }
 
 const FUNIL_COLUNAS = LEAD_STATUSES.map((status) => ({ status, label: LEAD_STATUS_LABELS[status] }));
 
-// Mesmos status do lead (sem mexer no banco), só com os rótulos das colunas adaptados
-// pro vocabulário de consórcio onde faz sentido (ex: "Visita" vira "Reunião").
-const CONSORCIO_STATUS_LABELS = {
-  busca_qualificada: 'Perfil Qualificado',
-  consulta_simulacao: 'Simulação Enviada',
-  visita_agendada: 'Reunião Agendada',
-  visita_feita: 'Reunião Realizada',
-  alterar_busca: 'Ajustar Oferta',
-  assinaturas: 'Contrato Assinado',
-};
-const FUNIL_CONSORCIO_COLUNAS = LEAD_STATUSES.map((status) => ({ status, label: CONSORCIO_STATUS_LABELS[status] || LEAD_STATUS_LABELS[status] }));
-
-let funilCorretorFiltro = '';
-let funilCorretoresCarregados = false;
-let funilLeadsCache = [];
-let funilBusca = '';
-
-async function loadFunil() {
-  const wrap = $('#funilFiltroCorretorWrap');
-  wrap.hidden = !podeVerFinanceiro;
-
-  if (podeVerFinanceiro && !funilCorretoresCarregados) {
-    const { data: corretores } = await supabase.from('usuarios').select('id,nome').order('nome');
-    const select = $('#funilFiltroCorretor');
-    (corretores || []).forEach((c) => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.nome;
-      select.appendChild(opt);
-    });
-    funilCorretoresCarregados = true;
-  }
-
-  // Só imóveis — consórcio tem funil kanban separado (view-funil_consorcio).
-  let query = supabase.from('leads').select('*, usuarios(id,nome)')
-    .not('interesse', 'in', `(${INTERESSES_CONSORCIO.join(',')})`)
-    .order('atualizado_em', { ascending: false, nullsFirst: false })
-    .order('criado_em', { ascending: false });
-  if (podeVerFinanceiro) {
-    if (funilCorretorFiltro) query = query.eq('corretor_id', funilCorretorFiltro);
-  } else if (currentUsuario) {
-    query = query.eq('corretor_id', currentUsuario.id);
-  }
-
-  const { data, error } = await query;
-  const board = $('#kanbanBoard');
-  if (error) { board.innerHTML = '<p class="table-empty">Erro ao carregar o funil.</p>'; console.error(error); return; }
-
-  funilLeadsCache = data || [];
-  await anexaUltimaInteracao(funilLeadsCache);
-  renderFunilBoard();
-}
-
-// Filtra e desenha o quadro a partir do cache já carregado — usado tanto pelo
-// loadFunil (após buscar do banco) quanto pela busca por nome/telefone (sem
-// precisar recarregar do servidor a cada letra digitada).
-function renderFunilBoard() {
-  const board = $('#kanbanBoard');
-  const termo = semAcento((funilBusca || '').trim());
-  const leads = termo
-    ? funilLeadsCache.filter((l) => semAcento([l.nome, l.telefone].filter(Boolean).join(' ')).includes(termo))
-    : funilLeadsCache;
-
-  if (termo && !leads.length) {
-    board.innerHTML = '<p class="table-empty">Nenhum lead encontrado para essa busca.</p>';
-    return;
-  }
-
-  board.innerHTML = FUNIL_COLUNAS.map((col) => {
-    const doColuna = leads.filter((l) => l.status === col.status);
-    // Com busca ativa, some a coluna sem resultado — sobra só onde o lead procurado está,
-    // em vez de ele ficar perdido numa coluna com centenas de cards (ex.: "1ª Tentativa").
-    if (termo && !doColuna.length) return '';
-    return `
-      <div class="kanban-col">
-        <div class="kanban-col-head"><span>${col.label}</span><span class="kanban-col-count">${doColuna.length}</span></div>
-        <div class="kanban-cards">
-          ${doColuna.length ? doColuna.map((l) => `
-            <div class="kanban-card">
-              ${nomeLeadEditavelHtml(l)}
-              <small>${l.telefone || ''}</small>
-              <small>${l.interesse ? interesseLabel(l.interesse) : 'interesse não informado'}</small>
-              <small>${ultimaInteracaoHtml(l)}</small>
-              ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
-              <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
-              <select class="status-select" data-id="${l.id}" data-action="lead-status">
-                ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${LEAD_STATUS_LABELS[s]}</option>`).join('')}
-              </select>
-            </div>
-          `).join('') : '<p class="kanban-empty">Nenhum lead aqui.</p>'}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-$('#funilBusca')?.addEventListener('input', (e) => {
-  funilBusca = e.target.value;
-  renderFunilBoard();
-});
-
-// =====================================================================
-// FUNIL DE CONSÓRCIO — kanban separado do Funil de Vendas, só leads de
-// consórcio/carta contemplada. Mesmas colunas de status, rótulos adaptados,
-// e sempre mostra bem desejado (imóvel/veículo/etc), crédito e a dica de venda.
-// =====================================================================
-let funilConsorcioCorretorFiltro = '';
-let funilConsorcioCorretoresCarregados = false;
-let funilConsorcioLeadsCache = [];
-let funilConsorcioBusca = '';
-
-async function loadFunilConsorcio() {
-  const wrap = $('#funilConsorcioFiltroCorretorWrap');
-  wrap.hidden = !podeVerFinanceiro;
-
-  if (podeVerFinanceiro && !funilConsorcioCorretoresCarregados) {
-    const { data: corretores } = await supabase.from('usuarios').select('id,nome').eq('atende_consorcio', true).order('nome');
-    const select = $('#funilConsorcioFiltroCorretor');
-    (corretores || []).forEach((c) => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.nome;
-      select.appendChild(opt);
-    });
-    funilConsorcioCorretoresCarregados = true;
-  }
-
-  let query = supabase.from('leads').select('*, usuarios(id,nome)')
-    .in('interesse', INTERESSES_CONSORCIO)
-    .order('atualizado_em', { ascending: false, nullsFirst: false })
-    .order('criado_em', { ascending: false });
-  if (podeVerFinanceiro) {
-    if (funilConsorcioCorretorFiltro) query = query.eq('corretor_id', funilConsorcioCorretorFiltro);
-  } else if (currentUsuario) {
-    query = query.eq('corretor_id', currentUsuario.id);
-  }
-
-  const { data, error } = await query;
-  const board = $('#kanbanBoardConsorcio');
-  if (error) { board.innerHTML = '<p class="table-empty">Erro ao carregar o funil de consórcio.</p>'; console.error(error); return; }
-
-  funilConsorcioLeadsCache = data || [];
-  await anexaUltimaInteracao(funilConsorcioLeadsCache);
-  await garantirOfertasConsorcio();
-  renderFunilConsorcioBoard();
-}
-
-function renderFunilConsorcioBoard() {
-  const board = $('#kanbanBoardConsorcio');
-  const termo = semAcento((funilConsorcioBusca || '').trim());
-  const leads = termo
-    ? funilConsorcioLeadsCache.filter((l) => semAcento([l.nome, l.telefone].filter(Boolean).join(' ')).includes(termo))
-    : funilConsorcioLeadsCache;
-
-  if (termo && !leads.length) {
-    board.innerHTML = '<p class="table-empty">Nenhum lead encontrado para essa busca.</p>';
-    return;
-  }
-
-  board.innerHTML = FUNIL_CONSORCIO_COLUNAS.map((col) => {
-    const doColuna = leads.filter((l) => l.status === col.status);
-    if (termo && !doColuna.length) return '';
-    return `
-      <div class="kanban-col">
-        <div class="kanban-col-head"><span>${col.label}</span><span class="kanban-col-count">${doColuna.length}</span></div>
-        <div class="kanban-cards">
-          ${doColuna.length ? doColuna.map((l) => `
-            <div class="kanban-card">
-              ${nomeLeadEditavelHtml(l)}
-              <small>${l.telefone || ''}</small>
-              <small>${interesseLabel(l.interesse)}${l.bem_consorcio ? ' · ' + escapeHtml(l.bem_consorcio) : ' · bem não informado'}${l.credito_desejado ? ' · ' + money(l.credito_desejado) : ''}</small>
-              ${dicaConsorcioResumoHtml(l)}
-              <small>${ultimaInteracaoHtml(l)}</small>
-              ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
-              <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
-              <select class="status-select" data-id="${l.id}" data-action="lead-status">
-                ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${CONSORCIO_STATUS_LABELS[s] || LEAD_STATUS_LABELS[s]}</option>`).join('')}
-              </select>
-            </div>
-          `).join('') : '<p class="kanban-empty">Nenhum lead aqui.</p>'}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-$('#funilConsorcioBusca')?.addEventListener('input', (e) => {
-  funilConsorcioBusca = e.target.value;
-  renderFunilConsorcioBoard();
-});
-$('#funilConsorcioFiltroCorretor')?.addEventListener('change', (e) => {
-  funilConsorcioCorretorFiltro = e.target.value;
-  loadFunilConsorcio();
-});
 
 // =====================================================================
 // FUNIL DE CAPTAÇÃO (imóveis em captação — NÃO é lead)
