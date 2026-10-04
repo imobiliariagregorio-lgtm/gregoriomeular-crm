@@ -1948,6 +1948,94 @@ function atualizarFunilVisivel() {
 
 const FUNIL_COLUNAS = LEAD_STATUSES.map((status) => ({ status, label: LEAD_STATUS_LABELS[status] }));
 
+let funilCorretorFiltro = '';
+let funilCorretoresCarregados = false;
+let funilLeadsCache = [];
+let funilBusca = '';
+
+async function loadFunil() {
+  const wrap = $('#funilFiltroCorretorWrap');
+  wrap.hidden = !podeVerFinanceiro;
+
+  if (podeVerFinanceiro && !funilCorretoresCarregados) {
+    const { data: corretores } = await supabase.from('usuarios').select('id,nome').order('nome');
+    const select = $('#funilFiltroCorretor');
+    (corretores || []).forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nome;
+      select.appendChild(opt);
+    });
+    funilCorretoresCarregados = true;
+  }
+
+  // Só imóveis — consórcio tem o próprio Funil de Consórcio (módulo js/funil-consorcio.js).
+  let query = supabase.from('leads').select('*, usuarios(id,nome)')
+    .not('interesse', 'in', `(${INTERESSES_CONSORCIO.join(',')})`)
+    .order('atualizado_em', { ascending: false, nullsFirst: false })
+    .order('criado_em', { ascending: false });
+  if (podeVerFinanceiro) {
+    if (funilCorretorFiltro) query = query.eq('corretor_id', funilCorretorFiltro);
+  } else if (currentUsuario) {
+    query = query.eq('corretor_id', currentUsuario.id);
+  }
+
+  const { data, error } = await query;
+  const board = $('#kanbanBoard');
+  if (error) { board.innerHTML = '<p class="table-empty">Erro ao carregar o funil.</p>'; console.error(error); return; }
+
+  funilLeadsCache = data || [];
+  await anexaUltimaInteracao(funilLeadsCache);
+  renderFunilBoard();
+}
+
+// Filtra e desenha o quadro a partir do cache já carregado — usado tanto pelo
+// loadFunil (após buscar do banco) quanto pela busca por nome/telefone (sem
+// precisar recarregar do servidor a cada letra digitada).
+function renderFunilBoard() {
+  const board = $('#kanbanBoard');
+  const termo = semAcento((funilBusca || '').trim());
+  const leads = termo
+    ? funilLeadsCache.filter((l) => semAcento([l.nome, l.telefone].filter(Boolean).join(' ')).includes(termo))
+    : funilLeadsCache;
+
+  if (termo && !leads.length) {
+    board.innerHTML = '<p class="table-empty">Nenhum lead encontrado para essa busca.</p>';
+    return;
+  }
+
+  board.innerHTML = FUNIL_COLUNAS.map((col) => {
+    const doColuna = leads.filter((l) => l.status === col.status);
+    // Com busca ativa, some a coluna sem resultado — sobra só onde o lead procurado está,
+    // em vez de ele ficar perdido numa coluna com centenas de cards (ex.: "1ª Tentativa").
+    if (termo && !doColuna.length) return '';
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-head"><span>${col.label}</span><span class="kanban-col-count">${doColuna.length}</span></div>
+        <div class="kanban-cards">
+          ${doColuna.length ? doColuna.map((l) => `
+            <div class="kanban-card">
+              ${nomeLeadEditavelHtml(l)}
+              <small>${l.telefone || ''}</small>
+              <small>${l.interesse ? interesseLabel(l.interesse) : 'interesse não informado'}</small>
+              <small>${ultimaInteracaoHtml(l)}</small>
+              ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
+              <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
+              <select class="status-select" data-id="${l.id}" data-action="lead-status">
+                ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${LEAD_STATUS_LABELS[s]}</option>`).join('')}
+              </select>
+            </div>
+          `).join('') : '<p class="kanban-empty">Nenhum lead aqui.</p>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+$('#funilBusca')?.addEventListener('input', (e) => {
+  funilBusca = e.target.value;
+  renderFunilBoard();
+});
 
 // =====================================================================
 // FUNIL DE CAPTAÇÃO (imóveis em captação — NÃO é lead)
