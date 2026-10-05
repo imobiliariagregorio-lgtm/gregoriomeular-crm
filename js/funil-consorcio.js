@@ -122,6 +122,20 @@
     .fc-fazer-meta{font-size:.72rem;color:var(--gray-text,#C9D2E0);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
     .fc-fazer-botoes{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
     .fc-fazer-botoes a{text-decoration:none;}
+    .fc-cota{background:var(--navy-700,#142B57);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:8px 16px;}
+    .fc-cota-fim{opacity:.62;}
+    .fc-cota-lado{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+    .fc-sit{border-radius:20px;padding:4px 12px;font-size:.74rem;font-weight:700;white-space:nowrap;}
+    .fc-sit-enviar{background:rgba(255,106,26,.18);color:var(--orange,#FF6A1A);border:1px solid var(--orange,#FF6A1A);}
+    .fc-sit-esp{background:rgba(255,255,255,.07);color:var(--gray-text,#C9D2E0);}
+    .fc-sit-ok{background:rgba(76,175,125,.18);color:#6fd3a0;}
+    .fc-sit-fim{background:rgba(255,255,255,.05);color:var(--gray-text,#C9D2E0);}
+    .fc-modal-box.fc-modal-grande{max-width:560px;max-height:92vh;overflow:auto;}
+    .fc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+    .fc-modal-box input[type=number],.fc-modal-box select{width:100%;box-sizing:border-box;background:var(--navy-800,#0B1E3D);border:1px solid var(--navy-600,#1D3A6E);color:var(--white,#fff);padding:9px 10px;border-radius:8px;font-size:.9rem;}
+    .fc-conferido{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.8rem;}
+    .fc-conferido input{width:auto;}
+    @media (max-width:640px){.fc-cota{grid-template-columns:1fr;}.fc-cota-lado{align-items:flex-start;}.fc-form-grid{grid-template-columns:1fr;}}
     @media (max-width:640px){.fc-fazer-item{grid-template-columns:1fr;}.fc-fazer-botoes{justify-content:flex-start;}}
     .fc-tab{width:100%;border-collapse:collapse;font-size:.82rem;}
     .fc-tab th{text-align:left;color:var(--gray-text,#9aa7b8);font-weight:600;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.08);}
@@ -181,12 +195,27 @@
     </div>
     <div id="pcConteudo"><p class="table-empty">Carregando…</p></div>`);
 
+  criarTela('cotas_consorcio', `
+    <div class="view-head">
+      <div><h1>Cotas fechadas</h1><p>Valor, vencimento e lembrete para enviar o boleto antes de vencer</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" data-fc="cota-nova">+ Registrar cota</button>
+        <button class="btn btn-ghost btn-sm" id="ctAtualizar">Atualizar</button>
+      </div>
+    </div>
+    <div class="filters-bar">
+      <select id="ctCorretor" hidden><option value="">Todos os corretores</option></select>
+      <label class="filters-bar-label"><input type="checkbox" id="ctEncerradas"> Mostrar encerradas</label>
+    </div>
+    <div class="fc-resumo" id="ctResumo"></div>
+    <div id="ctLista"><p class="table-empty">Carregando…</p></div>`);
+
   function criarMenu() {
     const painel = qs('.topnav-dropdown[data-group-panel="vendas"]');
     if (!painel) { console.warn('[funil-consorcio] menu "Vendas" não encontrado.'); return; }
     // os dois itens entram logo depois do "Funil de Vendas" (ou no começo do menu, se ele não existir)
     let ancora = qs('.nav-item[data-view="funil"]', painel);
-    [['funil_consorcio', '🏦 Funil de Consórcio'], ['painel_consorcio', '📊 Painel de Consórcio']].forEach(([view, texto]) => {
+    [['funil_consorcio', '🏦 Funil de Consórcio'], ['painel_consorcio', '📊 Painel de Consórcio'], ['cotas_consorcio', '💳 Cotas fechadas']].forEach(([view, texto]) => {
       let btn = qs(`.nav-item[data-view="${view}"]`, painel);
       if (!btn) {
         btn = document.createElement('button');
@@ -205,7 +234,7 @@
   // ---------- troca de telas: mostra a nossa e esconde as outras ----------
   const navegarOriginal = navigateTo;
   window.navigateTo = function (view) {
-    const minhaTela = view === 'funil_consorcio' || view === 'painel_consorcio';
+    const minhaTela = view === 'funil_consorcio' || view === 'painel_consorcio' || view === 'cotas_consorcio';
     let falhou = null;
     try { navegarOriginal(view); } catch (e) { falhou = e; }
     // mesmo que o navigateTo original falhe, a tela certa aparece e as outras somem
@@ -213,6 +242,7 @@
     if (falhou) { if (!minhaTela) throw falhou; console.error(falhou); }
     if (view === 'funil_consorcio') carregarFunil();
     if (view === 'painel_consorcio') carregarPainel();
+    if (view === 'cotas_consorcio') carregarCotas();
   };
 
   // =====================================================================
@@ -261,6 +291,7 @@
   }
 
   let cacheFunil = { todos: [], acao: new Map() };
+  let cotasPorLead = new Set();   // leads que já têm cota fechada registrada
 
   async function carregarFunil() {
     const board = document.getElementById('fcBoard');
@@ -272,11 +303,12 @@
     if (gestao()) { if (corretor) q = q.eq('corretor_id', corretor); }
     else if (typeof currentUsuario !== 'undefined' && currentUsuario) q = q.eq('corretor_id', currentUsuario.id);
 
-    const [resLeads, resAcao] = await Promise.all([q, supabase.rpc('consorcio_leads_com_acao')]);
+    const [resLeads, resAcao, resCotas] = await Promise.all([q, supabase.rpc('consorcio_leads_com_acao'), supabase.from('consorcio_cotas').select('lead_id').eq('ativa', true)]);
     if (resLeads.error) { board.innerHTML = '<p class="table-empty">Erro ao carregar o funil de consórcio.</p>'; console.error(resLeads.error); return; }
     const todos = resLeads.data || [];
     leadsPorId = new Map(todos.map((l) => [l.id, l]));
     cacheFunil = { todos, acao: new Map((resAcao.data || []).map((a) => [a.lead_id, a])) };
+    cotasPorLead = new Set((resCotas.data || []).map((c) => c.lead_id));
     desenharFunil(false);
     aplicarAoAbrir();
   }
@@ -388,10 +420,19 @@
         ${l.status === 'acompanhar_depois' ? blocoAcompanhar(l) : `<span class="fc-tempo ${atraso ? 'fc-vencido' : ''}">⏱ ${dias === 0 ? 'entrou hoje nesta etapa' : plural(dias, 'dia', 'dias') + ' nesta etapa'}</span>`}
         ${a ? `<div class="fc-acao">⏰ ${esc(a.titulo)}${atraso ? ' (atrasado ' + plural(a.dias_de_atraso, 'dia', 'dias') + ')' : ''}</div>` : ''}
         ${gestao() ? `<span class="kanban-card-corretor">${esc(l.usuarios?.nome || 'Sem corretor')}</span>` : ''}
+        ${blocoCota(l)}
         <select class="status-select fc-mover" data-fc="mover" data-id="${esc(l.id)}">
           ${opcoes.map(([v, t]) => `<option value="${esc(v)}" ${v === l.status ? 'selected' : ''}>${esc(t)}</option>`).join('')}
         </select>
       </div>`;
+  }
+
+  // quem já assinou (Assinaturas ou Pós-venda) ganha o botão para registrar a cota: valor, vencimento e lembrete do boleto
+  function blocoCota(l) {
+    if (!(l.status === 'assinaturas' || String(l.status).startsWith('pos_venda_'))) return '';
+    return cotasPorLead.has(l.id)
+      ? '<span class="fc-chip">💳 Cota registrada</span>'
+      : `<button type="button" class="btn btn-ghost btn-sm" data-fc="cota-nova" data-lead="${esc(l.id)}">💳 Registrar cota</button>`;
   }
 
   function blocoAcompanhar(l) {
@@ -482,6 +523,8 @@
       else moverLead(t.dataset.id, t.value);
     }
     if (t && t.id === 'fcFiltroCorretor') carregarFunil();
+    if (t && t.id === 'ctEncerradas') carregarCotas();
+    if (t && t.id === 'ctCorretor') desenharCotas();
     if (t && (t.id === 'fcSoAcao' || t.id === 'fcMostrarPerdidos')) desenharFunil(false);
     if (t && (t.id === 'pcPeriodo' || t.id === 'pcCorretor')) carregarPainel();
   });
@@ -491,6 +534,12 @@
     if (alvo && alvo.dataset.fc === 'adiar') { const lead = leadsPorId.get(alvo.dataset.id); if (lead) abrirModalAcompanhar(lead, 'adiar'); }
     if (alvo && alvo.dataset.fc === 'cancelar') fecharModal();
     if (alvo && alvo.dataset.fc === 'salvar-acomp') salvarAcompanhar();
+    if (alvo && alvo.dataset.fc === 'cota-nova') abrirModalCota({ leadId: alvo.dataset.lead || '' });
+    if (alvo && alvo.dataset.fc === 'cota-editar') { const c = cotasCache.find((x) => x.cota_id === alvo.dataset.id); if (c) abrirModalCota({ cota: c }); }
+    if (alvo && alvo.dataset.fc === 'cota-encerrar') alterarAtiva(alvo.dataset.id, false);
+    if (alvo && alvo.dataset.fc === 'cota-reativar') alterarAtiva(alvo.dataset.id, true);
+    if (alvo && alvo.dataset.fc === 'cota-salvar') salvarCota();
+    if (e.target && e.target.id === 'ctAtualizar') carregarCotas();
     if (e.target && e.target.id === 'fcModal') fecharModal();
     const cartaoIr = e.target && e.target.closest ? e.target.closest('[data-fc-ir]') : null;
     if (cartaoIr) acionarCartao(cartaoIr.dataset.fcIr);
@@ -656,5 +705,202 @@
     ajustarValoresDoPainel();
   }
 
-  window.FunilConsorcio = { carregarFunil, carregarPainel };
+  // =====================================================================
+  // 3) COTAS FECHADAS: valor, vencimento e lembrete do boleto
+  // O CRM cria, todo dia de manhã, a tarefa "enviar o boleto" 1 dia antes do vencimento (a regra fica no banco).
+  // =====================================================================
+  let cotasCache = [];
+  let leadsParaCota = new Map();
+  const BENS = ['Imóvel', 'Terreno', 'Veículo', 'Construção ou reforma', 'Carta contemplada', 'Investimento', 'Outro'];
+  const brl2 = (v) => (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const chaveDeBusca = (nome, tel) => { const d = String(tel || '').replace(/\D/g, ''); return d.length >= 3 ? d : (nome || ''); };
+  const dataCurta = (iso) => { const [, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}`; };
+  const quandoVence = (d) => d === 0 ? 'hoje' : d === 1 ? 'amanhã' : 'em ' + plural(d, 'dia', 'dias');
+  const SITUACAO = {
+    enviar_boleto: ['fc-sit-enviar', 'Enviar o boleto agora'],
+    aguardando: ['fc-sit-esp', 'Aguardando'],
+    boleto_enviado: ['fc-sit-ok', 'Boleto enviado'],
+    encerrada: ['fc-sit-fim', 'Encerrada'],
+  };
+
+  // aceita "80.000,00", "80000", "210.96" e "210,96"
+  function lerNumero(texto) {
+    let t = String(texto == null ? '' : texto).trim().replace(/[^\d.,]/g, '');
+    if (!t) return null;
+    if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+    const n = Number(t);
+    return isNaN(n) ? null : n;
+  }
+
+  async function carregarCotas() {
+    const box = document.getElementById('ctLista');
+    box.innerHTML = '<p class="table-empty">Carregando…</p>';
+    await carregarCorretores('ctCorretor');
+    const incluir = document.getElementById('ctEncerradas').checked;
+    const { data, error } = await supabase.rpc('consorcio_cotas_lista', { p_incluir_encerradas: incluir });
+    if (error) { box.innerHTML = '<p class="table-empty">Erro ao carregar as cotas.</p>'; console.error(error); return; }
+    cotasCache = data || [];
+    desenharCotas();
+  }
+
+  function desenharCotas() {
+    const box = document.getElementById('ctLista');
+    const sel = document.getElementById('ctCorretor');
+    const nomeCorretor = gestao() && sel && sel.value ? (sel.options[sel.selectedIndex].textContent || '') : '';
+    const lista = cotasCache.filter((c) => !nomeCorretor || c.corretor === nomeCorretor);
+    const ativas = lista.filter((c) => c.ativa);
+    const somaCartas = ativas.reduce((a, c) => a + (Number(c.credito) || 0), 0);
+    const somaParcelas = ativas.reduce((a, c) => a + (Number(c.parcela_valor) || 0), 0);
+    const aEnviar = ativas.filter((c) => c.situacao_boleto === 'enviar_boleto').length;
+    document.getElementById('ctResumo').innerHTML =
+      `<span class="fc-pilula">Cotas ativas: <b>${ativas.length}</b></span>` +
+      `<span class="fc-pilula">Soma das cartas: <b>${esc(brl2(somaCartas) || 'R$ 0,00')}</b></span>` +
+      `<span class="fc-pilula">Parcelas por mês: <b>${esc(brl2(somaParcelas) || 'R$ 0,00')}</b></span>` +
+      `<span class="fc-pilula ${aEnviar ? 'fc-alerta' : ''}">Boletos a enviar: <b>${aEnviar}</b></span>`;
+    if (!lista.length) {
+      box.innerHTML = '<p class="table-empty">Nenhuma cota registrada ainda. Use “+ Registrar cota” ou o botão “Registrar cota” no card do cliente que assinou, no Funil de Consórcio.</p>';
+      return;
+    }
+    box.innerHTML = lista.map((c) => {
+      const [classe, rotulo] = SITUACAO[c.situacao_boleto] || ['fc-sit-esp', String(c.situacao_boleto)];
+      const zap = linkWhats(c.telefone);
+      const conferir = /^PRÉ-PREENCHIDO/i.test(c.observacoes || '');
+      const ident = [c.administradora, c.grupo && 'grupo ' + c.grupo, c.cota && 'cota ' + c.cota, c.bem].filter(Boolean).join(' · ');
+      const proximo = c.ativa
+        ? `<span>Próximo vencimento: <b>${esc(dataCurta(c.proximo_vencimento))}</b> (${quandoVence(c.dias_para_vencer)})</span><span>· lembrete do boleto: ${esc(dataCurta(c.dia_do_lembrete))}</span>` : '';
+      return `<div class="fc-cota ${c.ativa ? '' : 'fc-cota-fim'}">
+        <div>
+          <div class="fc-fazer-nome">${esc(c.nome)} ${conferir ? '<span class="fc-chip" title="Dados pré-preenchidos: confira com o contrato e edite a cota">⚠ conferir dados</span>' : ''}</div>
+          <div class="fc-fazer-texto">${esc(ident)}</div>
+          <div class="fc-fazer-texto"><b>Carta ${esc(brl2(c.credito))}</b> · ${c.parcela_valor ? 'parcela ' + esc(brl2(c.parcela_valor)) : 'parcela não informada'} · vence todo dia ${esc(c.vencimento_dia)}</div>
+          <div class="fc-fazer-meta">${proximo}${gestao() ? `<span>· ${esc(c.corretor || 'Sem corretor')}</span>` : ''}</div>
+          ${c.observacoes ? `<div class="fc-nota" style="margin:6px 0 0;">${esc(c.observacoes)}</div>` : ''}
+        </div>
+        <div class="fc-cota-lado">
+          <span class="fc-sit ${classe}">${esc(rotulo)}${c.situacao_boleto === 'aguardando' ? ' (' + esc(dataCurta(c.dia_do_lembrete)) + ')' : ''}</span>
+          <div class="fc-fazer-botoes">
+            <button type="button" class="btn btn-primary btn-sm" data-fc="cota-editar" data-id="${esc(c.cota_id)}">Editar</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-fc-abrir="${esc(chaveDeBusca(c.nome, c.telefone))}">Abrir no funil</button>
+            ${zap ? `<a class="btn btn-ghost btn-sm" href="${zap}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+            ${c.ativa ? `<button type="button" class="btn btn-ghost btn-sm" data-fc="cota-encerrar" data-id="${esc(c.cota_id)}">Encerrar</button>`
+                      : `<button type="button" class="btn btn-ghost btn-sm" data-fc="cota-reativar" data-id="${esc(c.cota_id)}">Reativar</button>`}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ---- janelinha: registrar ou editar a cota ----
+  async function abrirModalCota(opcoes) {
+    opcoes = opcoes || {};
+    fecharModal();
+    const cota = opcoes.cota || null;
+    const { data } = await supabase.from('leads').select('id,nome,status,credito_desejado,parcela_desejada,bem_consorcio').in('interesse', INTERESSES).not('status', 'in', '(perdido,perdido_definitivo)').order('nome').limit(1000);
+    const peso = (st) => (st === 'assinaturas' || String(st).startsWith('pos_venda_')) ? 0 : 1;     // quem já assinou aparece primeiro
+    const leads = (data || []).slice().sort((a, b) => peso(a.status) - peso(b.status) || String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+    leadsParaCota = new Map(leads.map((l) => [l.id, l]));
+    const leadId = cota ? cota.lead_id : (opcoes.leadId || '');
+    const travado = !!leadId;
+    const lead0 = leadsParaCota.get(leadId);
+    const v = (x) => esc(x == null ? '' : x);
+    const numTxt = (n) => (n == null || n === '') ? '' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const bem0 = cota ? cota.bem : (lead0 && BENS.includes(lead0.bem_consorcio) ? lead0.bem_consorcio : 'Imóvel');
+    const credito0 = cota ? cota.credito : (lead0 ? lead0.credito_desejado : '');
+    const parcela0 = cota ? cota.parcela_valor : '';
+    const preenchido = !!(cota && /^PRÉ-PREENCHIDO/i.test(cota.observacoes || ''));
+    const ov = document.createElement('div');
+    ov.className = 'fc-modal';
+    ov.id = 'fcModal';
+    ov.dataset.modo = 'cota';
+    ov.dataset.id = cota ? cota.cota_id : '';
+    ov.innerHTML = `
+      <div class="fc-modal-box fc-modal-grande" role="dialog" aria-modal="true">
+        <h3>${cota ? 'Editar cota' : 'Registrar cota fechada'}</h3>
+        <p class="fc-modal-sub">O CRM avisa o corretor para enviar o boleto antes do vencimento.</p>
+        <label for="ctLead">Cliente</label>
+        <select id="ctLead" ${travado ? 'disabled' : ''}>
+          ${travado ? '' : '<option value="">Escolha o cliente</option>'}
+          ${leads.map((l) => `<option value="${esc(l.id)}" ${l.id === leadId ? 'selected' : ''}>${esc(l.nome)} (${esc(ROTULO[l.status] || l.status)})</option>`).join('')}
+        </select>
+        <div class="fc-form-grid">
+          <div><label for="ctAdm">Administradora</label><input type="text" id="ctAdm" value="${v(cota ? cota.administradora : 'Servopa')}"></div>
+          <div><label for="ctBem">Bem</label><select id="ctBem">${BENS.map((b) => `<option ${b === bem0 ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
+          <div><label for="ctGrupo">Grupo</label><input type="text" id="ctGrupo" value="${v(cota && cota.grupo)}"></div>
+          <div><label for="ctCotaNum">Nº da cota</label><input type="text" id="ctCotaNum" value="${v(cota && cota.cota)}"></div>
+          <div><label for="ctCredito">Valor da carta (R$)</label><input type="text" inputmode="decimal" id="ctCredito" placeholder="80.000,00" value="${v(numTxt(credito0))}"></div>
+          <div><label for="ctParcela">Valor da parcela (R$)</label><input type="text" inputmode="decimal" id="ctParcela" placeholder="210,96" value="${v(numTxt(parcela0))}"></div>
+          <div><label for="ctVenc">Dia do vencimento (1 a 31)</label><input type="number" id="ctVenc" min="1" max="31" value="${v(cota && cota.vencimento_dia)}"></div>
+          <div><label for="ctDias">Lembrar quantos dias antes</label><input type="number" id="ctDias" min="0" max="15" value="${v(cota ? cota.lembrar_dias_antes : 1)}"></div>
+          <div><label for="ctAdesao">Data da assinatura</label><input type="date" id="ctAdesao" value="${v(cota && cota.data_adesao)}"></div>
+        </div>
+        <label for="ctObs">Observações</label>
+        <input type="text" id="ctObs" maxlength="300" value="${v(cota && cota.observacoes)}">
+        ${preenchido ? '<label class="fc-conferido"><input type="checkbox" id="ctConferido"> Conferi os dados com o contrato (tira o aviso “conferir dados”)</label>' : ''}
+        <div class="fc-modal-acoes">
+          <button type="button" class="btn btn-ghost btn-sm" data-fc="cancelar">Cancelar</button>
+          <button type="button" class="btn btn-primary btn-sm" data-fc="cota-salvar">Salvar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    setTimeout(() => { const el = document.getElementById(travado ? 'ctCredito' : 'ctLead'); if (el) el.focus(); }, 30);
+  }
+
+  async function salvarCota() {
+    const ov = document.getElementById('fcModal');
+    if (!ov || ov.dataset.modo !== 'cota') return;
+    const id = ov.dataset.id;
+    const leadId = document.getElementById('ctLead').value;
+    const credito = lerNumero(document.getElementById('ctCredito').value);
+    const parcelaTxt = document.getElementById('ctParcela').value.trim();
+    const parcela = parcelaTxt ? lerNumero(parcelaTxt) : null;
+    const venc = parseInt(document.getElementById('ctVenc').value, 10);
+    const diasTxt = document.getElementById('ctDias').value;
+    const dias = diasTxt === '' ? 1 : parseInt(diasTxt, 10);
+    if (!leadId) { aviso('Escolha o cliente.', true); return; }
+    if (!credito || credito <= 0) { aviso('Informe o valor da carta.', true); return; }
+    if (parcelaTxt && (!parcela || parcela <= 0)) { aviso('O valor da parcela não é válido.', true); return; }
+    if (!venc || venc < 1 || venc > 31) { aviso('Informe o dia do vencimento, de 1 a 31.', true); return; }
+    if (isNaN(dias) || dias < 0 || dias > 15) { aviso('Lembrar antes: de 0 a 15 dias.', true); return; }
+    const conf = document.getElementById('ctConferido');
+    const obs = conf && conf.checked ? 'Dados conferidos com o contrato em ' + dataBR(hojeISO()) + '.' : document.getElementById('ctObs').value.trim();
+    const payload = {
+      administradora: document.getElementById('ctAdm').value.trim() || 'Servopa',
+      grupo: document.getElementById('ctGrupo').value.trim() || null,
+      cota: document.getElementById('ctCotaNum').value.trim() || null,
+      bem: document.getElementById('ctBem').value || null,
+      credito, parcela_valor: parcela, vencimento_dia: venc, lembrar_dias_antes: dias,
+      data_adesao: document.getElementById('ctAdesao').value || null,
+      observacoes: obs || null,
+    };
+    if (!id) payload.lead_id = leadId;
+    const { error } = id ? await supabase.from('consorcio_cotas').update(payload).eq('id', id) : await supabase.from('consorcio_cotas').insert(payload);
+    if (error) { aviso('Não foi possível salvar a cota.', true); console.error(error); return; }
+    fecharModal();
+    aviso(id ? 'Cota atualizada.' : 'Cota registrada. O CRM vai lembrar do boleto ' + plural(dias, 'dia', 'dias') + ' antes do vencimento.');
+    const visivel = (idv) => { const el = document.getElementById('view-' + idv); return el && !el.hidden; };
+    if (visivel('cotas_consorcio')) carregarCotas();
+    if (visivel('funil_consorcio')) carregarFunil();
+  }
+
+  async function alterarAtiva(id, ativa) {
+    const c = cotasCache.find((x) => x.cota_id === id);
+    if (!ativa && !window.confirm('Encerrar a cota de ' + (c ? c.nome : 'este cliente') + '? O CRM deixa de lembrar do boleto.')) return;
+    const { error } = await supabase.from('consorcio_cotas').update({ ativa }).eq('id', id);
+    if (error) { aviso('Não foi possível alterar a cota.', true); console.error(error); return; }
+    aviso(ativa ? 'Cota reativada.' : 'Cota encerrada.');
+    carregarCotas();
+  }
+
+  // ao escolher o cliente, sugere carta e bem do que já está no lead (só se os campos estiverem vazios)
+  document.addEventListener('change', (e) => {
+    if (!(e.target && e.target.id === 'ctLead')) return;
+    const l = leadsParaCota.get(e.target.value);
+    const cred = document.getElementById('ctCredito');
+    if (l && cred && !cred.value && l.credito_desejado) cred.value = Number(l.credito_desejado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const bem = document.getElementById('ctBem');
+    if (l && bem && BENS.includes(l.bem_consorcio)) bem.value = l.bem_consorcio;
+  });
+
+  window.FunilConsorcio = { carregarFunil, carregarPainel, carregarCotas };
 })();
