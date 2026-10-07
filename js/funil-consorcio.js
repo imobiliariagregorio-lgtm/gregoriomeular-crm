@@ -712,6 +712,15 @@
   let cotasCache = [];
   let leadsParaCota = new Map();
   const BENS = ['Imóvel', 'Terreno', 'Veículo', 'Construção ou reforma', 'Carta contemplada', 'Investimento', 'Outro'];
+  const TIPO_PARCELA = [
+    ['normal', 'Integral (normal)'],
+    ['flex_10', 'Flex 10%'],
+    ['flex_20', 'Flex 20%'],
+    ['flex_30', 'Flex 30%'],
+    ['flex_40', 'Flex 40%'],
+    ['flex_50', 'Flex 50%'],
+  ];
+  const TIPO_PARCELA_LABEL = Object.fromEntries(TIPO_PARCELA);
   const brl2 = (v) => (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const chaveDeBusca = (nome, tel) => { const d = String(tel || '').replace(/\D/g, ''); return d.length >= 3 ? d : (nome || ''); };
   const dataCurta = (iso) => { const [, m, d] = String(iso).slice(0, 10).split('-'); return `${d}/${m}`; };
@@ -738,7 +747,7 @@
     box.innerHTML = '<p class="table-empty">Carregando…</p>';
     await carregarCorretores('ctCorretor');
     const incluir = document.getElementById('ctEncerradas').checked;
-    const { data, error } = await supabase.rpc('consorcio_cotas_lista_v2', { p_incluir_encerradas: incluir });
+    const { data, error } = await supabase.rpc('consorcio_cotas_lista_v3', { p_incluir_encerradas: incluir });
     if (error) { box.innerHTML = '<p class="table-empty">Erro ao carregar as cotas.</p>'; console.error(error); return; }
     cotasCache = data || [];
     desenharCotas();
@@ -779,8 +788,8 @@
         <div>
           <div class="fc-fazer-nome">${esc(c.nome)} ${conferir ? '<span class="fc-chip" title="Dados pré-preenchidos: confira com o contrato e edite a cota">⚠ conferir dados</span>' : ''}</div>
           <div class="fc-fazer-texto">${esc(ident)}</div>
-          <div class="fc-fazer-texto"><b>Carta ${esc(brl2(c.credito))}</b> · ${c.parcela_valor ? 'parcela ' + esc(brl2(c.parcela_valor)) : 'parcela não informada'} · vence todo dia ${esc(c.vencimento_dia)}</div>
-          <div class="fc-fazer-texto">Comissão ${esc(c.parceiro_comissao || 'Axton')} ${esc(c.comissao_percentual)}%: <b>${esc(brl2(c.comissao_valor_total))}</b> (${esc(c.comissao_parcelas_recebidas)}/${esc(c.comissao_parcelas)} parcelas recebidas, ${esc(brl2(c.comissao_valor_a_receber))} a receber)${c.comissao_em_risco_estorno ? ' <span class="fc-chip" title="Cliente ainda não pagou as 4 primeiras parcelas da carta dentro de 12 meses — risco de estorno pelo contrato Axton">⚠ risco de estorno</span>' : ''}</div>
+          <div class="fc-fazer-texto"><b>Carta ${esc(brl2(c.credito))}</b> · ${c.parcela_valor ? 'parcela ' + esc(brl2(c.parcela_valor)) : 'parcela não informada'} (${esc(TIPO_PARCELA_LABEL[c.tipo_parcela] || 'Integral (normal)')}) · vence todo dia ${esc(c.vencimento_dia)}</div>
+          <div class="fc-fazer-texto">Comissão ${esc(c.parceiro_comissao || 'Axton')} ${esc(c.comissao_percentual)}%: <b>${esc(brl2(c.comissao_valor_total))}</b> (${esc(c.comissao_parcelas_recebidas)}/${esc(c.comissao_parcelas)} parcelas recebidas, ${esc(brl2(c.comissao_valor_a_receber))} a receber)${c.tipo_parcela && c.tipo_parcela !== 'normal' ? ` · plano flex: 50% nas parcelas + 50% após contemplação (${c.comissao_pos_contemplacao_recebida ? 'já recebida' : 'pendente'})` : ''}${c.comissao_em_risco_estorno ? ' <span class="fc-chip" title="Cliente ainda não pagou as 4 primeiras parcelas da carta dentro de 12 meses — risco de estorno pelo contrato Axton">⚠ risco de estorno</span>' : ''}</div>
           <div class="fc-fazer-meta">${proximo}${gestao() ? `<span>· ${esc(c.corretor || 'Sem corretor')}</span>` : ''}</div>
           ${c.observacoes ? `<div class="fc-nota" style="margin:6px 0 0;">${esc(c.observacoes)}</div>` : ''}
         </div>
@@ -837,6 +846,7 @@
           <div><label for="ctCotaNum">Nº da cota</label><input type="text" id="ctCotaNum" value="${v(cota && cota.cota)}"></div>
           <div><label for="ctCredito">Valor da carta (R$)</label><input type="text" inputmode="decimal" id="ctCredito" placeholder="80.000,00" value="${v(numTxt(credito0))}"></div>
           <div><label for="ctParcela">Valor da parcela (R$)</label><input type="text" inputmode="decimal" id="ctParcela" placeholder="210,96" value="${v(numTxt(parcela0))}"></div>
+          <div><label for="ctTipoParcela">Parcela integral ou flex?</label><select id="ctTipoParcela">${TIPO_PARCELA.map(([val, label]) => `<option value="${val}" ${(cota ? cota.tipo_parcela : 'normal') === val ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div>
           <div><label for="ctVenc">Dia do vencimento (1 a 31)</label><input type="number" id="ctVenc" min="1" max="31" value="${v(cota && cota.vencimento_dia)}"></div>
           <div><label for="ctDias">Lembrar quantos dias antes</label><input type="number" id="ctDias" min="0" max="15" value="${v(cota ? cota.lembrar_dias_antes : 1)}"></div>
           <div><label for="ctAdesao">Data da assinatura</label><input type="date" id="ctAdesao" value="${v(cota && cota.data_adesao)}"></div>
@@ -849,6 +859,7 @@
           <div><label for="ctComissaoRecebidas">Parcelas da comissão já recebidas</label><input type="number" id="ctComissaoRecebidas" min="0" max="24" value="${v(cota ? cota.comissao_parcelas_recebidas : 0)}"></div>
           <div><label for="ctParcelasCliente">Parcelas da carta já pagas pelo cliente</label><input type="number" id="ctParcelasCliente" min="0" value="${v(cota ? cota.parcelas_cliente_pagas : 0)}"></div>
         </div>
+        <label class="fc-conferido" id="ctPosContemplacaoWrap" hidden><input type="checkbox" id="ctPosContemplacao" ${cota && cota.comissao_pos_contemplacao_recebida ? 'checked' : ''}> Venda flex: já recebi os outros 50% da comissão (pagos só após a contemplação da cota)</label>
         <p class="fc-modal-sub" style="margin:4px 0 0;">Se o cliente não pagar as 4 primeiras parcelas da carta em até 12 meses, o parceiro pode estornar a comissão — mantenha "parcelas já pagas pelo cliente" atualizado pra acompanhar esse risco.</p>
         <label for="ctObs">Observações</label>
         <input type="text" id="ctObs" maxlength="300" value="${v(cota && cota.observacoes)}">
@@ -859,6 +870,14 @@
         </div>
       </div>`;
     document.body.appendChild(ov);
+    const atualizarPosContemplacao = () => {
+      const tipoSel = document.getElementById('ctTipoParcela');
+      const wrap = document.getElementById('ctPosContemplacaoWrap');
+      if (wrap) wrap.hidden = !tipoSel || tipoSel.value === 'normal';
+    };
+    atualizarPosContemplacao();
+    const tipoSel = document.getElementById('ctTipoParcela');
+    if (tipoSel) tipoSel.addEventListener('change', atualizarPosContemplacao);
     setTimeout(() => { const el = document.getElementById(travado ? 'ctCredito' : 'ctLead'); if (el) el.focus(); }, 30);
   }
 
@@ -891,7 +910,8 @@
       grupo: document.getElementById('ctGrupo').value.trim() || null,
       cota: document.getElementById('ctCotaNum').value.trim() || null,
       bem: document.getElementById('ctBem').value || null,
-      credito, parcela_valor: parcela, vencimento_dia: venc, lembrar_dias_antes: dias,
+      credito, parcela_valor: parcela, tipo_parcela: document.getElementById('ctTipoParcela').value || 'normal',
+      vencimento_dia: venc, lembrar_dias_antes: dias,
       data_adesao: document.getElementById('ctAdesao').value || null,
       observacoes: obs || null,
       parceiro_comissao: document.getElementById('ctParceiro').value.trim() || 'Axton',
@@ -899,6 +919,7 @@
       comissao_parcelas: comissaoParcelas,
       comissao_parcelas_recebidas: comissaoRecebidas,
       parcelas_cliente_pagas: parcelasCliente,
+      comissao_pos_contemplacao_recebida: !!(document.getElementById('ctPosContemplacao') && document.getElementById('ctPosContemplacao').checked),
     };
     if (!id) payload.lead_id = leadId;
     const { error } = id ? await supabase.from('consorcio_cotas').update(payload).eq('id', id) : await supabase.from('consorcio_cotas').insert(payload);
