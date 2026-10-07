@@ -747,7 +747,7 @@
     box.innerHTML = '<p class="table-empty">Carregando…</p>';
     await carregarCorretores('ctCorretor');
     const incluir = document.getElementById('ctEncerradas').checked;
-    const { data, error } = await supabase.rpc('consorcio_cotas_lista_v3', { p_incluir_encerradas: incluir });
+    const { data, error } = await supabase.rpc('consorcio_cotas_lista_v4', { p_incluir_encerradas: incluir });
     if (error) { box.innerHTML = '<p class="table-empty">Erro ao carregar as cotas.</p>'; console.error(error); return; }
     cotasCache = data || [];
     desenharCotas();
@@ -789,7 +789,7 @@
           <div class="fc-fazer-nome">${esc(c.nome)} ${conferir ? '<span class="fc-chip" title="Dados pré-preenchidos: confira com o contrato e edite a cota">⚠ conferir dados</span>' : ''}</div>
           <div class="fc-fazer-texto">${esc(ident)}</div>
           <div class="fc-fazer-texto"><b>Carta ${esc(brl2(c.credito))}</b> · ${c.parcela_valor ? 'parcela ' + esc(brl2(c.parcela_valor)) : 'parcela não informada'} (${esc(TIPO_PARCELA_LABEL[c.tipo_parcela] || 'Integral (normal)')}) · vence todo dia ${esc(c.vencimento_dia)}</div>
-          <div class="fc-fazer-texto">Comissão ${esc(c.parceiro_comissao || 'Axton')} ${esc(c.comissao_percentual)}%: <b>${esc(brl2(c.comissao_valor_total))}</b> (${esc(c.comissao_parcelas_recebidas)}/${esc(c.comissao_parcelas)} parcelas recebidas, ${esc(brl2(c.comissao_valor_a_receber))} a receber)${c.tipo_parcela && c.tipo_parcela !== 'normal' ? ` · plano flex: 50% nas parcelas + 50% após contemplação (${c.comissao_pos_contemplacao_recebida ? 'já recebida' : 'pendente'})` : ''}${c.comissao_em_risco_estorno ? ' <span class="fc-chip" title="Cliente ainda não pagou as 4 primeiras parcelas da carta dentro de 12 meses — risco de estorno pelo contrato Axton">⚠ risco de estorno</span>' : ''}</div>
+          <div class="fc-fazer-texto">Comissão ${esc(c.parceiro_comissao || 'Axton')} ${esc(c.comissao_percentual)}%: <b>${esc(brl2(c.comissao_valor_total))}</b> (${esc(c.comissao_parcelas_recebidas)}/${esc(c.comissao_parcelas)} repasses recebidos, ${esc(brl2(c.comissao_valor_a_receber))} a receber)${c.tipo_parcela && c.tipo_parcela !== 'normal' ? ` · plano ${esc(TIPO_PARCELA_LABEL[c.tipo_parcela] || c.tipo_parcela)}: ${esc(brl2(c.comissao_valor_pendente_contemplacao || 0))} pendente de contemplação${c.comissao_pos_contemplacao_recebida ? ' (já recebida)' : ''}` : ''}${c.comissao_em_risco_estorno ? ' <span class="fc-chip" title="Cliente ainda não pagou as 4 primeiras parcelas da carta dentro de 12 meses — risco de estorno pelo contrato Axton">⚠ risco de estorno</span>' : ''}</div>
           <div class="fc-fazer-meta">${proximo}${gestao() ? `<span>· ${esc(c.corretor || 'Sem corretor')}</span>` : ''}</div>
           ${c.observacoes ? `<div class="fc-nota" style="margin:6px 0 0;">${esc(c.observacoes)}</div>` : ''}
         </div>
@@ -852,7 +852,7 @@
           <div><label for="ctAdesao">Data da assinatura</label><input type="date" id="ctAdesao" value="${v(cota && cota.data_adesao)}"></div>
         </div>
         <h4 class="fc-modal-sub" style="margin:14px 0 6px;">Comissão (conforme contrato com o parceiro)</h4>
-        <p class="fc-modal-sub" style="margin:0 0 8px;">Acordo atual com a Axton: 4 repasses — 1º, 3º, 4º e 5º mês após a venda, sem repasse no 2º mês, concluindo em até 5 meses.</p>
+        <p class="fc-modal-sub" style="margin:0 0 8px;">Acordo atual com a Axton: 4 repasses — pago no 1º mês, pula o 2º mês, e finaliza nos meses 3º, 4º e 5º. Peso por repasse: 40% / 20% / 20% / 20%. Em venda flex, essa conta vale sobre a parte antecipada (ex.: Flex 50% = metade da comissão agora nesses repasses, a outra metade só na contemplação).</p>
         <div class="fc-form-grid">
           <div><label for="ctParceiro">Parceiro que paga</label><input type="text" id="ctParceiro" value="${v(cota ? cota.parceiro_comissao : 'Axton')}"></div>
           <div><label for="ctComissaoPct">Comissão (%)</label><input type="text" inputmode="decimal" id="ctComissaoPct" value="${v(numTxt(cota ? cota.comissao_percentual : 2.5))}"></div>
@@ -860,7 +860,7 @@
           <div><label for="ctComissaoRecebidas">Repasses da comissão já recebidos</label><input type="number" id="ctComissaoRecebidas" min="0" max="24" value="${v(cota ? cota.comissao_parcelas_recebidas : 0)}"></div>
           <div><label for="ctParcelasCliente">Parcelas da carta já pagas pelo cliente</label><input type="number" id="ctParcelasCliente" min="0" value="${v(cota ? cota.parcelas_cliente_pagas : 0)}"></div>
         </div>
-        <label class="fc-conferido" id="ctPosContemplacaoWrap" hidden><input type="checkbox" id="ctPosContemplacao" ${cota && cota.comissao_pos_contemplacao_recebida ? 'checked' : ''}> Venda flex: já recebi os outros 50% da comissão (pagos só após a contemplação da cota)</label>
+        <label class="fc-conferido" id="ctPosContemplacaoWrap" hidden><input type="checkbox" id="ctPosContemplacao" ${cota && cota.comissao_pos_contemplacao_recebida ? 'checked' : ''}> Venda flex: já recebi a parte pendente da comissão (paga só após a contemplação da cota, na proporção do plano flex)</label>
         <p class="fc-modal-sub" style="margin:4px 0 0;">Se o cliente não pagar as 4 primeiras parcelas da carta em até 12 meses, o parceiro pode estornar a comissão — mantenha "parcelas já pagas pelo cliente" atualizado pra acompanhar esse risco.</p>
         <label for="ctObs">Observações</label>
         <input type="text" id="ctObs" maxlength="300" value="${v(cota && cota.observacoes)}">

@@ -6281,8 +6281,8 @@ async function loadPrevisao() {
   resumo.innerHTML = '<p class="empty-state">Carregando…</p>';
 
   const [{ data: previsao, error: errPrevisao }, { data: cotas, error: errCotas }] = await Promise.all([
-    supabase.rpc('financeiro_previsao_ganho_v2').single(),
-    supabase.rpc('consorcio_cotas_lista_v3', { p_incluir_encerradas: false }),
+    supabase.rpc('financeiro_previsao_ganho_v3').single(),
+    supabase.rpc('consorcio_cotas_lista_v4', { p_incluir_encerradas: false }),
   ]);
 
   if (errPrevisao || errCotas) {
@@ -6297,7 +6297,7 @@ async function loadPrevisao() {
     <div class="about-card"><strong>${money(previsao.consorcio_comissao_total)}</strong><span>Comissão de consórcio contratada (${previsao.consorcio_cotas_ativas} cota${previsao.consorcio_cotas_ativas === 1 ? '' : 's'})</span></div>
     <div class="about-card"><strong>${money(previsao.consorcio_comissao_recebida)}</strong><span>Comissão de consórcio já recebida</span></div>
     <div class="about-card"><strong>${money(previsao.consorcio_comissao_a_receber)}</strong><span>Comissão de consórcio a receber</span></div>
-    <div class="about-card"><strong>${money(previsao.consorcio_comissao_pos_contemplacao_pendente)}</strong><span>Vendas flex: 2ª metade da comissão pendente de contemplação</span></div>
+    <div class="about-card"><strong>${money(previsao.consorcio_comissao_pos_contemplacao_pendente)}</strong><span>Vendas flex: parte da comissão pendente de contemplação</span></div>
     <div class="about-card${previsao.consorcio_cotas_em_risco ? ' about-card-alerta' : ''}"><strong>${money(previsao.consorcio_comissao_em_risco)}</strong><span>Em risco de estorno (${previsao.consorcio_cotas_em_risco} cota${previsao.consorcio_cotas_em_risco === 1 ? '' : 's'} com menos de 4 parcelas pagas, dentro de 12 meses)</span></div>
   `;
 
@@ -6305,10 +6305,10 @@ async function loadPrevisao() {
     wrapCotas.innerHTML = (cotas || []).length
       ? cotas.map((c) => {
           const flex = c.tipo_parcela && c.tipo_parcela !== 'normal';
-          const flexTxt = flex ? ` · plano ${c.tipo_parcela.replace('flex_', 'flex ')}% · comissão 50% em parcelas + 50% após contemplação (${c.comissao_pos_contemplacao_recebida ? 'já recebida' : 'pendente'})` : '';
+          const flexTxt = flex ? ` · plano ${c.tipo_parcela.replace('flex_', 'flex ')}% · ${brl2(c.comissao_valor_pendente_contemplacao || 0)} pendente de contemplação${c.comissao_pos_contemplacao_recebida ? ' (já recebida)' : ''}` : '';
           return lucroItemCard({
             titulo: `${c.nome} — ${c.administradora}${c.grupo ? ' · grupo ' + c.grupo : ''}`,
-            sub: `Carta ${brl2(c.credito)} · comissão ${c.parceiro_comissao} ${c.comissao_percentual}% · ${c.comissao_parcelas_recebidas}/${c.comissao_parcelas} parcelas recebidas${flexTxt}${c.comissao_em_risco_estorno ? ' · ⚠ risco de estorno (cliente pagou só ' + c.parcelas_cliente_pagas + ' parcela(s) da carta)' : ''}`,
+            sub: `Carta ${brl2(c.credito)} · comissão ${c.parceiro_comissao} ${c.comissao_percentual}% · ${c.comissao_parcelas_recebidas}/${c.comissao_parcelas} repasses recebidos${flexTxt}${c.comissao_em_risco_estorno ? ' · ⚠ risco de estorno (cliente pagou só ' + c.parcelas_cliente_pagas + ' parcela(s) da carta)' : ''}`,
             valorBase: c.comissao_valor_total,
             valorLucro: c.comissao_valor_a_receber,
           });
