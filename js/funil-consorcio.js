@@ -852,11 +852,12 @@
           <div><label for="ctAdesao">Data da assinatura</label><input type="date" id="ctAdesao" value="${v(cota && cota.data_adesao)}"></div>
         </div>
         <h4 class="fc-modal-sub" style="margin:14px 0 6px;">Comissão (conforme contrato com o parceiro)</h4>
+        <p class="fc-modal-sub" style="margin:0 0 8px;">Acordo atual com a Axton: 4 repasses — 1º, 3º, 4º e 5º mês após a venda, sem repasse no 2º mês, concluindo em até 5 meses.</p>
         <div class="fc-form-grid">
           <div><label for="ctParceiro">Parceiro que paga</label><input type="text" id="ctParceiro" value="${v(cota ? cota.parceiro_comissao : 'Axton')}"></div>
           <div><label for="ctComissaoPct">Comissão (%)</label><input type="text" inputmode="decimal" id="ctComissaoPct" value="${v(numTxt(cota ? cota.comissao_percentual : 2.5))}"></div>
-          <div><label for="ctComissaoParcelas">Pago em quantas parcelas</label><input type="number" id="ctComissaoParcelas" min="1" max="24" value="${v(cota ? cota.comissao_parcelas : 6)}"></div>
-          <div><label for="ctComissaoRecebidas">Parcelas da comissão já recebidas</label><input type="number" id="ctComissaoRecebidas" min="0" max="24" value="${v(cota ? cota.comissao_parcelas_recebidas : 0)}"></div>
+          <div><label for="ctComissaoParcelas">Pago em quantos repasses</label><input type="number" id="ctComissaoParcelas" min="1" max="24" value="${v(cota ? cota.comissao_parcelas : 4)}"></div>
+          <div><label for="ctComissaoRecebidas">Repasses da comissão já recebidos</label><input type="number" id="ctComissaoRecebidas" min="0" max="24" value="${v(cota ? cota.comissao_parcelas_recebidas : 0)}"></div>
           <div><label for="ctParcelasCliente">Parcelas da carta já pagas pelo cliente</label><input type="number" id="ctParcelasCliente" min="0" value="${v(cota ? cota.parcelas_cliente_pagas : 0)}"></div>
         </div>
         <label class="fc-conferido" id="ctPosContemplacaoWrap" hidden><input type="checkbox" id="ctPosContemplacao" ${cota && cota.comissao_pos_contemplacao_recebida ? 'checked' : ''}> Venda flex: já recebi os outros 50% da comissão (pagos só após a contemplação da cota)</label>
