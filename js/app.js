@@ -1811,8 +1811,12 @@ async function loadOfertaAtiva() {
   const tbody = $('#ofertaAtivaTable tbody');
 
   const hojeInicio = new Date(); hojeInicio.setHours(0, 0, 0, 0);
+  // Fila alterna o sentido a cada dia: em dias pares os últimos adicionados vêm pra frente,
+  // em dias ímpares a fila volta ao normal (mais antigos primeiro). Assim ninguém fica
+  // sempre em desvantagem — nem quem chegou primeiro, nem quem chegou por último.
+  const ofertaAtivaOrdemAscendente = hojeInicio.getDate() % 2 !== 0;
   const [{ data: fila, error }, { data: meus, error: errorMeus }, { count: escolhidosHoje }] = await Promise.all([
-    supabase.from('contatos_oferta_ativa').select('*, usuarios(nome)').eq('ativo', true).order('ordem', { ascending: true }).limit(100),
+    supabase.from('contatos_oferta_ativa').select('*, usuarios(nome)').eq('ativo', true).order('ordem', { ascending: ofertaAtivaOrdemAscendente }).limit(100),
     // Os contatos já atribuídos a mim podem ter caído fora do limite acima (ao pegar,
     // o contato vai pro fim da fila) — busco eles à parte pra sempre aparecerem na tela.
     currentUsuario
