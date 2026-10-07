@@ -436,6 +436,8 @@ select.status-select{background:var(--navy-800);color:var(--white);border:1px so
 .about-card span{font-size:.78rem;color:var(--gray-text);}
 .about-card-total{background:linear-gradient(135deg, rgba(255,106,26,.18), var(--navy-700));border-color:rgba(255,106,26,.4);}
 .about-card-total strong{color:var(--orange-light);font-size:1.55rem;}
+.about-card-alerta{border-color:rgba(239,68,68,.45);}
+.about-card-alerta strong{color:#ef4444;}
 
 .portal-section-title-crm{font-size:1rem;color:var(--orange-light);margin:28px 0 12px;}
 

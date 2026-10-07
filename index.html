@@ -460,6 +460,7 @@
         <button class="financeiro-tab" data-financeiro-tab="repasses">Repasses</button>
         <button class="financeiro-tab" data-financeiro-tab="vendas">Vendas</button>
         <button class="financeiro-tab" data-financeiro-tab="lucro">Lucro do mês</button>
+        <button class="financeiro-tab" data-financeiro-tab="previsao">Previsão de ganho</button>
         <button class="financeiro-tab" data-financeiro-tab="relatorio-ir">Relatório IR (proprietário)</button>
       </div>
 
@@ -535,6 +536,17 @@
 
         <h2 class="portal-section-title-crm">Vendas fechadas no mês (já descontada a comissão do corretor)</h2>
         <div id="lucroVendasCards" class="imoveis-cards"></div>
+      </div>
+
+      <div id="financeiro-previsao" class="financeiro-painel" hidden>
+        <p class="financeiro-auto-nota">Receita recorrente (taxa de administração dos contratos de locação ativos) + comissão de consórcio (parceiro Axton, conforme contrato). Não é o lucro do mês fechado — é a previsão do que está em andamento.</p>
+        <div id="previsaoResumo" class="about-stats"></div>
+
+        <h2 class="portal-section-title-crm">Como funciona a comissão de consórcio</h2>
+        <p class="fc-modal-sub" style="margin:0 0 14px;">A Axton só paga depois que ela própria recebe da administradora (Servopa etc). O pagamento sai até o 5º dia útil do mês seguinte, dividido nas parcelas definidas por produto (hoje: 2,5% sobre o valor da carta, em 6 parcelas, no "Consórcio planejado"). Se o cliente não pagar as 4 primeiras parcelas da carta dentro de 12 meses, a Axton pode estornar a comissão já paga, proporcional ao que faltou. Os valores "em risco" abaixo são cotas ainda dentro dessa janela.</p>
+
+        <h2 class="portal-section-title-crm">Cotas de consórcio ativas</h2>
+        <div id="previsaoCotasCards" class="imoveis-cards"></div>
       </div>
     </section>
 

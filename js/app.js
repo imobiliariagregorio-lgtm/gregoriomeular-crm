@@ -5898,6 +5898,7 @@ $$('.financeiro-tab').forEach((btn) => {
     $('#financeiro-repasses').hidden = alvo !== 'repasses';
     $('#financeiro-vendas').hidden = alvo !== 'vendas';
     $('#financeiro-lucro').hidden = alvo !== 'lucro';
+    $('#financeiro-previsao').hidden = alvo !== 'previsao';
     $('#financeiro-relatorio-ir').hidden = alvo !== 'relatorio-ir';
     // "Nova cobrança" e "Gerar cobranças do mês" só fazem sentido pra locação — somem nas outras abas
     const btnNovaCobranca = $('#newCobrancaBtn');
@@ -5907,6 +5908,7 @@ $$('.financeiro-tab').forEach((btn) => {
     const notaAuto = $('#financeiroAutoNota');
     if (notaAuto) notaAuto.hidden = alvo !== 'locacoes';
     if (alvo === 'lucro') loadLucro();
+    if (alvo === 'previsao') loadPrevisao();
     if (alvo === 'relatorio-ir') carregarProprietariosParaIR();
   });
 });
@@ -6264,6 +6266,49 @@ async function loadLucro() {
           });
         }).join('')
       : `<p class="empty-state">Nenhuma venda fechada nesse mês.</p>`;
+  }
+}
+
+// =====================================================================
+// PREVISÃO DE GANHO — taxa de administração recorrente (locação) + comissão
+// de consórcio (parceiro Axton: % sobre o valor da carta, pago em parcelas,
+// com risco de estorno se o cliente não pagar as 4 primeiras parcelas em 12 meses).
+// =====================================================================
+async function loadPrevisao() {
+  const resumo = $('#previsaoResumo');
+  const wrapCotas = $('#previsaoCotasCards');
+  if (!resumo) return;
+  resumo.innerHTML = '<p class="empty-state">Carregando…</p>';
+
+  const [{ data: previsao, error: errPrevisao }, { data: cotas, error: errCotas }] = await Promise.all([
+    supabase.rpc('financeiro_previsao_ganho').single(),
+    supabase.rpc('consorcio_cotas_lista_v2', { p_incluir_encerradas: false }),
+  ]);
+
+  if (errPrevisao || errCotas) {
+    resumo.innerHTML = `<p class="empty-state">Erro ao carregar a previsão.</p>`;
+    console.error(errPrevisao || errCotas);
+    return;
+  }
+
+  resumo.innerHTML = `
+    <div class="about-card about-card-total"><strong>${money(Number(previsao.taxa_adm_mensal_recorrente) + Number(previsao.consorcio_comissao_a_receber))}</strong><span>Previsão de ganho (taxa de adm. recorrente/mês + comissão de consórcio a receber)</span></div>
+    <div class="about-card"><strong>${money(previsao.taxa_adm_mensal_recorrente)}</strong><span>Taxa de administração recorrente/mês (${previsao.contratos_locacao_ativos} locações ativas)</span></div>
+    <div class="about-card"><strong>${money(previsao.consorcio_comissao_total)}</strong><span>Comissão de consórcio contratada (${previsao.consorcio_cotas_ativas} cota${previsao.consorcio_cotas_ativas === 1 ? '' : 's'})</span></div>
+    <div class="about-card"><strong>${money(previsao.consorcio_comissao_recebida)}</strong><span>Comissão de consórcio já recebida</span></div>
+    <div class="about-card"><strong>${money(previsao.consorcio_comissao_a_receber)}</strong><span>Comissão de consórcio a receber</span></div>
+    <div class="about-card${previsao.consorcio_cotas_em_risco ? ' about-card-alerta' : ''}"><strong>${money(previsao.consorcio_comissao_em_risco)}</strong><span>Em risco de estorno (${previsao.consorcio_cotas_em_risco} cota${previsao.consorcio_cotas_em_risco === 1 ? '' : 's'} com menos de 4 parcelas pagas, dentro de 12 meses)</span></div>
+  `;
+
+  if (wrapCotas) {
+    wrapCotas.innerHTML = (cotas || []).length
+      ? cotas.map((c) => lucroItemCard({
+          titulo: `${c.nome} — ${c.administradora}${c.grupo ? ' · grupo ' + c.grupo : ''}`,
+          sub: `Carta ${brl2(c.credito)} · comissão ${c.parceiro_comissao} ${c.comissao_percentual}% · ${c.comissao_parcelas_recebidas}/${c.comissao_parcelas} parcelas recebidas${c.comissao_em_risco_estorno ? ' · ⚠ risco de estorno (cliente pagou só ' + c.parcelas_cliente_pagas + ' parcela(s) da carta)' : ''}`,
+          valorBase: c.comissao_valor_total,
+          valorLucro: c.comissao_valor_a_receber,
+        })).join('')
+      : `<p class="empty-state">Nenhuma cota de consórcio ativa.</p>`;
   }
 }
 

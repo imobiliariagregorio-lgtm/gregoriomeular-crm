@@ -738,7 +738,7 @@
     box.innerHTML = '<p class="table-empty">Carregando…</p>';
     await carregarCorretores('ctCorretor');
     const incluir = document.getElementById('ctEncerradas').checked;
-    const { data, error } = await supabase.rpc('consorcio_cotas_lista', { p_incluir_encerradas: incluir });
+    const { data, error } = await supabase.rpc('consorcio_cotas_lista_v2', { p_incluir_encerradas: incluir });
     if (error) { box.innerHTML = '<p class="table-empty">Erro ao carregar as cotas.</p>'; console.error(error); return; }
     cotasCache = data || [];
     desenharCotas();
@@ -753,11 +753,17 @@
     const somaCartas = ativas.reduce((a, c) => a + (Number(c.credito) || 0), 0);
     const somaParcelas = ativas.reduce((a, c) => a + (Number(c.parcela_valor) || 0), 0);
     const aEnviar = ativas.filter((c) => c.situacao_boleto === 'enviar_boleto').length;
+    const somaComissaoTotal = ativas.reduce((a, c) => a + (Number(c.comissao_valor_total) || 0), 0);
+    const somaComissaoAReceber = ativas.reduce((a, c) => a + (Number(c.comissao_valor_a_receber) || 0), 0);
+    const emRisco = ativas.filter((c) => c.comissao_em_risco_estorno).length;
     document.getElementById('ctResumo').innerHTML =
       `<span class="fc-pilula">Cotas ativas: <b>${ativas.length}</b></span>` +
       `<span class="fc-pilula">Soma das cartas: <b>${esc(brl2(somaCartas) || 'R$ 0,00')}</b></span>` +
       `<span class="fc-pilula">Parcelas por mês: <b>${esc(brl2(somaParcelas) || 'R$ 0,00')}</b></span>` +
-      `<span class="fc-pilula ${aEnviar ? 'fc-alerta' : ''}">Boletos a enviar: <b>${aEnviar}</b></span>`;
+      `<span class="fc-pilula ${aEnviar ? 'fc-alerta' : ''}">Boletos a enviar: <b>${aEnviar}</b></span>` +
+      `<span class="fc-pilula">Comissão total: <b>${esc(brl2(somaComissaoTotal) || 'R$ 0,00')}</b></span>` +
+      `<span class="fc-pilula">Comissão a receber: <b>${esc(brl2(somaComissaoAReceber) || 'R$ 0,00')}</b></span>` +
+      `<span class="fc-pilula ${emRisco ? 'fc-alerta' : ''}" title="Cliente ainda não pagou as 4 primeiras parcelas dentro de 12 meses — contrato Axton permite estorno da comissão">Em risco de estorno: <b>${emRisco}</b></span>`;
     if (!lista.length) {
       box.innerHTML = '<p class="table-empty">Nenhuma cota registrada ainda. Use “+ Registrar cota” ou o botão “Registrar cota” no card do cliente que assinou, no Funil de Consórcio.</p>';
       return;
@@ -774,6 +780,7 @@
           <div class="fc-fazer-nome">${esc(c.nome)} ${conferir ? '<span class="fc-chip" title="Dados pré-preenchidos: confira com o contrato e edite a cota">⚠ conferir dados</span>' : ''}</div>
           <div class="fc-fazer-texto">${esc(ident)}</div>
           <div class="fc-fazer-texto"><b>Carta ${esc(brl2(c.credito))}</b> · ${c.parcela_valor ? 'parcela ' + esc(brl2(c.parcela_valor)) : 'parcela não informada'} · vence todo dia ${esc(c.vencimento_dia)}</div>
+          <div class="fc-fazer-texto">Comissão ${esc(c.parceiro_comissao || 'Axton')} ${esc(c.comissao_percentual)}%: <b>${esc(brl2(c.comissao_valor_total))}</b> (${esc(c.comissao_parcelas_recebidas)}/${esc(c.comissao_parcelas)} parcelas recebidas, ${esc(brl2(c.comissao_valor_a_receber))} a receber)${c.comissao_em_risco_estorno ? ' <span class="fc-chip" title="Cliente ainda não pagou as 4 primeiras parcelas da carta dentro de 12 meses — risco de estorno pelo contrato Axton">⚠ risco de estorno</span>' : ''}</div>
           <div class="fc-fazer-meta">${proximo}${gestao() ? `<span>· ${esc(c.corretor || 'Sem corretor')}</span>` : ''}</div>
           ${c.observacoes ? `<div class="fc-nota" style="margin:6px 0 0;">${esc(c.observacoes)}</div>` : ''}
         </div>
@@ -834,6 +841,15 @@
           <div><label for="ctDias">Lembrar quantos dias antes</label><input type="number" id="ctDias" min="0" max="15" value="${v(cota ? cota.lembrar_dias_antes : 1)}"></div>
           <div><label for="ctAdesao">Data da assinatura</label><input type="date" id="ctAdesao" value="${v(cota && cota.data_adesao)}"></div>
         </div>
+        <h4 class="fc-modal-sub" style="margin:14px 0 6px;">Comissão (conforme contrato com o parceiro)</h4>
+        <div class="fc-form-grid">
+          <div><label for="ctParceiro">Parceiro que paga</label><input type="text" id="ctParceiro" value="${v(cota ? cota.parceiro_comissao : 'Axton')}"></div>
+          <div><label for="ctComissaoPct">Comissão (%)</label><input type="text" inputmode="decimal" id="ctComissaoPct" value="${v(numTxt(cota ? cota.comissao_percentual : 2.5))}"></div>
+          <div><label for="ctComissaoParcelas">Pago em quantas parcelas</label><input type="number" id="ctComissaoParcelas" min="1" max="24" value="${v(cota ? cota.comissao_parcelas : 6)}"></div>
+          <div><label for="ctComissaoRecebidas">Parcelas da comissão já recebidas</label><input type="number" id="ctComissaoRecebidas" min="0" max="24" value="${v(cota ? cota.comissao_parcelas_recebidas : 0)}"></div>
+          <div><label for="ctParcelasCliente">Parcelas da carta já pagas pelo cliente</label><input type="number" id="ctParcelasCliente" min="0" value="${v(cota ? cota.parcelas_cliente_pagas : 0)}"></div>
+        </div>
+        <p class="fc-modal-sub" style="margin:4px 0 0;">Se o cliente não pagar as 4 primeiras parcelas da carta em até 12 meses, o parceiro pode estornar a comissão — mantenha "parcelas já pagas pelo cliente" atualizado pra acompanhar esse risco.</p>
         <label for="ctObs">Observações</label>
         <input type="text" id="ctObs" maxlength="300" value="${v(cota && cota.observacoes)}">
         ${preenchido ? '<label class="fc-conferido"><input type="checkbox" id="ctConferido"> Conferi os dados com o contrato (tira o aviso “conferir dados”)</label>' : ''}
@@ -862,6 +878,12 @@
     if (parcelaTxt && (!parcela || parcela <= 0)) { aviso('O valor da parcela não é válido.', true); return; }
     if (!venc || venc < 1 || venc > 31) { aviso('Informe o dia do vencimento, de 1 a 31.', true); return; }
     if (isNaN(dias) || dias < 0 || dias > 15) { aviso('Lembrar antes: de 0 a 15 dias.', true); return; }
+    const comissaoPct = lerNumero(document.getElementById('ctComissaoPct').value) || 0;
+    const comissaoParcelas = parseInt(document.getElementById('ctComissaoParcelas').value, 10);
+    const comissaoRecebidas = parseInt(document.getElementById('ctComissaoRecebidas').value, 10) || 0;
+    const parcelasCliente = parseInt(document.getElementById('ctParcelasCliente').value, 10) || 0;
+    if (!comissaoParcelas || comissaoParcelas < 1) { aviso('Informe em quantas parcelas a comissão é paga.', true); return; }
+    if (comissaoRecebidas > comissaoParcelas) { aviso('Parcelas da comissão recebidas não pode ser maior que o total de parcelas.', true); return; }
     const conf = document.getElementById('ctConferido');
     const obs = conf && conf.checked ? 'Dados conferidos com o contrato em ' + dataBR(hojeISO()) + '.' : document.getElementById('ctObs').value.trim();
     const payload = {
@@ -872,6 +894,11 @@
       credito, parcela_valor: parcela, vencimento_dia: venc, lembrar_dias_antes: dias,
       data_adesao: document.getElementById('ctAdesao').value || null,
       observacoes: obs || null,
+      parceiro_comissao: document.getElementById('ctParceiro').value.trim() || 'Axton',
+      comissao_percentual: comissaoPct,
+      comissao_parcelas: comissaoParcelas,
+      comissao_parcelas_recebidas: comissaoRecebidas,
+      parcelas_cliente_pagas: parcelasCliente,
     };
     if (!id) payload.lead_id = leadId;
     const { error } = id ? await supabase.from('consorcio_cotas').update(payload).eq('id', id) : await supabase.from('consorcio_cotas').insert(payload);
