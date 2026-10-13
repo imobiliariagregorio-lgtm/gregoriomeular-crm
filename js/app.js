@@ -5721,6 +5721,7 @@ function renderCobrancasCards() {
                         <span class="ajuste-meta">${a.tipo === 'desconto' ? `debitado de ${AJUSTE_LABEL[a.origem]}` : 'pago a mais pelo inquilino'}, creditado a ${AJUSTE_LABEL[a.destino]}</span>
                       </span>
                       ${souGerente ? `<button type="button" class="ajuste-excluir" data-action="ajuste-excluir" data-id="${a.id}" title="Excluir lançamento">✕</button>` : ''}
+                      ${souGerente && a.ajuste_recorrente_id ? `<button type="button" class="ajuste-excluir" data-action="ajuste-recorrente-cancelar" data-id="${a.ajuste_recorrente_id}" title="Cancelar as próximas parcelas deste recorrente">🔁 Cancelar recorrente</button>` : ''}
                     </div>
                   `).join('')}
                 </div>
@@ -5845,6 +5846,7 @@ async function loadRepasses() {
                   <span class="ajuste-meta">${a.tipo === 'desconto' ? `debitado de ${AJUSTE_LABEL[a.origem]}` : 'pago a mais pelo inquilino'}, creditado a ${AJUSTE_LABEL[a.destino]}</span>
                 </span>
                 ${souGerente ? `<button type="button" class="ajuste-excluir" data-action="ajuste-excluir" data-id="${a.id}" title="Excluir lançamento">✕</button>` : ''}
+                ${souGerente && a.ajuste_recorrente_id ? `<button type="button" class="ajuste-excluir" data-action="ajuste-recorrente-cancelar" data-id="${a.ajuste_recorrente_id}" title="Cancelar as próximas parcelas deste recorrente">🔁 Cancelar recorrente</button>` : ''}
               </div>
             `).join('')}
           </div>
@@ -6474,6 +6476,16 @@ document.addEventListener('click', async (e) => {
   const { error } = await supabase.from('cobranca_ajustes').delete().eq('id', e.target.dataset.id);
   if (error) { toast('Não foi possível excluir.', true); return; }
   toast('Lançamento excluído.');
+  loadCobrancas();
+  loadRepasses();
+});
+
+document.addEventListener('click', async (e) => {
+  if (e.target.dataset.action !== 'ajuste-recorrente-cancelar') return;
+  if (!confirm('Cancelar as próximas parcelas deste ajuste recorrente? As parcelas já lançadas não serão removidas.')) return;
+  const { error } = await supabase.from('ajustes_recorrentes').update({ ativo: false }).eq('id', e.target.dataset.id);
+  if (error) { toast('Não foi possível cancelar o recorrente.', true); return; }
+  toast('Recorrente cancelado — não entrará mais nas próximas cobranças.');
   loadCobrancas();
   loadRepasses();
 });
