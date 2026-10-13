@@ -5749,6 +5749,7 @@ function renderCobrancasCards() {
 }
 
 $('#cobrancasSearch')?.addEventListener('input', renderCobrancasCards);
+$('#repassesSearch')?.addEventListener('input', loadRepasses);
 
 $('#gerarCobrancasBtn')?.addEventListener('click', async () => {
   const btn = $('#gerarCobrancasBtn');
@@ -5809,6 +5810,14 @@ async function loadRepasses() {
 
   if (filtroRepassesAtraso) linhas = linhas.filter((l) => l.statusRepasse === 'atrasado');
   if (filtroDiaRepasse) linhas = linhas.filter((l) => String(l.contrato.dia_repasse) === filtroDiaRepasse);
+
+  const termoRepasse = semAcento(($('#repassesSearch')?.value || '').trim());
+  if (termoRepasse) {
+    linhas = linhas.filter((l) => {
+      const alvo = semAcento(`${l.contrato.pessoas?.nome || ''} ${l.contrato.imoveis?.titulo || ''}`);
+      return alvo.includes(termoRepasse);
+    });
+  }
 
   const bannerRep = $('#repassesAlertaBanner');
   if (bannerRep) {
