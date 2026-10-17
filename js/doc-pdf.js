@@ -97,30 +97,10 @@
         bloco.labels.forEach((labelRaw) => {
           const label = resolverTexto(labelRaw, dados);
           if (!label) return;
-          // Linha da IMOBILIÁRIA/ADMINISTRADORA (identificada pela presença do
-          // tag {imobiliaria_nome} no label, convenção usada em todos os
-          // modelos): recebe a assinatura fixa da empresa automaticamente,
-          // se o arquivo assets/assinatura-gregorio.png estiver disponível.
-          // Linhas de outras partes (locador, locatário, comprador etc.)
-          // nunca recebem assinatura fixa — continuam em branco para
-          // assinatura manual.
-          const ehLinhaImobiliaria = /\{imobiliaria_nome\}/.test(labelRaw);
-          if (ehLinhaImobiliaria && imagens.assinatura) {
-            stack.push({ image: imagens.assinatura, width: 130, alignment: 'center', margin: [0, 22, 0, 2] });
-            stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, 0, 0, 2] });
-          } else {
-            stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, 26, 0, 2] });
-          }
-          stack.push({ text: label, bold: true, alignment: 'center', margin: [0, 0, 0, ehLinhaImobiliaria && imagens.assinatura ? 1 : 4] });
-          // Linha de apoio com o nome de quem assina fisicamente pela
-          // ADMINISTRADORA e seu CPF, só na linha da imobiliária e só quando
-          // a assinatura fixa está presente (senão não há o que identificar).
-          if (ehLinhaImobiliaria && imagens.assinatura) {
-            const identificacaoAssinante = resolverTexto('{assinante_nome} — CPF {assinante_cpf}', dados);
-            if (identificacaoAssinante.trim()) {
-              stack.push({ text: identificacaoAssinante, fontSize: 8.5, color: '#555555', alignment: 'center', margin: [0, 0, 0, 4] });
-            }
-          }
+          // Todas as linhas de assinatura (inclusive a da imobiliária/
+          // administradora) saem em branco, para assinatura manual.
+          stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, 26, 0, 2] });
+          stack.push({ text: label, bold: true, alignment: 'center', margin: [0, 0, 0, 4] });
         });
         return { stack };
       }
@@ -856,8 +836,7 @@
     imagensCache = Promise.all([
       carregarImagemDataUrl('assets/logo-header.png'),
       carregarImagemDataUrl('assets/logo-watermark.png'),
-      carregarImagemDataUrl('assets/assinatura-gregorio.png'),
-    ]).then(([logoHeader, logoWatermark, assinatura]) => ({ logoHeader, logoWatermark, assinatura }));
+    ]).then(([logoHeader, logoWatermark]) => ({ logoHeader, logoWatermark, assinatura: null }));
     return imagensCache;
   }
 

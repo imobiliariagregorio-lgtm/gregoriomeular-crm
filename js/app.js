@@ -9276,11 +9276,6 @@ async function coletarDadosDocumentoDoc(modelo) {
     imobiliaria_email: cs.email || '',
     corretor_nome: currentUsuario?.nome || '',
     corretor_creci: currentUsuario?.creci || '',
-    // Identificação de quem assina fisicamente pela ADMINISTRADORA (aparece
-    // como linha de apoio abaixo da assinatura fixa, junto ao nome da
-    // imobiliária) — ver blocoParaPdf/case 'assinaturas' em doc-pdf.js.
-    assinante_nome: 'LUIZ GREGORIO PEREIRA',
-    assinante_cpf: '037.177.869-70',
     cidade_contrato: cs.cidade || 'Fazenda Rio Grande',
     data_extenso: hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
   });
