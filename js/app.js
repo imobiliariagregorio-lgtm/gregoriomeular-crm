@@ -4953,8 +4953,52 @@ async function carregarFotosVistoria(vistoriaId) {
   const { data, error } = await supabase.from('vistoria_fotos').select('*').eq('vistoria_id', vistoriaId).order('criado_em');
   const wrap = $('#vistoriaFotosLista');
   if (!wrap) return;
-  if (error || !data.length) { wrap.innerHTML = ''; return; }
-  wrap.innerHTML = data.map((f) => `<div class="foto-thumb"><img src="${f.url}" alt=""></div>`).join('');
+  if (error || !data.length) { wrap.innerHTML = ''; atualizarBarraExcluirFotosVistoria(vistoriaId); return; }
+  // Gerente pode marcar fotos enviadas por engano e excluí-las (a política do
+  // banco só permite DELETE em vistoria_fotos para gerente).
+  wrap.innerHTML = data.map((f) => `<div class="foto-thumb" data-foto-id="${f.id}"><img src="${f.url}" alt="">${souGerente ? `<label class="foto-sel" title="Selecionar para excluir"><input type="checkbox" class="vfoto-sel" value="${f.id}" data-url="${f.url}"></label>` : ''}</div>`).join('');
+  atualizarBarraExcluirFotosVistoria(vistoriaId);
+  if (souGerente) {
+    wrap.querySelectorAll('.vfoto-sel').forEach((cb) => cb.addEventListener('change', () => atualizarBarraExcluirFotosVistoria(vistoriaId)));
+  }
+}
+
+// Barra "Excluir selecionadas" acima da grade de fotos da vistoria (só gerente).
+function atualizarBarraExcluirFotosVistoria(vistoriaId) {
+  const wrap = $('#vistoriaFotosLista');
+  if (!wrap || !souGerente) return;
+  let barra = $('#vistoriaFotosBarra');
+  if (!barra) {
+    barra = document.createElement('div');
+    barra.id = 'vistoriaFotosBarra';
+    barra.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;';
+    wrap.parentNode.insertBefore(barra, wrap);
+  }
+  const marcadas = wrap.querySelectorAll('.vfoto-sel:checked').length;
+  const total = wrap.querySelectorAll('.vfoto-sel').length;
+  if (!total) { barra.innerHTML = ''; return; }
+  barra.innerHTML = `<button type="button" class="btn btn-outline btn-sm" id="btnVfotoTodas">${marcadas === total ? 'Desmarcar todas' : 'Marcar todas'}</button>`
+    + `<button type="button" class="btn btn-danger btn-sm" id="btnVfotoExcluir" ${marcadas ? '' : 'disabled'}>Excluir selecionadas${marcadas ? ' (' + marcadas + ')' : ''}</button>`;
+  $('#btnVfotoTodas').addEventListener('click', () => {
+    const marcar = marcadas !== total;
+    wrap.querySelectorAll('.vfoto-sel').forEach((cb) => { cb.checked = marcar; });
+    atualizarBarraExcluirFotosVistoria(vistoriaId);
+  });
+  $('#btnVfotoExcluir').addEventListener('click', async () => {
+    const sel = Array.from(wrap.querySelectorAll('.vfoto-sel:checked'));
+    if (!sel.length) return;
+    if (!confirm(`Excluir ${sel.length} foto(s) desta vistoria? Essa ação não pode ser desfeita.`)) return;
+    const ids = sel.map((cb) => cb.value);
+    const { error: errDel } = await supabase.from('vistoria_fotos').delete().in('id', ids);
+    if (errDel) { toast('Não foi possível excluir as fotos.', true); console.error(errDel); return; }
+    // Tenta remover também os arquivos do storage (falha aqui não impede a exclusão).
+    try {
+      const caminhos = sel.map((cb) => decodeURIComponent((cb.dataset.url.split('/site-imagens/')[1] || '').split('?')[0])).filter(Boolean);
+      if (caminhos.length) await supabase.storage.from('site-imagens').remove(caminhos);
+    } catch (err) { console.warn('Fotos removidas do registro; arquivo no storage não removido:', err); }
+    toast(`${ids.length} foto(s) excluída(s).`);
+    carregarFotosVistoria(vistoriaId);
+  });
 }
 
 document.addEventListener('click', async (e) => {
