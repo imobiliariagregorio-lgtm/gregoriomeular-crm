@@ -8293,7 +8293,6 @@ const MODELOS_DOC = [
       { tag: 'valor_caucao', rotulo: 'Valor da caução (R$)', placeholder: 'Ex: 3.210,00' },
       { tag: 'valor_caucao_extenso', rotulo: 'Valor da caução por extenso (sugestão automática)', full: true },
       { tag: 'forma_pagamento_caucao', rotulo: 'Forma de pagamento da caução', full: true, default: 'via PIX, em conta indicada pela ADMINISTRADORA' },
-      { tag: 'indice_correcao_caucao', rotulo: 'Índice de correção da caução na devolução', default: 'IPCA' },
       { tag: 'multa_comunicacao_meses', rotulo: 'Multa por não comunicar via administradora (x aluguel)', tipo: 'number', default: '3' },
       { tag: 'testemunha1_nome', rotulo: 'Testemunha 1 — nome' },
       { tag: 'testemunha1_cpf', rotulo: 'Testemunha 1 — CPF' },
