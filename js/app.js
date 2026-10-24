@@ -597,7 +597,7 @@ async function carregarPainelExecutivoLocacao() {
     const ajustesCalc = calcularAjustes(cb.cobranca_ajustes || []);
     const valorBaseComAjuste = Math.round((Number(cb.valor_base) + ajustesCalc.deltaInquilino) * 100) / 100;
     const dias = diasEmAtraso(cb.data_vencimento, cb.data_pagamento);
-    const atualizado = valorAtualizado(valorBaseComAjuste, contrato.multa_percentual ?? 2, contrato.juros_diario_percentual ?? 1, dias, cb.isento_multa_juros);
+    const atualizado = valorAtualizado(valorBaseComAjuste, contrato.multa_percentual ?? 10, contrato.juros_diario_percentual ?? 1, dias, cb.isento_multa_juros);
     return { ...cb, contrato, atualizado, diasAtraso: dias, diasParaVencer: diasEntre(cb.data_vencimento) };
   });
   const totalEmAberto = cobrancasCalc.reduce((s, cb) => s + cb.atualizado, 0);
@@ -5266,7 +5266,7 @@ async function contratoForm(c = {}) {
       <div class="form-row"><label>Data início</label><input required type="date" id="c-inicio" value="${c.data_inicio || ''}"></div>
       <div class="form-row"><label>Data fim (locação)</label><input type="date" id="c-fim" value="${c.data_fim || ''}"></div>
       <div class="form-row"><label>Dia de vencimento do aluguel (locação)</label><input type="number" min="1" max="31" id="c-dia-vencimento" value="${c.dia_vencimento ?? ''}" placeholder="ex: 5"></div>
-      <div class="form-row"><label>Multa por atraso (%)</label><input type="number" step="0.1" id="c-multa" value="${c.multa_percentual ?? 2}"></div>
+      <div class="form-row"><label>Multa por atraso (%)</label><input type="number" step="0.1" id="c-multa" value="${c.multa_percentual ?? 10}"></div>
       <div class="form-row"><label>Juros diário (%)</label><input type="number" step="0.1" id="c-juros" value="${c.juros_diario_percentual ?? 1}"></div>
       <p class="full" style="font-size:.75rem;color:var(--gray-text);margin:-6px 0 4px;">Estes são os percentuais usados <em>se</em> você escolher cobrar a multa/juros. Não é automático: em Financeiro, cada cobrança em atraso tem o botão "Cobrar multa/juros".</p>
       <div class="form-row"><label>Taxa de administração (%)</label><input type="number" step="0.1" id="c-taxa-adm" value="${c.taxa_administracao_percentual ?? 10}"></div>
@@ -5656,7 +5656,7 @@ async function loadCobrancas() {
     const ajustesCalc = calcularAjustes(ajustes);
     const valorBaseComAjuste = Math.round((Number(cb.valor_base) + ajustesCalc.deltaInquilino) * 100) / 100;
     const dias = diasEmAtraso(cb.data_vencimento, cb.data_pagamento);
-    const atualizado = valorAtualizado(valorBaseComAjuste, contrato.multa_percentual ?? 2, contrato.juros_diario_percentual ?? 1, dias, cb.isento_multa_juros);
+    const atualizado = valorAtualizado(valorBaseComAjuste, contrato.multa_percentual ?? 10, contrato.juros_diario_percentual ?? 1, dias, cb.isento_multa_juros);
     const statusReal = cb.data_pagamento ? 'pago' : (dias > 0 ? 'atrasado' : 'pendente');
     const primeiroAluguel = contrato.id && primeiraRefPorContrato[contrato.id] === cb.referencia;
     return { ...cb, contrato, ajustes, ajustesCalc, valorBaseComAjuste, dias, atualizado, statusReal, diaRepasse: contrato.dia_repasse ?? null, primeiroAluguel };
@@ -8181,6 +8181,7 @@ const MODELOS_DOC = [
     nomeArquivoTag: 'locatario_nome',
     paresValorExtenso: [['valor_aluguel', 'valor_aluguel_extenso'], ['valor_caucao', 'valor_caucao_extenso']],
     computar(dados) {
+      dados.sem_assinatura_locador = /^N[ãa]o/i.test(dados.assinatura_locador || '');
       dados.tem_locatario2 = !!(dados.locatario2_nome && dados.locatario2_nome.trim());
       dados.tem_locatario3 = !!(dados.locatario3_nome && dados.locatario3_nome.trim());
       // A data de término é SEMPRE calculada a partir de início + prazo em meses —
@@ -8195,6 +8196,7 @@ const MODELOS_DOC = [
     campos: [
       { tag: 'imovel_comodos_descricao', rotulo: 'Imóvel — cômodos e descrição complementar', tipo: 'textarea', full: true, placeholder: 'Ex.: sobrado com garagem coberta para 1 veículo, cozinha, sala, 2 dormitórios e 2 banheiros' },
       { tag: 'imovel_matriculas_concessionarias', rotulo: 'Imóvel — matrículas de concessionárias (Sanepar/Copel etc., opcional)', full: true, placeholder: 'Ex.: Matrícula Sanepar nº 34623783 — Unidade Copel nº 100203167.' },
+      { tag: 'assinatura_locador', rotulo: 'Linha de assinatura do proprietário (locador)', tipo: 'select', full: true, opcoes: ['Incluir', 'Não incluir (assinatura só do inquilino e da administradora)'] },
       { tag: 'valor_aluguel', rotulo: 'Valor do aluguel (R$)', placeholder: 'Ex: 1.800,00' },
       { tag: 'valor_aluguel_extenso', rotulo: 'Valor do aluguel por extenso (sugestão automática)', full: true },
       { tag: 'dia_vencimento', rotulo: 'Dia de vencimento', tipo: 'number', default: '5' },
@@ -8204,7 +8206,7 @@ const MODELOS_DOC = [
       { tag: 'mes_resilicao_sem_multa', rotulo: 'Rescisão sem multa a partir do mês', tipo: 'number', default: '13' },
       { tag: 'indice_reajuste', rotulo: 'Índice de reajuste anual', full: true, default: 'IGP-M/FGV, ou, na impossibilidade de utilização deste índice, o IPCA' },
       { tag: 'taxa_segunda_via_boleto', rotulo: 'Taxa de 2ª via do boleto', default: 'R$ 10,00' },
-      { tag: 'multa_atraso_percentual', rotulo: 'Multa por atraso no aluguel (%)', tipo: 'number', default: '2' },
+      { tag: 'multa_atraso_percentual', rotulo: 'Multa por atraso no aluguel (%)', tipo: 'number', default: '10' },
       { tag: 'juros_mora_percentual', rotulo: 'Juros de mora ao mês (%)', tipo: 'number', default: '1' },
       { tag: 'honorarios_extrajudicial_percentual', rotulo: 'Honorários de cobrança extrajudicial (%)', tipo: 'number', default: '10' },
       { tag: 'honorarios_judiciais_percentual', rotulo: 'Honorários de cobrança judicial (%)', tipo: 'number', default: '20' },
@@ -8248,7 +8250,7 @@ const MODELOS_DOC = [
     imovel: true,
     nomeArquivoTag: 'locatario_nome',
     paresValorExtenso: [['valor_aluguel', 'valor_aluguel_extenso'], ['valor_caucao', 'valor_caucao_extenso']],
-    computar(dados) { dados.tem_locatario2 = !!(dados.locatario2_nome && dados.locatario2_nome.trim());
+    computar(dados) { dados.sem_assinatura_locador = /^N[ãa]o/i.test(dados.assinatura_locador || ''); dados.tem_locatario2 = !!(dados.locatario2_nome && dados.locatario2_nome.trim());
       // Mesma correção do modelo residencial: data de término sempre calculada
       // a partir de início + prazo em meses, nunca digitada à parte.
       if (dados.data_inicio && dados.prazo_meses) {
@@ -8261,6 +8263,7 @@ const MODELOS_DOC = [
       { tag: 'imovel_dimensoes', rotulo: 'Imóvel — dimensões (frente x fundo)', placeholder: 'Ex: 14m de frente por 28,38m de fundo' },
       { tag: 'imovel_inscricao_fiscal', rotulo: 'Imóvel — inscrição fiscal', placeholder: 'Ex: 81.892.003.000-5' },
       { tag: 'ramo_atividade', rotulo: 'Ramo de atividade do(a) locatário(a)', full: true, placeholder: 'Ex: comércio varejista de roupas' },
+      { tag: 'assinatura_locador', rotulo: 'Linha de assinatura do proprietário (locador)', tipo: 'select', full: true, opcoes: ['Incluir', 'Não incluir (assinatura só do inquilino e da administradora)'] },
       { tag: 'valor_aluguel', rotulo: 'Valor do aluguel (R$)', placeholder: 'Ex: 3.210,00' },
       { tag: 'valor_aluguel_extenso', rotulo: 'Valor do aluguel por extenso (sugestão automática)', full: true },
       { tag: 'dia_vencimento', rotulo: 'Dia de vencimento', tipo: 'number', default: '5' },
@@ -8274,7 +8277,7 @@ const MODELOS_DOC = [
       { tag: 'taxa_emissao_boleto', rotulo: 'Taxa de emissão do boleto', default: 'R$ 2,50' },
       { tag: 'indice_reajuste', rotulo: 'Índice de reajuste anual', default: 'IPCA' },
       { tag: 'reajuste_piso_percentual', rotulo: 'Reajuste mínimo se índice for negativo (%)', tipo: 'number', default: '5' },
-      { tag: 'multa_atraso_percentual', rotulo: 'Multa por atraso no aluguel (%)', tipo: 'number', default: '2' },
+      { tag: 'multa_atraso_percentual', rotulo: 'Multa por atraso no aluguel (%)', tipo: 'number', default: '10' },
       { tag: 'juros_mora_percentual', rotulo: 'Juros de mora ao mês (%)', tipo: 'number', default: '1' },
       { tag: 'honorarios_atraso_percentual', rotulo: 'Honorários advocatícios sobre débito (%)', tipo: 'number', default: '20' },
       { tag: 'prazo_honorarios_dias', rotulo: 'Prazo p/ incidência de honorários (dias)', tipo: 'number', default: '60' },
@@ -8498,6 +8501,30 @@ const MODELOS_DOC = [
       { tag: 'finalidade_recibo', rotulo: 'Referente a', default: 'sinal de reserva' },
       { tag: 'condicao_recibo', rotulo: 'Condições', tipo: 'textarea', default: 'Este valor será integralmente abatido do valor total do negócio caso este se concretize; em caso de desistência por parte do(a) pagador(a), o valor poderá ser retido a título de indenização, conforme acordado entre as partes.' },
       { tag: 'recebedor_nome', rotulo: 'Nome de quem recebeu (assinatura)' },
+    ],
+  },
+  {
+    id: 'recibo_pagamento',
+    arquivo: null,
+    titulo: 'Recibo de Pagamento à Imobiliária',
+    descricao: 'NOVO — Recibo com logo para valores pagos à imobiliária (1º aluguel, caução, vistoria de entrada etc.), com itens discriminados, total, data, local e forma de pagamento (PIX CNPJ por padrão).',
+    pessoas: [{ prefixo: 'pagador', rotulo: 'Pagador(a)' }],
+    imovel: true,
+    nomeArquivoTag: 'pagador_nome',
+    computar(dados) {
+      dados.itens_recibo = normalizarColunaValorTextarea(dados.itens_recibo);
+      const total = somarLancamentosTextarea(dados.itens_recibo);
+      dados.valor_total = formatValorBR(total);
+      dados.valor_total_extenso = valorPorExtensoDoc(formatValorBR(total));
+      if (dados.data_pagamento && /^\d{4}-\d{2}-\d{2}$/.test(dados.data_pagamento)) {
+        const [ano, mes, dia] = dados.data_pagamento.split('-');
+        dados.data_pagamento = `${dia}/${mes}/${ano}`;
+      }
+    },
+    campos: [
+      { tag: 'data_pagamento', rotulo: 'Data do pagamento', tipo: 'date' },
+      { tag: 'itens_recibo', rotulo: 'Itens pagos (1 por linha — Descrição | Valor (R$))', tipo: 'textarea', full: true, placeholder: 'Primeiro aluguel | 2.700,00\nCaução | 2.700,00\nVistoria de entrada | 100,00' },
+      { tag: 'forma_pagamento', rotulo: 'Forma de pagamento', full: true, default: 'PIX — chave CNPJ 40.374.574/0001-44' },
     ],
   },
   {

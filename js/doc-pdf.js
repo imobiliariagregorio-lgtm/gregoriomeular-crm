@@ -41,6 +41,17 @@
     return str;
   }
 
+  // Textos condicionais: RG e matrícula só entram no documento quando preenchidos
+  // (evita "RG nº  e CPF" e "matrícula nº ." em contratos sem esses dados).
+  function prepararDadosTxt(dados) {
+    const d = Object.assign({}, dados);
+    Object.keys(d).forEach((k) => {
+      if (/_rg$/.test(k) && d[k + '_txt'] === undefined) d[k + '_txt'] = String(d[k] || '').trim() ? 'RG nº ' + String(d[k]).trim() + ' e ' : '';
+    });
+    if (d.imovel_matricula_txt === undefined) d.imovel_matricula_txt = String(d.imovel_matricula || '').trim() ? ', matrícula nº ' + String(d.imovel_matricula).trim() : '';
+    return d;
+  }
+
   function slugArquivo(nome) {
     return (nome || 'documento')
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -246,10 +257,10 @@
       titulo('CONTRATO DE LOCAÇÃO RESIDENCIAL'),
       identificacao(),
       labelPar('LOCADOR(A):', '{locador_nome}, {locador_nacionalidade}, {locador_estado_civil}, {locador_profissao}, portador(a) do CPF/CNPJ nº {locador_cpf}, residente e domiciliado(a) em {locador_endereco}, neste ato representado(a) pela ADMINISTRADORA {imobiliaria_nome}, CRECI {imobiliaria_creci}, por meio do(a) corretor(a) {corretor_nome} (CRECI {corretor_creci}), doravante denominada simplesmente ADMINISTRADORA.'),
-      labelPar('LOCATÁRIO(A) 1:', '{locatario_nome}, {locatario_nacionalidade}, {locatario_estado_civil}, {locatario_profissao}, portador(a) do RG nº {locatario_rg} e CPF nº {locatario_cpf}, residente e domiciliado(a) em {locatario_endereco}, telefone {locatario_telefone}, e-mail {locatario_email}.'),
-      par('{#tem_locatario2}LOCATÁRIO(A) 2: {locatario2_nome}, {locatario2_nacionalidade}, {locatario2_estado_civil}, {locatario2_profissao}, portador(a) do RG nº {locatario2_rg} e CPF nº {locatario2_cpf}, residente e domiciliado(a) em {locatario2_endereco}, telefone {locatario2_telefone}, e-mail {locatario2_email}.{/tem_locatario2}'),
-      par('{#tem_locatario3}LOCATÁRIO(A) 3: {locatario3_nome}, {locatario3_nacionalidade}, {locatario3_estado_civil}, {locatario3_profissao}, portador(a) do RG nº {locatario3_rg} e CPF nº {locatario3_cpf}, residente e domiciliado(a) em {locatario3_endereco}, telefone {locatario3_telefone}, e-mail {locatario3_email}.{/tem_locatario3}'),
-      labelPar('IMÓVEL LOCADO:', 'imóvel do tipo {imovel_tipo}, com {imovel_area_construida} m² de área privativa, {imovel_comodos_descricao}, localizado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}. {imovel_matriculas_concessionarias}'),
+      labelPar('LOCATÁRIO(A) 1:', '{locatario_nome}, {locatario_nacionalidade}, {locatario_estado_civil}, {locatario_profissao}, portador(a) do {locatario_rg_txt}CPF nº {locatario_cpf}, residente e domiciliado(a) em {locatario_endereco}, telefone {locatario_telefone}, e-mail {locatario_email}.'),
+      par('{#tem_locatario2}LOCATÁRIO(A) 2: {locatario2_nome}, {locatario2_nacionalidade}, {locatario2_estado_civil}, {locatario2_profissao}, portador(a) do {locatario2_rg_txt}CPF nº {locatario2_cpf}, residente e domiciliado(a) em {locatario2_endereco}, telefone {locatario2_telefone}, e-mail {locatario2_email}.{/tem_locatario2}'),
+      par('{#tem_locatario3}LOCATÁRIO(A) 3: {locatario3_nome}, {locatario3_nacionalidade}, {locatario3_estado_civil}, {locatario3_profissao}, portador(a) do {locatario3_rg_txt}CPF nº {locatario3_cpf}, residente e domiciliado(a) em {locatario3_endereco}, telefone {locatario3_telefone}, e-mail {locatario3_email}.{/tem_locatario3}'),
+      labelPar('IMÓVEL LOCADO:', 'imóvel do tipo {imovel_tipo}, com {imovel_area_construida} m² de área privativa, {imovel_comodos_descricao}, localizado em {imovel_endereco_completo}{imovel_matricula_txt}. {imovel_matriculas_concessionarias}'),
       par('PREÂMBULO. Por este instrumento particular, as partes acima qualificadas ajustam o presente CONTRATO DE LOCAÇÃO DE IMÓVEL PARA FINS RESIDENCIAIS, na forma da Lei nº 8.245/91, mediante as cláusulas e condições a seguir, que voluntariamente aceitam e outorgam.', { margin: [0, 10, 0, 14] }),
       clausula(1, 'do objeto', 'O imóvel acima descrito é entregue em perfeito estado de conservação, tal como recebido, conforme Laudo de Vistoria de Entrada, que passa a integrar este contrato para todos os fins.'),
       clausula(2, 'do prazo', 'A presente locação terá início em {data_inicio} e término em {data_termino}, pelo prazo de {prazo_meses} meses. Após o {mes_resilicao_sem_multa}º mês, o LOCATÁRIO poderá rescindir o contrato sem multa, desde que comunique a intenção com antecedência mínima de {prazo_aviso_rescisao_dias} dias. O LOCADOR permanece vinculado ao prazo contratual, observadas as hipóteses previstas na Lei nº 8.245/91.'),
@@ -316,7 +327,7 @@
       subitem('Parágrafo único: ocorrendo qualquer das hipóteses acima, o LOCADOR poderá promover as medidas judiciais cabíveis para retomada do imóvel, observados os prazos, notificações e demais requisitos legais.'),
       clausula(28, 'do foro e da assinatura eletrônica', 'O presente contrato passa a vigorar entre as partes a partir de {data_inicio}. Para dirimir dúvidas emergentes deste contrato, elege-se o foro da comarca de {cidade_contrato}, com renúncia expressa a qualquer outro, por mais privilegiado que seja.'),
       par('E, por estarem assim justas e contratadas, as partes firmam o presente instrumento por meio de assinatura presencial ou eletrônica, em vias de igual teor e forma, na presença das testemunhas abaixo, obrigando-se por si e seus herdeiros e/ou sucessores ao fiel cumprimento de todas as cláusulas e condições aqui listadas.', { margin: [0, 14, 0, 0] }),
-      assinaturas(['LOCADOR(A) — {locador_nome}', '{locatario_nome}', '{#tem_locatario2}{locatario2_nome}{/tem_locatario2}', '{#tem_locatario3}{locatario3_nome}{/tem_locatario3}', 'PELA ADMINISTRADORA — {imobiliaria_nome}']),
+      assinaturas(['{^sem_assinatura_locador}LOCADOR(A) — {locador_nome}{/sem_assinatura_locador}', '{locatario_nome}', '{#tem_locatario2}{locatario2_nome}{/tem_locatario2}', '{#tem_locatario3}{locatario3_nome}{/tem_locatario3}', 'PELA ADMINISTRADORA — {imobiliaria_nome}']),
       testemunhas(),
       disclaimer(),
     ],
@@ -326,9 +337,9 @@
       titulo('CONTRATO DE LOCAÇÃO COMERCIAL'),
       identificacao(),
       labelPar('LOCADOR(A):', '{locador_nome}, {locador_nacionalidade}, {locador_estado_civil}, {locador_profissao}, portador(a) do CPF/CNPJ nº {locador_cpf}, residente e domiciliado(a) em {locador_endereco}, neste ato representado(a) pela ADMINISTRADORA {imobiliaria_nome}, CRECI {imobiliaria_creci}, por meio do(a) corretor(a) {corretor_nome} (CRECI {corretor_creci}), doravante denominada simplesmente ADMINISTRADORA.'),
-      labelPar('LOCATÁRIO(A) 1:', '{locatario_nome}, {locatario_nacionalidade}, {locatario_estado_civil}, {locatario_profissao}, portador(a) do RG nº {locatario_rg} e CPF nº {locatario_cpf}, residente e domiciliado(a) em {locatario_endereco}, telefone {locatario_telefone}, e-mail {locatario_email}.'),
-      par('{#tem_locatario2}LOCATÁRIO(A) 2: {locatario2_nome}, {locatario2_nacionalidade}, {locatario2_estado_civil}, {locatario2_profissao}, portador(a) do RG nº {locatario2_rg} e CPF nº {locatario2_cpf}, residente e domiciliado(a) em {locatario2_endereco}, telefone {locatario2_telefone}, e-mail {locatario2_email}.{/tem_locatario2}'),
-      labelPar('IMÓVEL LOCADO:', 'imóvel comercial com área total de {imovel_area_total} m² ({imovel_dimensoes}) e área construída de {imovel_area_construida} m², localizado em {imovel_endereco_completo}, inscrição fiscal {imovel_inscricao_fiscal}, matrícula nº {imovel_matricula}.'),
+      labelPar('LOCATÁRIO(A) 1:', '{locatario_nome}, {locatario_nacionalidade}, {locatario_estado_civil}, {locatario_profissao}, portador(a) do {locatario_rg_txt}CPF nº {locatario_cpf}, residente e domiciliado(a) em {locatario_endereco}, telefone {locatario_telefone}, e-mail {locatario_email}.'),
+      par('{#tem_locatario2}LOCATÁRIO(A) 2: {locatario2_nome}, {locatario2_nacionalidade}, {locatario2_estado_civil}, {locatario2_profissao}, portador(a) do {locatario2_rg_txt}CPF nº {locatario2_cpf}, residente e domiciliado(a) em {locatario2_endereco}, telefone {locatario2_telefone}, e-mail {locatario2_email}.{/tem_locatario2}'),
+      labelPar('IMÓVEL LOCADO:', 'imóvel comercial com área total de {imovel_area_total} m² ({imovel_dimensoes}) e área construída de {imovel_area_construida} m², localizado em {imovel_endereco_completo}, inscrição fiscal {imovel_inscricao_fiscal}{imovel_matricula_txt}.'),
       par('PREÂMBULO. Por este instrumento particular, as partes acima qualificadas ajustam o presente CONTRATO DE LOCAÇÃO DE IMÓVEL PARA FINS COMERCIAIS, na forma da Lei nº 8.245/91, mediante as cláusulas e condições a seguir, que voluntariamente aceitam e outorgam.', { margin: [0, 10, 0, 14] }),
       clausula(1, 'do objeto', 'O imóvel acima descrito destina-se exclusivamente a fins comerciais, no ramo de atividade de {ramo_atividade}, não podendo ter sua destinação alterada sem prévia anuência escrita da ADMINISTRADORA.'),
       clausula(2, 'do prazo', 'A presente locação terá início em {data_inicio} e término em {data_termino}, pelo prazo de {prazo_meses} meses, podendo ser rescindida sem multa por ambas as partes após o pagamento de {mes_resilicao_sem_multa} meses de aluguel, hipótese em que o LOCATÁRIO se obriga a restituir o imóvel desocupado, em {prazo_aviso_desocupacao_dias} dias, em perfeito estado de conservação, tal como consta do Laudo de Vistoria de Entrada. Findo o prazo, o contrato terá renovação automática por mais {renovacao_automatica_anos} ano(s), sucessivamente, observados os reajustes de aluguel.'),
@@ -389,7 +400,7 @@
       subitem('Parágrafo quarto: o LOCATÁRIO não poderá escusar-se do pagamento de diferenças de aluguéis, impostos, taxas condominiais ou outros ônus, mesmo sob alegação de que o pagamento não lhe foi exigido na época fixada neste contrato.'),
       clausula(21, 'do foro', 'O presente contrato passa a vigorar entre as partes a partir de {data_inicio}, elegendo as partes o foro da comarca de {cidade_contrato} para dirimir quaisquer dúvidas provenientes da execução e cumprimento deste instrumento, com renúncia a qualquer outro, por mais privilegiado que seja.'),
       par('E, por estarem assim justas e contratadas, as partes firmam o presente instrumento em vias de igual teor e forma, na presença das testemunhas abaixo, para que surta seus legais e jurídicos efeitos, obrigando-se por si e seus herdeiros e/ou sucessores ao fiel cumprimento de todas as cláusulas e condições listadas neste contrato, ficando assim irrevogável.', { margin: [0, 14, 0, 0] }),
-      assinaturas(['LOCADOR(A) — {locador_nome}', '{locatario_nome}', '{#tem_locatario2}{locatario2_nome}{/tem_locatario2}', 'PELA ADMINISTRADORA — {imobiliaria_nome}']),
+      assinaturas(['{^sem_assinatura_locador}LOCADOR(A) — {locador_nome}{/sem_assinatura_locador}', '{locatario_nome}', '{#tem_locatario2}{locatario2_nome}{/tem_locatario2}', 'PELA ADMINISTRADORA — {imobiliaria_nome}']),
       testemunhas(),
       disclaimer(),
     ],
@@ -398,9 +409,9 @@
     compra_venda: [
       titulo('CONTRATO DE COMPRA E VENDA DE IMÓVEL COM PRINCÍPIO DE PAGAMENTO'),
       identificacao(),
-      labelPar('PROPONENTE VENDEDOR(A):', '{vendedor_nome}, {vendedor_nacionalidade}, {vendedor_estado_civil}, {vendedor_profissao}, portador(a) do RG nº {vendedor_rg} e CPF nº {vendedor_cpf}, residente e domiciliado(a) em {vendedor_endereco}.'),
-      labelPar('PROPONENTE COMPRADOR(A) 1:', '{comprador_nome}, {comprador_nacionalidade}, {comprador_estado_civil}, {comprador_profissao}, portador(a) do RG nº {comprador_rg} e CPF nº {comprador_cpf}, residente e domiciliado(a) em {comprador_endereco}.'),
-      par('{#tem_comprador2}PROPONENTE COMPRADOR(A) 2: {comprador2_nome}, {comprador2_nacionalidade}, {comprador2_estado_civil}, {comprador2_profissao}, portador(a) do RG nº {comprador2_rg} e CPF nº {comprador2_cpf}, residente e domiciliado(a) em {comprador2_endereco}.{/tem_comprador2}'),
+      labelPar('PROPONENTE VENDEDOR(A):', '{vendedor_nome}, {vendedor_nacionalidade}, {vendedor_estado_civil}, {vendedor_profissao}, portador(a) do {vendedor_rg_txt}CPF nº {vendedor_cpf}, residente e domiciliado(a) em {vendedor_endereco}.'),
+      labelPar('PROPONENTE COMPRADOR(A) 1:', '{comprador_nome}, {comprador_nacionalidade}, {comprador_estado_civil}, {comprador_profissao}, portador(a) do {comprador_rg_txt}CPF nº {comprador_cpf}, residente e domiciliado(a) em {comprador_endereco}.'),
+      par('{#tem_comprador2}PROPONENTE COMPRADOR(A) 2: {comprador2_nome}, {comprador2_nacionalidade}, {comprador2_estado_civil}, {comprador2_profissao}, portador(a) do {comprador2_rg_txt}CPF nº {comprador2_cpf}, residente e domiciliado(a) em {comprador2_endereco}.{/tem_comprador2}'),
       labelPar('DO IMÓVEL:', 'imóvel do tipo {imovel_tipo}, {imovel_descricao_detalhada}, com área construída de {imovel_area_construida} m², localizado em {imovel_endereco_completo}, registrado sob a matrícula nº {imovel_matricula}.'),
       clausula(1, 'do objeto', 'O(A) VENDEDOR(A) vende ao(à) COMPRADOR(A), que compra, de forma livre e espontânea, o imóvel acima descrito, declarando estar o mesmo livre e desembaraçado de quaisquer ônus, dívidas, hipotecas, penhoras ou pendências judiciais, respondendo o(a) VENDEDOR(A) pela evicção nos termos dos arts. 447 a 457 do Código Civil.'),
       clausula(2, 'do valor de venda e das condições de pagamento', 'O imóvel é vendido pelo valor de R$ {valor_venda} ({valor_venda_extenso}), a ser pago nas seguintes condições: {condicoes_pagamento}'),
@@ -428,9 +439,9 @@
     proposta_compra: [
       titulo('PROPOSTA DE COMPRA E VENDA COM SINAL DE RESERVA'),
       identificacao(),
-      labelPar('TIPO DE IMÓVEL:', '{imovel_tipo}, localizado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}.'),
+      labelPar('TIPO DE IMÓVEL:', '{imovel_tipo}, localizado em {imovel_endereco_completo}{imovel_matricula_txt}.'),
       labelPar('PROPRIETÁRIO(A):', '{vendedor_nome}.'),
-      labelPar('PROPONENTE (comprador(a)):', '{proponente_nome}, {proponente_nacionalidade}, {proponente_estado_civil}, {proponente_profissao}, portador(a) do RG nº {proponente_rg} e CPF nº {proponente_cpf}, residente e domiciliado(a) em {proponente_endereco}, telefone {proponente_telefone}, e-mail {proponente_email}.'),
+      labelPar('PROPONENTE (comprador(a)):', '{proponente_nome}, {proponente_nacionalidade}, {proponente_estado_civil}, {proponente_profissao}, portador(a) do {proponente_rg_txt}CPF nº {proponente_cpf}, residente e domiciliado(a) em {proponente_endereco}, telefone {proponente_telefone}, e-mail {proponente_email}.'),
       labelPar('OBSERVAÇÕES GERAIS DA VENDA:', '{observacoes_gerais_venda}'),
       par('O(A) PROPONENTE acima qualificado(a) apresenta, por intermédio de {imobiliaria_nome}, CRECI {imobiliaria_creci}, através do(a) corretor(a) {corretor_nome} (CRECI {corretor_creci}), a presente proposta de compra do imóvel acima descrito, nos termos seguintes:', { margin: [0, 10, 0, 14] }),
       clausula(1, 'do valor da proposta', 'O valor proposto para a compra é de R$ {valor_proposta} ({valor_proposta_extenso}).'),
@@ -457,7 +468,7 @@
       titulo('PROPOSTA DE COMPRA E VENDA COM SINAL DE RESERVA — IMÓVEL NA PLANTA'),
       identificacao(),
       labelPar('INCORPORADORA/CONSTRUTORA (VENDEDORA):', '{construtora_razao_social}, CNPJ nº {construtora_cnpj}, com sede em {construtora_endereco}, neste ato representada por {construtora_representante_nome}, CPF nº {construtora_representante_cpf}.'),
-      labelPar('PROPONENTE (comprador(a)):', '{proponente_nome}, {proponente_nacionalidade}, {proponente_estado_civil}, {proponente_profissao}, portador(a) do RG nº {proponente_rg} e CPF nº {proponente_cpf}, residente e domiciliado(a) em {proponente_endereco}, telefone {proponente_telefone}, e-mail {proponente_email}.'),
+      labelPar('PROPONENTE (comprador(a)):', '{proponente_nome}, {proponente_nacionalidade}, {proponente_estado_civil}, {proponente_profissao}, portador(a) do {proponente_rg_txt}CPF nº {proponente_cpf}, residente e domiciliado(a) em {proponente_endereco}, telefone {proponente_telefone}, e-mail {proponente_email}.'),
       labelPar('EMPREENDIMENTO:', '{nome_empreendimento}, situado em {endereco_empreendimento}, registro de incorporação nº {registro_incorporacao}.'),
       labelPar('UNIDADE OBJETO DA PROPOSTA:', 'unidade nº {numero_unidade}{#bloco_torre_pavimento}, {bloco_torre_pavimento}{/bloco_torre_pavimento}, com área privativa aproximada de {area_privativa_m2} m²{#vaga_garagem}, {vaga_garagem}{/vaga_garagem}.'),
       labelPar('PREVISÃO DE ENTREGA:', '{previsao_entrega}, observado o prazo de tolerância de {prazo_tolerancia_dias} dias corridos, contados dessa data, usualmente admitido pela jurisprudência para obras em construção.'),
@@ -486,8 +497,8 @@
     retirada_chaves: [
       titulo('TERMO DE ENTREGA DE CHAVES DO IMÓVEL'),
       identificacao(),
-      labelPar('RECEBEDOR(A):', '{recebedor_nome}, {recebedor_nacionalidade}, {recebedor_estado_civil}, {recebedor_profissao}, portador(a) do RG nº {recebedor_rg} e CPF nº {recebedor_cpf}, endereço {recebedor_endereco}, telefone {recebedor_telefone}, e-mail {recebedor_email}.'),
-      labelPar('IMÓVEL:', 'imóvel do tipo {imovel_tipo}, com {imovel_area_construida} m², {imovel_comodos_descricao}, localizado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}. {imovel_matriculas_concessionarias}'),
+      labelPar('RECEBEDOR(A):', '{recebedor_nome}, {recebedor_nacionalidade}, {recebedor_estado_civil}, {recebedor_profissao}, portador(a) do {recebedor_rg_txt}CPF nº {recebedor_cpf}, endereço {recebedor_endereco}, telefone {recebedor_telefone}, e-mail {recebedor_email}.'),
+      labelPar('IMÓVEL:', 'imóvel do tipo {imovel_tipo}, com {imovel_area_construida} m², {imovel_comodos_descricao}, localizado em {imovel_endereco_completo}{imovel_matricula_txt}. {imovel_matriculas_concessionarias}'),
       par('RETIRAMOS AS CHAVES do imóvel acima identificado, em {data_hora_retirada}, para fins de {finalidade_retirada}, na modalidade: {tipo_retirada}, entregues por {responsavel_entrega}, em nome de {imobiliaria_nome}, CRECI {imobiliaria_creci}.', { margin: [0, 10, 0, 14] }),
       clausula(1, 'da declaração de conformidade', 'O(A) RECEBEDOR(A) declara, para todos os fins que se fizerem necessários, que o imóvel ora recebido está de acordo com a respectiva proposta/contrato e com o Laudo de Vistoria de Entrada, estando ciente de que, a partir desta data, correrão por sua conta todas as despesas referentes ao imóvel, tais como luz, internet, gás, IPTU e quaisquer outras manutenções.'),
       clausula(2, 'do prazo de devolução', '{#retirada_temporaria}O(A) RECEBEDOR(A) compromete-se a devolver a(s) chave(s) até {data_prevista_devolucao}, no mesmo estado em que as recebeu, sob pena de responder pelas medidas cabíveis em caso de atraso, dano ou extravio.{/retirada_temporaria}{^retirada_temporaria}A retirada das chaves nesta data marca a entrega da posse do imóvel ao(à) RECEBEDOR(A), nos termos do contrato firmado entre as partes.{/retirada_temporaria}'),
@@ -503,8 +514,8 @@
     ficha_visita_reserva: [
       titulo('FICHA DE VISITA COM SINAL DE RESERVA'),
       identificacao(),
-      labelPar('VISITANTE:', '{visitante_nome}, {visitante_nacionalidade}, {visitante_estado_civil}, {visitante_profissao}, portador(a) do RG nº {visitante_rg} e CPF nº {visitante_cpf}, telefone {visitante_telefone}, e-mail {visitante_email}, residente em {visitante_endereco}.'),
-      labelPar('IMÓVEL VISITADO:', 'imóvel do tipo {imovel_tipo}, situado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}.'),
+      labelPar('VISITANTE:', '{visitante_nome}, {visitante_nacionalidade}, {visitante_estado_civil}, {visitante_profissao}, portador(a) do {visitante_rg_txt}CPF nº {visitante_cpf}, telefone {visitante_telefone}, e-mail {visitante_email}, residente em {visitante_endereco}.'),
+      labelPar('IMÓVEL VISITADO:', 'imóvel do tipo {imovel_tipo}, situado em {imovel_endereco_completo}{imovel_matricula_txt}.'),
       labelPar('DATA/HORA DA VISITA:', '{data_hora_visita}    Corretor(a): {corretor_nome} (CRECI {corretor_creci})'),
       labelPar('INTERESSE:', '{interesse_visita}'),
       par('Após a visita ao imóvel acima identificado, o(a) VISITANTE manifesta interesse em {interesse_visita} e, para reservar o imóvel enquanto formaliza o negócio, entrega a {imobiliaria_nome} o valor de R$ {valor_sinal_reserva} ({valor_sinal_reserva_extenso}) a título de sinal de reserva, nas condições abaixo:', { margin: [0, 10, 0, 14] }),
@@ -520,10 +531,10 @@
     termo_autorizacao: [
       titulo('CONTRATO DE INTERMEDIAÇÃO E AUTORIZAÇÃO VENDA EXCLUSIVIDADE'),
       identificacao(),
-      labelPar('CONTRATANTE 1 (proprietário(a)):', '{proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do RG nº {proprietario_rg} e CPF/CNPJ nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}, e-mail {proprietario_email}, telefone/WhatsApp {proprietario_telefone}.'),
-      par('{#tem_proprietario2}CONTRATANTE 2 (proprietário(a)): {proprietario2_nome}, {proprietario2_nacionalidade}, {proprietario2_estado_civil}, {proprietario2_profissao}, portador(a) do RG nº {proprietario2_rg} e CPF/CNPJ nº {proprietario2_cpf}, residente e domiciliado(a) em {proprietario2_endereco}, e-mail {proprietario2_email}, telefone/WhatsApp {proprietario2_telefone}.{/tem_proprietario2}'),
+      labelPar('CONTRATANTE 1 (proprietário(a)):', '{proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do {proprietario_rg_txt}CPF/CNPJ nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}, e-mail {proprietario_email}, telefone/WhatsApp {proprietario_telefone}.'),
+      par('{#tem_proprietario2}CONTRATANTE 2 (proprietário(a)): {proprietario2_nome}, {proprietario2_nacionalidade}, {proprietario2_estado_civil}, {proprietario2_profissao}, portador(a) do {proprietario2_rg_txt}CPF/CNPJ nº {proprietario2_cpf}, residente e domiciliado(a) em {proprietario2_endereco}, e-mail {proprietario2_email}, telefone/WhatsApp {proprietario2_telefone}.{/tem_proprietario2}'),
       labelPar('CORRETOR(A) DE IMÓVEIS:', '{imobiliaria_nome}, CNPJ {imobiliaria_cnpj}, CRECI {imobiliaria_creci}, com sede em {imobiliaria_endereco_completo}, representada por {corretor_nome}, CRECI {corretor_creci}, e-mail {imobiliaria_email}, telefone/WhatsApp {imobiliaria_telefone}.'),
-      labelPar('IMÓVEL(ÉIS) OBJETO DO CONTRATO:', '{imovel_tipo}, {imovel_descricao_detalhada}, localizado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}.'),
+      labelPar('IMÓVEL(ÉIS) OBJETO DO CONTRATO:', '{imovel_tipo}, {imovel_descricao_detalhada}, localizado em {imovel_endereco_completo}{imovel_matricula_txt}.'),
       labelPar('FINALIDADE DO CONTRATO:', 'Venda.'),
       labelPar('EXCLUSIVIDADE:', 'Sim, com exclusividade.'),
       labelPar('PRAZO DE VIGÊNCIA:', 'Início: {data_inicio_autorizacao}   Término: {data_termino_autorizacao}   Renovação automática: {renovacao_automatica}.'),
@@ -567,9 +578,9 @@
     autorizacao_sem_exclusividade: [
       titulo('AUTORIZAÇÃO DE ANÚNCIO SEM EXCLUSIVIDADE'),
       identificacao(),
-      labelPar('PROPRIETÁRIO(A)/CONSTRUTOR(A) 1:', '{proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do RG nº {proprietario_rg} e CPF/CNPJ nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}, e-mail {proprietario_email}, telefone/WhatsApp {proprietario_telefone}.'),
-      par('{#tem_proprietario2}PROPRIETÁRIO(A) 2: {proprietario2_nome}, {proprietario2_nacionalidade}, {proprietario2_estado_civil}, {proprietario2_profissao}, portador(a) do RG nº {proprietario2_rg} e CPF/CNPJ nº {proprietario2_cpf}, residente e domiciliado(a) em {proprietario2_endereco}, e-mail {proprietario2_email}, telefone/WhatsApp {proprietario2_telefone}.{/tem_proprietario2}'),
-      labelPar('IMÓVEL(ÉIS):', '{^multiplos_imoveis_bool}{imovel_tipo}, {imovel_descricao_detalhada}, localizado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}.{/multiplos_imoveis_bool}{#multiplos_imoveis_bool}Múltiplos imóveis de propriedade do(a) CONTRATANTE (construtor(a)/incorporador(a)), conforme relação detalhada no Anexo I deste instrumento.{/multiplos_imoveis_bool}'),
+      labelPar('PROPRIETÁRIO(A)/CONSTRUTOR(A) 1:', '{proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do {proprietario_rg_txt}CPF/CNPJ nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}, e-mail {proprietario_email}, telefone/WhatsApp {proprietario_telefone}.'),
+      par('{#tem_proprietario2}PROPRIETÁRIO(A) 2: {proprietario2_nome}, {proprietario2_nacionalidade}, {proprietario2_estado_civil}, {proprietario2_profissao}, portador(a) do {proprietario2_rg_txt}CPF/CNPJ nº {proprietario2_cpf}, residente e domiciliado(a) em {proprietario2_endereco}, e-mail {proprietario2_email}, telefone/WhatsApp {proprietario2_telefone}.{/tem_proprietario2}'),
+      labelPar('IMÓVEL(ÉIS):', '{^multiplos_imoveis_bool}{imovel_tipo}, {imovel_descricao_detalhada}, localizado em {imovel_endereco_completo}{imovel_matricula_txt}.{/multiplos_imoveis_bool}{#multiplos_imoveis_bool}Múltiplos imóveis de propriedade do(a) CONTRATANTE (construtor(a)/incorporador(a)), conforme relação detalhada no Anexo I deste instrumento.{/multiplos_imoveis_bool}'),
       par('{#multiplos_imoveis_bool}ANEXO I — RELAÇÃO DE IMÓVEIS OBJETO DESTE CONTRATO:\n{imoveis_lista_detalhada}{/multiplos_imoveis_bool}', { margin: [0, 4, 0, 10] }),
       labelPar('FINALIDADE:', '{finalidade_anuncio}.'),
       labelPar('VALOR PRETENDIDO:', '{^multiplos_imoveis_bool}R$ {valor_pretendido} ({valor_pretendido_extenso}).{/multiplos_imoveis_bool}{#multiplos_imoveis_bool}Conforme valor individual de cada unidade, indicado no Anexo I.{/multiplos_imoveis_bool}'),
@@ -603,6 +614,21 @@
       disclaimer(),
     ],
 
+    recibo_pagamento: [
+      titulo('RECIBO DE PAGAMENTO'),
+      identificacao(),
+      runsPar([
+        { text: 'Recebi de ' }, { text: '{pagador_nome}', bold: true }, { text: ', portador(a) do CPF nº ' }, { text: '{pagador_cpf}', bold: true },
+        { text: ', a importância de ' }, { text: 'R$ {valor_total}', bold: true }, { text: ' (' }, { text: '{valor_total_extenso}' }, { text: '), paga em ' }, { text: '{data_pagamento}', bold: true },
+        { text: ', referente ao imóvel situado em ' }, { text: '{imovel_endereco_completo}' }, { text: ', conforme discriminado abaixo:' },
+      ], { margin: [0, 14, 0, 10] }),
+      tabela('', 'itens_recibo', ['Descrição', 'Valor (R$)']),
+      par('Forma de pagamento: {forma_pagamento}.', { margin: [0, 0, 0, 6] }),
+      par('Pelo que firmo o presente recibo, dando plena e geral quitação dos valores acima discriminados.', { margin: [0, 6, 0, 4] }),
+      assinaturas(['IMOBILIÁRIA — {imobiliaria_nome}', '{pagador_nome} (pagador)']),
+    ],
+
+
     // 8. CONTRATO DE PARCERIA ENTRE IMOBILIÁRIAS
     parceria: [
       titulo('{titulo_parceria}'),
@@ -627,8 +653,8 @@
       titulo('CONTRATO DE INTERMEDIAÇÃO DE LOCAÇÃO'),
       identificacao(),
       par('CONTRATO INTERMEDIAÇÃO LOCAÇÃO'),
-      par('PROPRIETÁRIO(A): {proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do RG nº {proprietario_rg} e CPF nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}.'),
-      par('IMÓVEL: imóvel do tipo {imovel_tipo}, situado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}.'),
+      par('PROPRIETÁRIO(A): {proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do {proprietario_rg_txt}CPF nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}.'),
+      par('IMÓVEL: imóvel do tipo {imovel_tipo}, situado em {imovel_endereco_completo}{imovel_matricula_txt}.'),
       par('O(A) PROPRIETÁRIO(A) acima qualificado(a) contrata {imobiliaria_nome}, CRECI {imobiliaria_creci}, para intermediar e administrar a locação do imóvel acima descrito, nos termos seguintes:'),
       par('CLÁUSULA 1ª — DO OBJETO. A intermediação e administração compreende a divulgação do imóvel, seleção e aprovação de candidatos a locatário, elaboração do contrato de locação, cobrança mensal do aluguel e encargos, e repasse dos valores ao(à) PROPRIETÁRIO(A).'),
       par('CLÁUSULA 2ª — DA TAXA DE ADMINISTRAÇÃO. Pelos serviços prestados, {imobiliaria_nome} fará jus, o pagamento à CONTRATADA do valor equivalente ao primeiro aluguel, a título de captação e intermediação e a uma taxa de administração de {taxa_administracao_percentual}% sobre o valor do aluguel recebido mensalmente, deduzida diretamente no repasse, , respeitado o valor mínimo de R$ 150,00 (cem reais).'),
@@ -698,9 +724,9 @@
     oferta_construtor: [
       titulo('OFERTA DE IMÓVEL PARA CONSTRUTORA/INCORPORADORA'),
       identificacao(),
-      labelPar('OFERTANTE:', '{proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do RG nº {proprietario_rg} e CPF/CNPJ nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}, e-mail {proprietario_email}, telefone/WhatsApp {proprietario_telefone}, neste ato representado(a) por {imobiliaria_nome}, CRECI {imobiliaria_creci}, por meio do(a) corretor(a) {corretor_nome} (CRECI {corretor_creci}).'),
+      labelPar('OFERTANTE:', '{proprietario_nome}, {proprietario_nacionalidade}, {proprietario_estado_civil}, {proprietario_profissao}, portador(a) do {proprietario_rg_txt}CPF/CNPJ nº {proprietario_cpf}, residente e domiciliado(a) em {proprietario_endereco}, e-mail {proprietario_email}, telefone/WhatsApp {proprietario_telefone}, neste ato representado(a) por {imobiliaria_nome}, CRECI {imobiliaria_creci}, por meio do(a) corretor(a) {corretor_nome} (CRECI {corretor_creci}).'),
       labelPar('DESTINATÁRIA:', '{construtora_razao_social}, CNPJ nº {construtora_cnpj}, com sede em {construtora_endereco}, neste ato representada por {construtora_representante_nome}, CPF nº {construtora_representante_cpf}.'),
-      labelPar('IMÓVEL OFERTADO:', 'imóvel do tipo {imovel_tipo}, com {imovel_area_total} m² de área total, situado em {imovel_endereco_completo}, matrícula nº {imovel_matricula}. Potencial construtivo/zoneamento: {imovel_potencial_construtivo}. {imovel_descricao_detalhada}'),
+      labelPar('IMÓVEL OFERTADO:', 'imóvel do tipo {imovel_tipo}, com {imovel_area_total} m² de área total, situado em {imovel_endereco_completo}{imovel_matricula_txt}. Potencial construtivo/zoneamento: {imovel_potencial_construtivo}. {imovel_descricao_detalhada}'),
       par('Pelo presente instrumento, o(a) OFERTANTE acima qualificado(a) apresenta à DESTINATÁRIA a presente OFERTA relativa ao imóvel descrito, para fins de avaliação e eventual negociação, nas condições a seguir.', { margin: [0, 10, 0, 14] }),
       clausula(1, 'do objeto', 'O(A) OFERTANTE, na qualidade de proprietário(a) do imóvel acima descrito, apresenta à DESTINATÁRIA a presente oferta para fins de avaliação e eventual negociação, nos termos e condições abaixo.'),
       clausula(2, 'da modalidade da oferta', '{#oferta_permuta}A presente oferta é realizada na modalidade de PERMUTA POR UNIDADES, mediante as seguintes condições: {condicoes_permuta}{/oferta_permuta}{#oferta_venda_direta}A presente oferta é realizada na modalidade de VENDA DIRETA, pelo valor de R$ {valor_venda_direta} ({valor_venda_direta_extenso}).{/oferta_venda_direta}{#oferta_parceria}A presente oferta é realizada na modalidade de PARCERIA/INCORPORAÇÃO, mediante as seguintes condições: {condicoes_parceria}{/oferta_parceria}'),
@@ -722,7 +748,7 @@
       titulo('PRESTAÇÃO DE CONTAS — REPASSE DE ALUGUEL'),
       identificacao(),
       labelPar('PROPRIETÁRIO(A):', '{proprietario_nome}, CPF/CNPJ nº {proprietario_cpf}.'),
-      labelPar('IMÓVEL:', '{imovel_tipo} situado em {imovel_endereco_completo}{#imovel_matricula}, matrícula nº {imovel_matricula}{/imovel_matricula}.'),
+      labelPar('IMÓVEL:', '{imovel_tipo} situado em {imovel_endereco_completo}{imovel_matricula_txt}.'),
       labelPar('COMPETÊNCIA:', '{competencia_referencia} — repasse em {data_repasse}, via {forma_repasse}.'),
       par('A ADMINISTRADORA presta contas ao(à) PROPRIETÁRIO(A) acima qualificado(a) quanto ao aluguel recebido no período de referência, discriminando abaixo os descontos aplicados sobre o repasse — inclusive quando parcelados, com indicação da respectiva parcela — e demais lançamentos do período.', { margin: [0, 10, 0, 12] }),
       clausula(1, 'do valor bruto recebido', 'O valor bruto do aluguel recebido no período de referência é de R$ {valor_aluguel_bruto}, sobre o qual incide a taxa de administração de {taxa_administracao_percentual}%, equivalente a R$ {valor_taxa_administracao_fmt}.'),
@@ -775,7 +801,7 @@
       titulo('FECHAMENTO DE VENDA — PRESTAÇÃO DE CONTAS AO PROPRIETÁRIO'),
       identificacao(),
       labelPar('PROPRIETÁRIO(A)/VENDEDOR(A):', '{vendedor_nome}, CPF/CNPJ nº {vendedor_cpf}.'),
-      labelPar('IMÓVEL:', '{imovel_tipo} situado em {imovel_endereco_completo}{#imovel_matricula}, matrícula nº {imovel_matricula}{/imovel_matricula}.'),
+      labelPar('IMÓVEL:', '{imovel_tipo} situado em {imovel_endereco_completo}{imovel_matricula_txt}.'),
       par('A ADMINISTRADORA presta contas ao(à) PROPRIETÁRIO(A)/VENDEDOR(A) acima qualificado(a) quanto ao fechamento da venda do imóvel, discriminando abaixo o valor de venda e os créditos e débitos aplicados até o valor líquido devido.', { margin: [0, 10, 0, 12] }),
       clausula(1, 'do valor de venda', 'O imóvel foi vendido pelo valor de R$ {valor_venda_imovel_fmt} ({valor_venda_imovel_extenso}), que constitui o crédito inicial deste demonstrativo.'),
       tabela('DEMONSTRATIVO DO FECHAMENTO', 'lancamentos_fechamento_lista_processada', ['Descrição', 'Tipo', 'Valor (R$)', 'Saldo (R$)']),
@@ -872,6 +898,7 @@
   }
 
   async function gerarPdfDocumento(modelo, dados, textoPersonalizado) {
+    dados = prepararDadosTxt(dados);
     const blocos = MODELOS_DOC_BLOCOS[modelo.id];
     if (!blocos) throw new Error('Modelo sem conteúdo de PDF configurado: ' + modelo.id);
     const estrutura = extrairEstrutura(blocos);
