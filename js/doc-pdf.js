@@ -110,15 +110,15 @@
           if (!label) return;
           // Todas as linhas de assinatura (inclusive a da imobiliária/
           // administradora) saem em branco, para assinatura manual.
-          stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, 26, 0, 2] });
-          stack.push({ text: label, bold: true, alignment: 'center', margin: [0, 0, 0, 4] });
+          stack.push({ text: '_______________________________________________', alignment: 'center', margin: [0, dados.__compacto ? 16 : 26, 0, 2] });
+          stack.push({ text: label, bold: true, alignment: 'center', margin: [0, 0, 0, dados.__compacto ? 2 : 4] });
         });
         return { stack };
       }
       case 'testemunhas':
         return {
           stack: [
-            { text: 'TESTEMUNHAS:', bold: true, margin: [0, 20, 0, 8] },
+            { text: 'TESTEMUNHAS:', bold: true, margin: [0, dados.__compacto ? 12 : 20, 0, dados.__compacto ? 4 : 8] },
             { text: `1) Nome: ${resolverTexto('{testemunha1_nome}', dados)}   CPF: ${resolverTexto('{testemunha1_cpf}', dados)}`, style: 'corpo' },
             { text: `2) Nome: ${resolverTexto('{testemunha2_nome}', dados)}   CPF: ${resolverTexto('{testemunha2_cpf}', dados)}`, style: 'corpo' },
           ],
@@ -431,6 +431,38 @@
       clausula(12, 'da eleição do foro', 'Fica eleito o foro da comarca de {cidade_contrato} para dirimir dúvidas e/ou discutir qualquer ação oriunda deste contrato, com prévia renúncia a qualquer outro, por mais privilegiado que seja, obrigando-se a parte vencida a pagar, em caso de demanda judicial, as custas e honorários advocatícios da parte vencedora, na base de {honorarios_foro_percentual}% sobre o total do presente.'),
       par('E, por estarem justos e contratados, assinam o presente compromisso em vias de igual teor e forma, na presença das testemunhas instrumentais.', { margin: [0, 14, 0, 0] }),
       assinaturas(['VENDEDOR(A) — {vendedor_nome}', 'COMPRADOR(A) 1 — {comprador_nome}', '{#tem_comprador2}COMPRADOR(A) 2 — {comprador2_nome}{/tem_comprador2}', 'PELA ADMINISTRADORA — {imobiliaria_nome}']),
+      testemunhas(),
+      disclaimer(),
+    ],
+
+    // 2b. COMPROMISSO DE COMPRA E VENDA (NOVO) — comissão destacada, posse após quitação do à vista, escritura após a última parcela
+    compromisso_compra_venda: [
+      titulo('INSTRUMENTO PARTICULAR DE COMPROMISSO DE COMPRA E VENDA DE IMÓVEL'),
+      identificacao(),
+      labelPar('PROMITENTE VENDEDOR(A):', '{vendedor_nome}, {vendedor_nacionalidade}, {vendedor_estado_civil}, {vendedor_profissao}, portador(a) do {vendedor_rg_txt}CPF nº {vendedor_cpf}, residente e domiciliado(a) em {vendedor_endereco}, e-mail {vendedor_email}.'),
+      par('{#tem_conjuge_vendedor}CÔNJUGE ANUENTE DO(A) VENDEDOR(A): {conjuge_vendedor_nome}, {conjuge_vendedor_nacionalidade}, portador(a) do {conjuge_vendedor_rg_txt}CPF nº {conjuge_vendedor_cpf}, casado(a) com o(a) VENDEDOR(A) sob o regime de {regime_bens_vendedor}, que assina este instrumento para anuir à venda, nos termos do art. 1.647, I, do Código Civil.{/tem_conjuge_vendedor}'),
+      labelPar('PROMITENTE COMPRADOR(A) 1:', '{comprador_nome}, {comprador_nacionalidade}, {comprador_estado_civil}, {comprador_profissao}, portador(a) do {comprador_rg_txt}CPF nº {comprador_cpf}, residente e domiciliado(a) em {comprador_endereco}, telefone {comprador_telefone}.'),
+      par('{#tem_comprador2}PROMITENTE COMPRADOR(A) 2: {comprador2_nome}, {comprador2_nacionalidade}, {comprador2_estado_civil}, {comprador2_profissao}, portador(a) do {comprador2_rg_txt}CPF nº {comprador2_cpf}, residente e domiciliado(a) em {comprador2_endereco}.{/tem_comprador2}'),
+      labelPar('INTERVENIENTE ANUENTE (INTERMEDIADORA):', '{imobiliaria_nome} — {imobiliaria_razao_social}, CNPJ {imobiliaria_cnpj}, CRECI {imobiliaria_creci}, com sede em {imobiliaria_endereco_completo}, neste ato representada pelo corretor {corretor_nome}, CRECI {corretor_creci}.'),
+      labelPar('DO IMÓVEL:', 'imóvel do tipo {imovel_tipo}, localizado em {imovel_endereco_completo}{imovel_matricula_txt}.{#imovel_descricao_detalhada} Descrição: {imovel_descricao_detalhada}.{/imovel_descricao_detalhada}'),
+      par('As partes acima qualificadas celebram o presente Compromisso de Compra e Venda, que se regerá pelo Código Civil e pelas cláusulas e condições seguintes:', { margin: [0, 10, 0, 12] }),
+      clausula(1, 'do objeto', 'O(A) PROMITENTE VENDEDOR(A) promete vender ao(à) PROMITENTE COMPRADOR(A), que promete comprar, o imóvel acima descrito, declarando o(a) VENDEDOR(A) que o imóvel se encontra livre e desembaraçado de ônus, dívidas, penhoras ou pendências judiciais{ressalva_financiamento}. O(A) VENDEDOR(A) responde pela evicção nos termos dos arts. 447 a 457 do Código Civil.'),
+      clausula(2, 'do preço', 'O preço certo e ajustado para a venda é de R$ {valor_venda} ({valor_venda_extenso}), já incluídos neste valor os honorários de intermediação da imobiliária descritos na Cláusula 4.'),
+      clausula(3, 'da forma de pagamento', 'O preço será pago pelo(a) COMPRADOR(A) da seguinte forma:'),
+      par('{condicoes_pagamento}', { margin: [18, 0, 0, 8] }),
+      subitem('Parágrafo único: a soma dos valores acima corresponde exatamente ao preço da Cláusula 2. Os pagamentos serão comprovados por recibo ou comprovante bancário, e o(a) COMPRADOR(A) deverá enviar o comprovante de cada pagamento à imobiliária.'),
+      clausula(4, 'da comissão da imobiliária', 'A comissão de intermediação devida a {imobiliaria_nome}, CNPJ {imobiliaria_cnpj}, é de R$ {valor_comissao} ({valor_comissao_extenso}), correspondendo a {percentual_comissao}% do preço, de responsabilidade do(a) VENDEDOR(A), e é paga integralmente pelo valor entregue à imobiliária a título de sinal, conforme a Cláusula 3, recebido diretamente por ela. Esse valor integra o preço e não gera nenhum outro pagamento a título de comissão, dando-se a imobiliária por integralmente paga de seus honorários.'),
+      subitem('Parágrafo único: a imobiliária atua apenas como intermediadora do negócio, não respondendo pelo cumprimento das obrigações de pagamento, entrega ou transferência assumidas pelas partes entre si.'),
+      clausula(5, 'do recebimento pelo(a) vendedor(a)', '{recebimento_vendedor}'),
+      clausula(6, 'da posse', '{condicao_posse}'),
+      clausula(7, 'da transferência do registro', '{condicao_escritura}'),
+      clausula(8, 'das despesas', 'As despesas de escritura, ITBI, certidões, Funrejus e registro do imóvel correrão por conta do(a) COMPRADOR(A). O(A) VENDEDOR(A) responde pelos tributos e taxas incidentes sobre o imóvel até a data da posse. {situacao_iptu}'),
+      clausula(9, 'do atraso no pagamento', 'O atraso no pagamento de qualquer parcela ou boleto sujeita o(a) COMPRADOR(A) à multa moratória de {multa_atraso_percentual}% sobre o valor em atraso, mais juros de {juros_atraso_percentual}% ao mês, calculados até o dia do efetivo pagamento.'),
+      clausula(10, 'da irrevogabilidade', 'Este compromisso é celebrado em caráter irrevogável e irretratável, obrigando as partes, seus herdeiros e sucessores. Sobre o sinal pago à imobiliária, aplicam-se os arts. 417 a 420 do Código Civil.'),
+      clausula(11, 'da documentação e das declarações', 'As partes declaram que os documentos apresentados são verdadeiros e que receberam do corretor todos os esclarecimentos sobre o imóvel e o negócio, conforme o art. 723 do Código Civil. O(A) VENDEDOR(A) se obriga a apresentar a documentação necessária à regularização do imóvel e à escritura, no prazo de {prazo_documentos_dias} dias.'),
+      clausula(12, 'do foro', 'Fica eleito o foro da comarca de {cidade_contrato} para dirimir qualquer controvérsia oriunda deste contrato, renunciando as partes a qualquer outro, por mais privilegiado que seja, e obrigando-se a parte vencida a pagar as custas e honorários advocatícios da vencedora, na base de {honorarios_foro_percentual}% sobre o valor da causa.'),
+      par('E, por estarem justos e contratados, assinam o presente instrumento em vias de igual teor e forma, na presença das testemunhas instrumentais.', { margin: [0, 14, 0, 0] }),
+      assinaturas(['VENDEDOR(A) — {vendedor_nome}', '{#tem_conjuge_vendedor}CÔNJUGE ANUENTE — {conjuge_vendedor_nome}{/tem_conjuge_vendedor}', 'COMPRADOR(A) 1 — {comprador_nome}', '{#tem_comprador2}COMPRADOR(A) 2 — {comprador2_nome}{/tem_comprador2}', 'INTERMEDIADORA — {imobiliaria_nome}']),
       testemunhas(),
       disclaimer(),
     ],
@@ -899,6 +931,7 @@
 
   async function gerarPdfDocumento(modelo, dados, textoPersonalizado) {
     dados = prepararDadosTxt(dados);
+    if (modelo.compacto) dados.__compacto = true;
     const blocos = MODELOS_DOC_BLOCOS[modelo.id];
     if (!blocos) throw new Error('Modelo sem conteúdo de PDF configurado: ' + modelo.id);
     const estrutura = extrairEstrutura(blocos);
@@ -923,7 +956,7 @@
 
     const docDefinition = {
       pageSize: 'A4',
-      pageMargins: [50, 80, 50, 56],
+      pageMargins: modelo.compacto ? [48, 72, 48, 50] : [50, 80, 50, 56],
       header(currentPage, pageCount, pageSize) {
         const stack = [];
         if (imagens.logoHeader && !semBranding) stack.push({ image: imagens.logoHeader, width: 34, alignment: 'center', margin: [0, 16, 0, 6] });
@@ -955,9 +988,9 @@
       styles: {
         titulo: { fontSize: 16, bold: true, alignment: 'center', margin: [0, 4, 0, 6] },
         identificacao: { fontSize: 8.5, italics: true, color: '#555555', alignment: 'center', margin: [0, 0, 0, 4] },
-        corpo: { fontSize: 10.5, alignment: 'justify', margin: [0, 0, 0, 9], lineHeight: 1.18 },
-        subitem: { fontSize: 10.5, alignment: 'justify', margin: [26, 0, 0, 9], lineHeight: 1.18 },
-        assinData: { fontSize: 10.5, alignment: 'center', margin: [0, 24, 0, 20] },
+        corpo: { fontSize: modelo.compacto ? 10 : 10.5, alignment: 'justify', margin: [0, 0, 0, modelo.compacto ? 6 : 9], lineHeight: modelo.compacto ? 1.12 : 1.18 },
+        subitem: { fontSize: modelo.compacto ? 10 : 10.5, alignment: 'justify', margin: [26, 0, 0, modelo.compacto ? 6 : 9], lineHeight: modelo.compacto ? 1.12 : 1.18 },
+        assinData: { fontSize: modelo.compacto ? 10 : 10.5, alignment: 'center', margin: [0, modelo.compacto ? 14 : 24, 0, modelo.compacto ? 8 : 20] },
         disclaimer: { fontSize: 8, italics: true, color: '#666666', margin: [0, 18, 0, 0] },
       },
       defaultStyle: { font: 'Roboto', fontSize: 10.5 },
