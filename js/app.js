@@ -5680,6 +5680,13 @@ function comissaoEditorHtml(contrato, recarregar) {
           data-contrato-id="${contrato.id}" value="${contrato.comissao_percentual ?? ''}" placeholder="%">
         <span class="comissao-pct-valor" id="comissao-valor-${contrato.id}">${money(contrato.comissao_valor)}</span>
       </div>
+      ${recarregar === 'vendas' ? `<div class="comissao-editor-linha">
+        <label>Recebimento previsto</label>
+        <input type="date" class="comissao-prevista-input" data-contrato-id="${contrato.id}" value="${contrato.comissao_data_prevista || ''}">
+        <label>Recebido em</label>
+        <input type="date" class="comissao-recebida-input" data-contrato-id="${contrato.id}" value="${contrato.comissao_data_recebimento || ''}">
+        ${(status !== 'pago' && contrato.comissao_data_prevista && contrato.comissao_data_prevista < new Date().toISOString().slice(0, 10)) ? '<span class="badge-mini badge-mini-destaque">⚠ Atrasado</span>' : ''}
+      </div>` : ''}
       <div class="comissao-editor-linha">
         <button type="button" class="btn btn-sm comissao-status-toggle ${status === 'pago' ? 'btn-primary' : 'btn-ghost'}"
           data-action="toggle-comissao-status" data-contrato-id="${contrato.id}" data-status="${status}">
@@ -6121,9 +6128,13 @@ function renderVendasCards() {
   const totalVendas = fechadas.reduce((s, v) => s + Number(v.valor || 0), 0);
   const comissaoPendente = fechadas.filter((v) => (v.comissao_status || 'pendente') !== 'pago').reduce((s, v) => s + Number(v.comissao_valor || 0), 0);
   const comissaoPaga = fechadas.filter((v) => v.comissao_status === 'pago').reduce((s, v) => s + Number(v.comissao_valor || 0), 0);
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const atrasadas = fechadas.filter((v) => (v.comissao_status || 'pendente') !== 'pago' && v.comissao_data_prevista && v.comissao_data_prevista < hojeISO);
+  const atrasadoValor = atrasadas.reduce((s, v) => s + Number(v.comissao_valor || 0), 0);
   if (resumo) {
     resumo.innerHTML = `
       <div class="about-card"><strong>${fechadas.length}</strong><span>Vendas fechadas</span></div>
+      ${atrasadas.length ? `<div class="about-card"><strong>${money(atrasadoValor)}</strong><span>⚠ Honorários atrasados (${atrasadas.length})</span></div>` : ''}
       <div class="about-card"><strong>${money(totalVendas)}</strong><span>Volume vendido</span></div>
       <div class="about-card"><strong>${money(comissaoPendente)}</strong><span>Comissão pendente de pagar</span></div>
       <div class="about-card"><strong>${money(comissaoPaga)}</strong><span>Comissão já paga</span></div>
@@ -6651,10 +6662,15 @@ document.addEventListener('click', async (e) => {
     const pct = pctInput.value === '' ? null : Number(pctInput.value);
     const valor = (liquido !== null && pct !== null) ? Math.round(liquido * (pct / 100) * 100) / 100 : null;
     const status = toggleBtn?.dataset.status || 'pendente';
+    const prevInput = document.querySelector(`.comissao-prevista-input[data-contrato-id="${contratoId}"]`);
+    const recInput = document.querySelector(`.comissao-recebida-input[data-contrato-id="${contratoId}"]`);
+    const camposData = {};
+    if (prevInput) camposData.comissao_data_prevista = prevInput.value || null;
+    if (recInput) camposData.comissao_data_recebimento = recInput.value || null;
 
     e.target.disabled = true;
     const { error } = await supabase.from('contratos')
-      .update({ comissao_valor_liquido: liquido, comissao_percentual: pct, comissao_valor: valor, comissao_status: status })
+      .update({ comissao_valor_liquido: liquido, comissao_percentual: pct, comissao_valor: valor, comissao_status: status, ...camposData })
       .eq('id', contratoId);
     e.target.disabled = false;
 
@@ -6668,9 +6684,16 @@ document.addEventListener('click', async (e) => {
     const contratoId = e.target.dataset.contratoId;
     const novoStatus = e.target.dataset.status === 'pago' ? 'pendente' : 'pago';
     e.target.disabled = true;
-    const { error } = await supabase.from('contratos').update({ comissao_status: novoStatus }).eq('id', contratoId);
+    const recInput = document.querySelector(`.comissao-recebida-input[data-contrato-id="${contratoId}"]`);
+    const upd = { comissao_status: novoStatus };
+    if (recInput) {
+      // marcar como paga preenche a data de recebimento (hoje, se vazia); voltar a pendente limpa
+      upd.comissao_data_recebimento = novoStatus === 'pago' ? (recInput.value || new Date().toISOString().slice(0, 10)) : null;
+    }
+    const { error } = await supabase.from('contratos').update(upd).eq('id', contratoId);
     e.target.disabled = false;
     if (error) { toast('Não foi possível atualizar o status da comissão.', true); return; }
+    if (recInput) recInput.value = upd.comissao_data_recebimento || '';
     e.target.dataset.status = novoStatus;
     e.target.textContent = novoStatus === 'pago' ? '✅ Paga' : '⏳ Pendente';
     e.target.classList.toggle('btn-primary', novoStatus === 'pago');
