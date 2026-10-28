@@ -864,3 +864,18 @@ html[data-theme="claro"] .bot-toggle{ color:#FFFFFF; }
 .dica-consorcio-mini{display:block;color:var(--orange-light,#ffb27a);font-size:.72rem;margin-top:2px;}
 .dica-consorcio-alt-lista{margin:0 0 2px 18px;padding:0;font-size:.85rem;}
 .dica-consorcio-alt-lista li{margin:2px 0;}
+
+.ficha-imovel{display:flex;flex-direction:column;gap:14px;}
+.ficha-topo{display:flex;gap:14px;align-items:center;}
+.ficha-capa{width:120px;height:90px;object-fit:cover;border-radius:8px;flex:none;}
+.ficha-codigo{font-size:.78rem;color:var(--gray-text);text-transform:uppercase;}
+.ficha-topo h3{margin:2px 0;font-size:1.1rem;}
+.ficha-end{font-size:.85rem;color:var(--gray-text);}
+.ficha-bloco{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;}
+.ficha-bloco h4{margin:0 0 8px;font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:#F58220;}
+.ficha-prop{border-color:#F58220;}
+.ficha-linha{display:flex;justify-content:space-between;gap:16px;padding:4px 0;font-size:.88rem;border-bottom:1px dashed rgba(255,255,255,.07);}
+.ficha-linha span{color:var(--gray-text);}
+.ficha-linha strong{text-align:right;font-weight:600;}
+.ficha-acoes{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+@media(max-width:600px){.ficha-topo{flex-direction:column;align-items:flex-start}.ficha-linha{flex-direction:column;gap:0}.ficha-linha strong{text-align:left}}

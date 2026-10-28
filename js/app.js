@@ -2495,6 +2495,7 @@ function renderImoveisTable() {
               }).join(', ')}` : ''}</span>
             </div>
             <div class="imovel-card-actions">
+              <button class="btn btn-ghost btn-sm" data-action="imovel-ficha" data-id="${im.id}">📋 Ficha</button>
               <button class="btn btn-ghost btn-sm" data-action="imovel-edit" data-id="${im.id}">Editar</button>
               <button class="btn btn-ghost btn-sm" data-action="imovel-duplicar" data-id="${im.id}">Duplicar</button>
               ${acoesStatus}
@@ -3489,6 +3490,7 @@ document.addEventListener('click', async (e) => {
     toast('Imóvel reativado e publicado no site novamente.');
     loadImoveis();
   }
+  if (e.target.dataset.action === 'imovel-ficha') { abrirFichaImovel(e.target.dataset.id); return; }
   if (e.target.dataset.action === 'imovel-ficha-pdf') {
     e.target.disabled = true;
     const textoOriginal = e.target.textContent;
@@ -3622,6 +3624,73 @@ function imagemParaDataUrl(url) {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     }));
+}
+
+// FICHA INTERNA DO IMÓVEL: dados do imóvel + proprietário (com contatos) + contratos
+async function abrirFichaImovel(id) {
+  const [{ data: im, error }, { data: contratos }] = await Promise.all([
+    supabase.from('imoveis').select('*, proprietario:pessoas!proprietario_id(id,nome,telefone,whatsapp,email,cpf_cnpj,endereco,bairro,cidade,estado), corretor:usuarios!corretor_responsavel_id(nome,telefone)').eq('id', id).single(),
+    supabase.from('contratos').select('id,tipo,status,valor,data_inicio,data_fim,comprador_locatario:pessoas!comprador_locatario_id(nome,telefone)').eq('imovel_id', id).order('data_inicio', { ascending: false })
+  ]);
+  if (error || !im) { toast('Não foi possível abrir a ficha.', true); return; }
+  const e = (v) => escapeHtml(String(v ?? ''));
+  const dig = (t) => String(t || '').replace(/\D/g, '');
+  const wa = (t) => { const d = dig(t); return d ? 'https://wa.me/' + (d.length <= 11 ? '55' + d : d) : ''; };
+  const linha = (rot, val) => (val || val === 0) && val !== '—' ? `<div class="ficha-linha"><span>${rot}</span><strong>${val}</strong></div>` : '';
+  const d = (v) => v ? new Date(v + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+  const pr = im.proprietario;
+  const telPr = pr ? (pr.whatsapp || pr.telefone) : '';
+  const endereco = [im.endereco, im.numero, im.complemento].filter(Boolean).join(', ') + (im.bairro ? ' — ' + im.bairro : '') + (im.cidade ? ' — ' + im.cidade + '/' + (im.estado || '') : '') + (im.cep ? ' · CEP ' + im.cep : '');
+  const areas = [im.area_construida ? im.area_construida + ' m² construídos' : '', im.area_total ? im.area_total + ' m² totais' : ''].filter(Boolean).join(' · ');
+  const quartos = [im.quartos ? im.quartos + ' quarto(s)' : '', im.suites ? im.suites + ' suíte(s)' : '', im.banheiros ? im.banheiros + ' banheiro(s)' : '', im.salas ? im.salas + ' sala(s)' : '', im.vagas_garagem ? im.vagas_garagem + ' vaga(s)' : ''].filter(Boolean).join(' · ');
+  const capa = (im.fotos || [])[0];
+  openModal(`
+    <div class="ficha-imovel">
+      <div class="ficha-topo">
+        ${capa ? `<img src="${e(capa)}" alt="" class="ficha-capa">` : ''}
+        <div>
+          <div class="ficha-codigo">${e(im.codigo)} · ${e(im.tipo)} · ${e(im.finalidade)} · <em>${e(im.status)}</em></div>
+          <h3>${e(im.titulo)}</h3>
+          <div class="ficha-end">${e(endereco)}</div>
+        </div>
+      </div>
+      <div class="ficha-bloco ficha-prop">
+        <h4>Proprietário</h4>
+        ${pr ? `
+          ${linha('Nome', e(pr.nome))}
+          ${linha('CPF/CNPJ', e(pr.cpf_cnpj))}
+          ${linha('Telefone', e(pr.telefone))}
+          ${pr.whatsapp && pr.whatsapp !== pr.telefone ? linha('WhatsApp', e(pr.whatsapp)) : ''}
+          ${linha('E-mail', e(pr.email))}
+          ${linha('Endereço', e([pr.endereco, pr.bairro, pr.cidade && pr.cidade + (pr.estado ? '/' + pr.estado : '')].filter(Boolean).join(' — ')))}
+          <div class="ficha-acoes">
+            ${telPr ? `<a class="btn btn-primary btn-sm" href="${wa(telPr)}" target="_blank" rel="noopener">WhatsApp</a><a class="btn btn-ghost btn-sm" href="tel:${dig(telPr)}">Ligar</a>` : ''}
+            ${pr.email ? `<a class="btn btn-ghost btn-sm" href="mailto:${e(pr.email)}">E-mail</a>` : ''}
+          </div>` : '<p class="muted">Nenhum proprietário vinculado a este imóvel.</p>'}
+      </div>
+      <div class="ficha-bloco">
+        <h4>Imóvel</h4>
+        ${linha('Valor de venda', im.valor_venda ? money(im.valor_venda) : '')}
+        ${linha('Valor de locação', im.valor_locacao ? money(im.valor_locacao) : '')}
+        ${linha('Condomínio', im.valor_condominio ? money(im.valor_condominio) : '')}
+        ${linha('IPTU', im.valor_iptu ? money(im.valor_iptu) : '')}
+        ${linha('Áreas', e(areas))}
+        ${linha('Composição', e(quartos))}
+        ${linha('Matrícula', e(im.matricula))}
+        ${linha('Corretor responsável', e(im.corretor?.nome))}
+        ${linha('Publicado', im.publicado ? 'Sim' + ((im.portais_publicacao || []).length ? ' (' + e(im.portais_publicacao.join(', ').toUpperCase()) + ')' : '') : 'Não')}
+        ${linha('Fotos', (im.fotos || []).length)}
+        ${linha('Visualizações', im.visualizacoes)}
+        ${(im.comodos || []).length ? linha('Cômodos', e(im.comodos.join(', '))) : ''}
+        ${(im.proximidades || []).length ? linha('Proximidades', e(im.proximidades.join(', '))) : ''}
+      </div>
+      ${(contratos || []).length ? `<div class="ficha-bloco"><h4>Contratos</h4>${contratos.map((c) => `<div class="ficha-linha"><span>${e(c.tipo)} · ${e(c.status)}${c.data_inicio ? ' · ' + d(c.data_inicio) + (c.data_fim ? ' a ' + d(c.data_fim) : '') : ''}</span><strong>${c.valor ? money(c.valor) : ''}${c.comprador_locatario?.nome ? ' · ' + e(c.comprador_locatario.nome) : ''}</strong></div>`).join('')}</div>` : ''}
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-action="imovel-edit" data-id="${im.id}">Editar imóvel</button>
+        <button type="button" class="btn btn-ghost" id="fichaFechar">Fechar</button>
+      </div>
+    </div>`, { wide: true, persistente: false });
+  $('#fichaFechar').addEventListener('click', closeModal);
 }
 
 async function gerarFichaPdfImovel(im) {
