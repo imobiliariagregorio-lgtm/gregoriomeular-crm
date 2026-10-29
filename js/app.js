@@ -5342,7 +5342,7 @@ async function contratoForm(c = {}) {
       <div class="form-row"><label>Data fim (locação)</label><input type="date" id="c-fim" value="${c.data_fim || ''}"></div>
       <div class="form-row"><label>Dia de vencimento do aluguel (locação)</label><input type="number" min="1" max="31" id="c-dia-vencimento" value="${c.dia_vencimento ?? ''}" placeholder="ex: 5"></div>
       <div class="form-row"><label>Multa por atraso (%)</label><input type="number" step="0.1" id="c-multa" value="${c.multa_percentual ?? 10}"></div>
-      <div class="form-row"><label>Juros diário (%)</label><input type="number" step="0.1" id="c-juros" value="${c.juros_diario_percentual ?? 1}"></div>
+      <div class="form-row"><label>Juros de mora (% ao mês)</label><input type="number" step="0.1" id="c-juros" value="${c.juros_diario_percentual ?? 1}"></div>
       <p class="full" style="font-size:.75rem;color:var(--gray-text);margin:-6px 0 4px;">Estes são os percentuais usados <em>se</em> você escolher cobrar a multa/juros. Não é automático: em Financeiro, cada cobrança em atraso tem o botão "Cobrar multa/juros".</p>
       <div class="form-row"><label>Taxa de administração (%)</label><input type="number" step="0.1" id="c-taxa-adm" value="${c.taxa_administracao_percentual ?? 10}"></div>
       <div class="form-row full" style="display:flex;align-items:center;gap:8px;">
@@ -5653,7 +5653,8 @@ function diasEmAtraso(dataVencimento, dataPagamento) {
 function valorAtualizado(valorBase, multaPct, jurosPct, diasAtraso, isento = false) {
   if (isento || diasAtraso <= 0) return valorBase;
   const multa = valorBase * (multaPct / 100);
-  const juros = valorBase * (jurosPct / 100) * diasAtraso;
+  // jurosPct é % ao mês (1% a.m.), proporcional aos dias de atraso (pro rata, mês de 30 dias)
+  const juros = valorBase * (jurosPct / 100) * (diasAtraso / 30);
   return valorBase + multa + juros;
 }
 
@@ -6712,7 +6713,7 @@ document.addEventListener('click', async (e) => {
   }
 
   if (e.target.dataset.action === 'cobranca-reativar-multa') {
-    if (!confirm('Cobrar a multa e os juros pelo atraso nesta cobrança? O valor passa a incluir a multa e os juros diários definidos no contrato.')) return;
+    if (!confirm('Cobrar a multa e os juros pelo atraso nesta cobrança? O valor passa a incluir a multa e os juros (ao mês, proporcionais aos dias) definidos no contrato.')) return;
     const { error } = await supabase.from('cobrancas').update({ isento_multa_juros: false }).eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível atualizar a cobrança.', true); return; }
     toast('Multa e juros do atraso aplicados a esta cobrança.');
