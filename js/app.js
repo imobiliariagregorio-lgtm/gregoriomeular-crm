@@ -549,6 +549,9 @@ function diasEntre(dataIso) {
 async function carregarPainelExecutivoLocacao() {
   const hoje = new Date();
   const inicioMesIso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-01`;
+  // Repasses do dia 2 do mês seguinte pagam o aluguel do mês anterior, então busca também o mês anterior.
+  const _mesAnt = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const inicioMesAnteriorIso = `${_mesAnt.getFullYear()}-${String(_mesAnt.getMonth() + 1).padStart(2, '0')}-01`;
 
   const [
     { data: contratosLocacao, error: erroContratos },
@@ -568,10 +571,10 @@ async function carregarPainelExecutivoLocacao() {
     // Repasses a fazer: cobranças já pagas pelo inquilino neste mês — usa a
     // mesma fórmula da tela "Repasses" (valor_base × (1 − taxa) + ajustes).
     supabase.from('cobrancas')
-      .select('id,valor_base,referencia,repasse_efetivado_em,contratos!inner(tipo,taxa_administracao_percentual,dia_repasse,data_inicio,retem_primeiro_aluguel,imoveis(titulo),pessoas!contratos_vendedor_locador_id_fkey(nome)),cobranca_ajustes(*)')
+      .select('id,valor_base,referencia,repasse_efetivado_em,contratos!inner(tipo,taxa_administracao_percentual,dia_vencimento,dia_repasse,data_inicio,retem_primeiro_aluguel,imoveis(titulo),pessoas!contratos_vendedor_locador_id_fkey(nome)),cobranca_ajustes(*)')
       .eq('contratos.tipo', 'locacao')
       .not('data_pagamento', 'is', null)
-      .gte('referencia', inicioMesIso),
+      .gte('referencia', inicioMesAnteriorIso),
     supabase.from('imoveis').select('id,status,finalidade'),
     supabase.from('leads').select('id,nome,status,criado_em,usuarios(nome)').in('status', ['novo', 'tentativa_1', 'tentativa_2', 'tentativa_3']).lt('criado_em', new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()).order('criado_em', { ascending: true }),
     supabase.from('imoveis').select('id,titulo,fotos').eq('status', 'disponivel'),
@@ -602,7 +605,7 @@ async function carregarPainelExecutivoLocacao() {
   });
   const totalEmAberto = cobrancasCalc.reduce((s, cb) => s + cb.atualizado, 0);
 
-  const repassesCalc = (cobrancasPagasMes || []).map((cb) => {
+  const repassesCalcTodos = (cobrancasPagasMes || []).map((cb) => {
     const contrato = cb.contratos || {};
     const taxa = contrato.taxa_administracao_percentual ?? 10;
     const { ajusteProprietario } = calcularAjustes(cb.cobranca_ajustes || []);
@@ -613,8 +616,11 @@ async function carregarPainelExecutivoLocacao() {
       && !cb.repasse_efetivado_em;
     const repasseBase = primeiroAluguelRetido ? 0 : Math.round(Number(cb.valor_base) * (1 - taxa / 100) * 100) / 100;
     const repasse = Math.round((repasseBase + ajusteProprietario) * 100) / 100;
-    return { ...cb, contrato, taxa, repasse, primeiroAluguelRetido, diaRepasse: contrato.dia_repasse ?? null };
+    const prazoRepasse = dataLimiteRepasse(cb.referencia, contrato.dia_vencimento, contrato.dia_repasse);
+    return { ...cb, contrato, taxa, repasse, primeiroAluguelRetido, diaRepasse: contrato.dia_repasse ?? null, prazoRepasse };
   });
+  // "Repasses do mês" = os que têm data-limite neste mês; os do mês anterior ainda não repassados entram só como atrasados.
+  const repassesCalc = repassesCalcTodos.filter((r) => !r.prazoRepasse || (r.prazoRepasse.getFullYear() === hoje.getFullYear() && r.prazoRepasse.getMonth() === hoje.getMonth()));
   const totalRepassesMes = repassesCalc.reduce((s, r) => s + r.repasse, 0);
 
   $('#painelExecStats').innerHTML = `
@@ -631,7 +637,7 @@ async function carregarPainelExecutivoLocacao() {
 
   const diaHoje = hoje.getDate();
   const recebimentosAtraso = cobrancasCalc.filter((cb) => cb.diasAtraso > 0);
-  const repassesAtraso = repassesCalc.filter((r) => r.diaRepasse && r.diaRepasse < diaHoje && !r.repasse_efetivado_em && !r.primeiroAluguelRetido);
+  const repassesAtraso = repassesCalcTodos.filter((r) => r.prazoRepasse && r.prazoRepasse < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()) && !r.repasse_efetivado_em && !r.primeiroAluguelRetido);
   const imoveisProblemaFeed = diagnosticarImoveisFeedImovelweb(imoveisFeedIw || []);
 
   idsImoveisFeedProblema = imoveisProblemaFeed.map((im) => im.id);
@@ -5683,6 +5689,17 @@ function ehMesDoPrimeiroAluguel(dataInicioIso, referenciaIso) {
   return dataInicioIso.slice(0, 7) === referenciaIso.slice(0, 7);
 }
 
+// Data-limite do repasse de uma cobrança. Datas de repasse: dia 2, 12 e 22.
+// Se o dia do repasse é MAIOR que o dia do vencimento, o repasse cai no mesmo mês da
+// referência (ex.: vence dia 5 → repassa dia 12). Se é menor ou igual, cai no mês SEGUINTE
+// (ex.: vence dia 28 → repassa dia 2 do mês seguinte; quem paga até o dia 1º também entra no dia 2).
+function dataLimiteRepasse(referencia, diaVencimento, diaRepasse) {
+  if (!referencia || !diaRepasse) return null;
+  const [ano, mes] = String(referencia).split('-').map(Number);
+  const mesSeguinte = diaVencimento && Number(diaRepasse) <= Number(diaVencimento);
+  return new Date(ano, mes - 1 + (mesSeguinte ? 1 : 0), Number(diaRepasse));
+}
+
 function calcularAjustes(ajustes) {
   let acrescimo = 0, descontoInquilino = 0, ajusteProprietario = 0, ajusteImobiliaria = 0;
   (ajustes || []).forEach((a) => {
@@ -5890,7 +5907,7 @@ async function loadRepasses() {
   if (!wrap) return;
   const { data, error } = await supabase
     .from('cobrancas')
-    .select('*, contratos!inner(tipo, status, taxa_administracao_percentual, dia_repasse, data_inicio, retem_primeiro_aluguel, imoveis(titulo), pessoas!contratos_vendedor_locador_id_fkey(nome)), cobranca_ajustes(*)')
+    .select('*, contratos!inner(tipo, status, taxa_administracao_percentual, dia_vencimento, dia_repasse, data_inicio, retem_primeiro_aluguel, imoveis(titulo), pessoas!contratos_vendedor_locador_id_fkey(nome)), cobranca_ajustes(*)')
     .eq('contratos.tipo', 'locacao')
     // Contrato encerrado/cancelado não gera mais repasse de verdade — mesmo motivo
     // do filtro em loadCobrancas (Gregório, 22/09/2026): parava aparecendo pra sempre.
@@ -5916,13 +5933,12 @@ async function loadRepasses() {
     const repasse = Math.round((repasseBase + ajusteProprietario) * 100) / 100;
 
     // Atrasado = cobrança já paga pelo inquilino, o repasse ainda NÃO foi marcado como feito,
-    // a data-limite do repasse (dia fixo do mês de referência) já passou, e há de fato
+    // a data-limite do repasse (dia 2, 12 ou 22 — ver dataLimiteRepasse) já passou, e há de fato
     // repasse a fazer (1º aluguel retido não gera pendência nenhuma).
     let atrasado = false;
     if (cb.data_pagamento && contrato.dia_repasse && !cb.repasse_efetivado_em && !primeiroAluguelRetido) {
-      const [ano, mes] = cb.referencia.split('-').map(Number);
-      const dataLimite = new Date(ano, mes - 1, contrato.dia_repasse);
-      atrasado = dataLimite < hoje;
+      const dataLimite = dataLimiteRepasse(cb.referencia, contrato.dia_vencimento, contrato.dia_repasse);
+      atrasado = !!dataLimite && dataLimite < hoje;
     }
     const statusRepasse = primeiroAluguelRetido ? 'retido_1_aluguel' : (cb.repasse_efetivado_em ? 'repassado' : (!cb.data_pagamento ? 'pendente' : (atrasado ? 'atrasado' : 'pago')));
     return { cb, contrato, taxa, ajustes, ajusteProprietario, repasse, primeiroAluguelRetido, statusRepasse };
