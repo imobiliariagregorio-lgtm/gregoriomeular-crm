@@ -752,6 +752,37 @@
       disclaimer(),
     ],
 
+    // 13. LAUDO DE VISTORIA (NOVO)
+    laudo_vistoria: [
+      titulo('LAUDO DE VISTORIA DE {tipo_vistoria}'),
+      identificacao(),
+      labelPar('IMÓVEL:', '{imovel_endereco_completo}. {imovel_composicao}.'),
+      labelPar('LOCADOR(A):', '{locador_nome}, CPF/CNPJ nº {locador_cpf}.'),
+      labelPar('LOCATÁRIO(S):', '{locatario_nome}, CPF nº {locatario_cpf}{#tem_locatario2} e {locatario2_nome}, CPF nº {locatario2_cpf}{/tem_locatario2}.'),
+      labelPar('DATA / VISTORIADOR(A):', '{data_vistoria_fmt} — {vistoriador_nome}.'),
+      par('O presente laudo registra o estado de conservação do imóvel, por ambiente, no momento da vistoria, com registro fotográfico, e passa a integrar o contrato de locação. Legenda: Ótimo = novo/sem marcas; Bom = uso normal; Regular = desgaste visível; Ruim = dano ou defeito.', { margin: [0, 6, 0, 8] }),
+      par('1. SALA — {desc_sala}'),
+      fotos('foto_sala', 'FOTOS — SALA'),
+      par('2. COZINHA — {desc_cozinha}'),
+      fotos('foto_cozinha', 'FOTOS — COZINHA'),
+      par('3. ÁREA DE SERVIÇO — {desc_area_servico}'),
+      fotos('foto_area_servico', 'FOTOS — ÁREA DE SERVIÇO'),
+      par('4. QUARTO 1 — {desc_quarto1}'),
+      fotos('foto_quarto1', 'FOTOS — QUARTO 1'),
+      par('5. QUARTO 2 — {desc_quarto2}'),
+      fotos('foto_quarto2', 'FOTOS — QUARTO 2'),
+      par('6. BANHEIRO — {desc_banheiro}'),
+      fotos('foto_banheiro', 'FOTOS — BANHEIRO'),
+      par('7. ÁREAS COMUNS / FACHADA — {desc_areas_comuns}'),
+      fotos('foto_areas_comuns', 'FOTOS — ÁREAS COMUNS / FACHADA'),
+      par('MEDIDORES E CHAVES — {leituras_chaves}'),
+      par('{#observacoes_gerais}OBSERVAÇÕES GERAIS — {observacoes_gerais}{/observacoes_gerais}'),
+      par('O(S) LOCATÁRIO(S) declara(m) ter vistoriado o imóvel, estar(em) de acordo com o estado de conservação aqui descrito e fotografado e comprometer-se(m) a devolvê-lo nas mesmas condições, ressalvado o desgaste natural do uso normal. Divergências devem ser apontadas por escrito em até 5 (cinco) dias contados da entrega das chaves.', { margin: [0, 8, 0, 0] }),
+      assinaturas(['LOCATÁRIO(A) — {locatario_nome}', '{#tem_locatario2}LOCATÁRIO(A) — {locatario2_nome}{/tem_locatario2}', 'PELA ADMINISTRADORA — {imobiliaria_nome}']),
+      testemunhas(),
+      disclaimer(),
+    ],
+
     // 12. OFERTA DE IMÓVEL PARA CONSTRUTORA/INCORPORADORA (NOVO)
     oferta_construtor: [
       titulo('OFERTA DE IMÓVEL PARA CONSTRUTORA/INCORPORADORA'),
@@ -913,7 +944,7 @@
     if (textoPersonalizado && textoPersonalizado.trim()) {
       const paragrafos = textoPersonalizado.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean)
         .map((p) => paragrafoEditavelParaPdf(resolverTexto(p, dados)));
-      const tabelas = blocos.filter((b) => b.tipo === 'tabela').map((b) => blocoParaPdf(b, dados));
+      const tabelas = blocos.filter((b) => ['tabela', 'tabela_comparados', 'fotos'].includes(b.tipo)).map((b) => blocoParaPdf(b, dados));
       return [...paragrafos, ...tabelas].filter(Boolean);
     }
     const itens = [];
@@ -921,7 +952,7 @@
       if (TIPOS_CORPO_EDITAVEL.includes(b.tipo)) {
         const el = paragrafoEditavelParaPdf(resolverTexto(blocoCorpoParaTexto(b), dados));
         if (el) itens.push(el);
-      } else if (b.tipo === 'tabela') {
+      } else if (['tabela', 'tabela_comparados', 'fotos'].includes(b.tipo)) {
         const el = blocoParaPdf(b, dados);
         if (el) itens.push(el);
       }
