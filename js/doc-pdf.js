@@ -775,6 +775,7 @@
       fotos('foto_banheiro', 'FOTOS — BANHEIRO'),
       par('7. ÁREAS COMUNS / FACHADA — {desc_areas_comuns}'),
       fotos('foto_areas_comuns', 'FOTOS — ÁREAS COMUNS / FACHADA'),
+      fotos('foto_gerais', 'FOTOS GERAIS DO IMÓVEL'),
       par('MEDIDORES E CHAVES — {leituras_chaves}'),
       par('{#observacoes_gerais}OBSERVAÇÕES GERAIS — {observacoes_gerais}{/observacoes_gerais}'),
       par('O(S) LOCATÁRIO(S) declara(m) ter vistoriado o imóvel, estar(em) de acordo com o estado de conservação aqui descrito e fotografado e comprometer-se(m) a devolvê-lo nas mesmas condições, ressalvado o desgaste natural do uso normal. Divergências devem ser apontadas por escrito em até 5 (cinco) dias contados da entrega das chaves.', { margin: [0, 8, 0, 0] }),

@@ -8818,6 +8818,7 @@ const MODELOS_DOC = [
       { tag: 'foto_banheiro', rotulo: 'Banheiro — fotos (pode selecionar várias)', tipo: 'imagem', multiplo: true },
       { tag: 'desc_areas_comuns', rotulo: 'Áreas comuns / fachada — descrição (1 item por linha; troque o estado e anote marcas/defeitos)', tipo: 'textarea', full: true, linhas: 6, default: 'Fachada / portaria: [Ótimo/Bom/Regular/Ruim] – \nEscada / corredor: [Ótimo/Bom/Regular/Ruim] – \nVaga de garagem (se houver): [Ótimo/Bom/Regular/Ruim] – \nInterfone / campainha: [Ótimo/Bom/Regular/Ruim] – \nCaixa de correio: [Ótimo/Bom/Regular/Ruim] – ' },
       { tag: 'foto_areas_comuns', rotulo: 'Áreas comuns / fachada — fotos (pode selecionar várias)', tipo: 'imagem', multiplo: true },
+      { tag: 'foto_gerais', rotulo: 'Fotos gerais (sem ordem / sem ambiente definido — pode selecionar várias)', tipo: 'imagem', multiplo: true },
       { tag: 'leituras_chaves', rotulo: 'Medidores e chaves', tipo: 'textarea', full: true, linhas: 4, default: 'Medidor de energia (nº / kWh): \nMedidor de água (nº / m³): \nGás (leitura, se houver): \nChaves / controles / tags entregues: ' },
       { tag: 'observacoes_gerais', rotulo: 'Observações gerais', tipo: 'textarea', full: true, linhas: 4 },
     ],
