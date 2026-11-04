@@ -561,6 +561,11 @@ html[data-theme="claro"] .alerta-filtro-banner{background:rgba(255,182,72,.12);c
 /* ===== Documentos anexados ao contrato ===== */
 .contrato-arquivos-lista{margin-bottom:12px;}
 .contrato-arquivo-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:var(--navy-800);border-radius:8px;margin-bottom:6px;}
+.caucao-resumo{background:var(--navy-800);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.caucao-saldo{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:.85rem;}
+.caucao-saldo strong{font-size:1.1rem;color:var(--orange,#F58220);}
+.caucao-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-top:8px;}
+.caucao-form .btn{grid-column:1/-1;}
 .contrato-arquivo-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .contrato-arquivo-nome{font-size:.85rem;color:var(--white);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .contrato-arquivo-acoes{display:flex;gap:4px;align-items:center;flex-shrink:0;}
@@ -627,6 +632,7 @@ html[data-theme="claro"] .interacao-item,
 html[data-theme="claro"] .vistoria-item-linha,
 html[data-theme="claro"] .documento-item,
 html[data-theme="claro"] .contrato-arquivo-item,
+html[data-theme="claro"] .caucao-resumo,
 html[data-theme="claro"] .ajuste-item,
 html[data-theme="claro"] .alerta-item,
 html[data-theme="claro"] .auditoria-json,

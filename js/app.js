@@ -5369,6 +5369,28 @@ async function contratoForm(c = {}) {
         </div>
       </div>
       ` : ''}
+      ${c.id && podeVerFinanceiro ? `
+      <div class="form-row full">
+        <label>Caução (dinheiro de terceiros — não é receita)</label>
+        <div id="contratoCaucaoResumo" class="caucao-resumo"></div>
+        <div id="contratoCaucaoLista" class="contrato-arquivos-lista"><p class="dash-vazio">Carregando...</p></div>
+        <div class="caucao-form">
+          <select id="cau-tipo">
+            <option value="recebimento">Recebimento</option>
+            <option value="devolucao">Devolução</option>
+          </select>
+          <input type="number" step="0.01" min="0.01" id="cau-valor" placeholder="Valor (R$)">
+          <input type="date" id="cau-data" title="Data do movimento">
+          <select id="cau-status">
+            <option value="efetivado">Efetivado</option>
+            <option value="previsto">Previsto</option>
+          </select>
+          <input type="text" id="cau-aplicacao" placeholder="Onde está (ex: CDB caução, Mercado Pago PJ)">
+          <input type="text" id="cau-obs" placeholder="Observação (opcional)">
+          <button type="button" class="btn btn-ghost btn-sm" id="cau-add-btn">Lançar</button>
+        </div>
+      </div>
+      ` : ''}
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="cancelContrato">Cancelar</button>
         <button type="submit" class="btn btn-primary">Salvar</button>
@@ -5452,6 +5474,7 @@ function bindContratoForm(c = {}) {
 
   const contratoId = $('#c-id').value;
   if (contratoId) carregarArquivosContrato(contratoId);
+  if (contratoId) carregarCaucaoContrato(contratoId);
 
   $('#contratoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -5636,6 +5659,109 @@ document.addEventListener('click', async (e) => {
     if (erroDelete) { toast('Erro ao excluir registro: ' + erroDelete.message, true); return; }
     toast('Documento excluído.');
     carregarArquivosContrato($('#c-id').value);
+  }
+});
+
+// =====================================================================
+// CAUÇÃO DO CONTRATO (dinheiro de terceiros — tabela caucoes)
+// Saldo = recebimentos efetivados − devoluções efetivadas. Nunca exclui: cancela.
+// =====================================================================
+function moneyCentavos(v) { return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+
+async function carregarCaucaoContrato(contratoId) {
+  const lista = $('#contratoCaucaoLista');
+  const resumo = $('#contratoCaucaoResumo');
+  if (!lista || !resumo) return;
+  const { data, error } = await supabase
+    .from('caucoes')
+    .select('*')
+    .eq('contrato_id', contratoId)
+    .order('data_movimento', { ascending: true, nullsFirst: true })
+    .order('criado_em', { ascending: true });
+
+  if (error) { lista.innerHTML = '<p class="dash-vazio">Erro ao carregar caução.</p>'; resumo.innerHTML = ''; console.error(error); return; }
+
+  const soma = (tipo, status) => data.filter((m) => m.tipo === tipo && m.status === status).reduce((s, m) => s + Number(m.valor), 0);
+  const recebido = soma('recebimento', 'efetivado');
+  const devolvido = soma('devolucao', 'efetivado');
+  const aReceber = soma('recebimento', 'previsto');
+  const aDevolver = soma('devolucao', 'previsto');
+  const saldo = recebido - devolvido;
+
+  resumo.innerHTML = `
+    <div class="caucao-saldo"><span>Saldo em poder da imobiliária</span><strong>${moneyCentavos(saldo)}</strong></div>
+    <div class="dash-linha-sub">Recebido ${moneyCentavos(recebido)} · Devolvido ${moneyCentavos(devolvido)}${aReceber ? ` · A receber ${moneyCentavos(aReceber)}` : ''}${aDevolver ? ` · A devolver ${moneyCentavos(aDevolver)}` : ''}</div>
+  `;
+
+  if (!data.length) { lista.innerHTML = '<p class="dash-vazio">Nenhum movimento de caução registrado.</p>'; return; }
+
+  const STATUS_LABEL = { efetivado: 'Efetivado', previsto: 'Previsto', cancelado: 'Cancelado' };
+  lista.innerHTML = data.map((m) => {
+    const dataTxt = m.data_movimento ? new Date(m.data_movimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'sem data';
+    const sinal = m.tipo === 'devolucao' ? '−' : '+';
+    const cancelado = m.status === 'cancelado';
+    return `
+      <div class="contrato-arquivo-item" ${cancelado ? 'style="opacity:.5;"' : ''}>
+        <div class="contrato-arquivo-info">
+          <span class="contrato-arquivo-nome">${m.tipo === 'devolucao' ? 'Devolução' : 'Recebimento'} ${sinal} ${moneyCentavos(m.valor)} · ${dataTxt} · ${STATUS_LABEL[m.status] || m.status}</span>
+          <span class="dash-linha-sub">${m.aplicacao ? escapeHtml(m.aplicacao) : ''}${m.aplicacao && m.observacoes ? ' · ' : ''}${m.observacoes ? escapeHtml(m.observacoes) : ''}</span>
+        </div>
+        <div class="contrato-arquivo-acoes">
+          ${m.status === 'previsto' ? `<button type="button" class="btn btn-ghost btn-sm" data-action="caucao-efetivar" data-id="${m.id}">Efetivar</button>` : ''}
+          ${cancelado ? '' : `<button type="button" class="tarefa-excluir" data-action="caucao-cancelar" data-id="${m.id}" title="Cancelar lançamento">✕</button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+document.addEventListener('click', async (e) => {
+  const btnAdd = e.target.closest('#cau-add-btn');
+  if (btnAdd) {
+    const contratoId = $('#c-id').value;
+    const valor = Number($('#cau-valor').value);
+    const status = $('#cau-status').value;
+    const dataMov = $('#cau-data').value || null;
+    if (!contratoId) { toast('Salve o contrato antes de lançar caução.', true); return; }
+    if (!(valor > 0)) { toast('Informe o valor da caução.', true); return; }
+    if (status === 'efetivado' && !dataMov) { toast('Informe a data do movimento efetivado.', true); return; }
+    btnAdd.disabled = true;
+    const { error } = await supabase.from('caucoes').insert({
+      contrato_id: contratoId,
+      tipo: $('#cau-tipo').value,
+      valor,
+      data_movimento: dataMov,
+      status,
+      aplicacao: $('#cau-aplicacao').value.trim() || null,
+      observacoes: $('#cau-obs').value.trim() || null,
+      criado_por: currentUsuario?.id || null,
+    });
+    btnAdd.disabled = false;
+    if (error) { toast('Erro ao lançar caução: ' + error.message, true); return; }
+    toast('Caução lançada.');
+    ['#cau-valor', '#cau-data', '#cau-aplicacao', '#cau-obs'].forEach((s) => { $(s).value = ''; });
+    carregarCaucaoContrato(contratoId);
+    return;
+  }
+
+  const btnEfetivar = e.target.closest('[data-action="caucao-efetivar"]');
+  if (btnEfetivar) {
+    const dataEf = prompt('Data em que foi efetivado (AAAA-MM-DD):', new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }));
+    if (!dataEf || !/^\d{4}-\d{2}-\d{2}$/.test(dataEf)) { if (dataEf !== null) toast('Data inválida. Use AAAA-MM-DD.', true); return; }
+    const { error } = await supabase.from('caucoes').update({ status: 'efetivado', data_movimento: dataEf }).eq('id', btnEfetivar.dataset.id);
+    if (error) { toast('Erro ao efetivar: ' + error.message, true); return; }
+    toast('Caução efetivada.');
+    carregarCaucaoContrato($('#c-id').value);
+    return;
+  }
+
+  const btnCancelar = e.target.closest('[data-action="caucao-cancelar"]');
+  if (btnCancelar) {
+    if (!confirm('Cancelar este lançamento de caução? Ele sai do saldo, mas continua no histórico.')) return;
+    const { error } = await supabase.from('caucoes').update({ status: 'cancelado' }).eq('id', btnCancelar.dataset.id);
+    if (error) { toast('Erro ao cancelar (somente gerente): ' + error.message, true); return; }
+    toast('Lançamento cancelado.');
+    carregarCaucaoContrato($('#c-id').value);
   }
 });
 
