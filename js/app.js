@@ -2402,6 +2402,23 @@ async function loadImoveis() {
   renderImoveisTable();
 }
 
+// Filtro "Situação" da lista de imóveis: reservado conta como Ativo/Disponível (ainda está no mercado).
+function statusDoImovelParaFiltro(status) {
+  return status === 'reservado' ? 'disponivel' : status;
+}
+
+function atualizarContagemFiltroStatus() {
+  const sel = $('#imoveisFiltroStatus');
+  if (!sel) return;
+  const contagem = {};
+  imoveisCache.forEach((im) => { const k = statusDoImovelParaFiltro(im.status); contagem[k] = (contagem[k] || 0) + 1; });
+  const rotulos = { disponivel: 'Ativo / Disponível', alugado: 'Alugado', inativo: 'Desativado', vendido: 'Vendido' };
+  Array.from(sel.options).forEach((opt) => {
+    if (opt.value) opt.textContent = `${rotulos[opt.value]} (${contagem[opt.value] || 0})`;
+    else opt.textContent = `Todas as situações (${imoveisCache.length})`;
+  });
+}
+
 function renderImoveisTable() {
   const wrap = $('#imoveisCards');
   renderResumoDestaque();
@@ -2411,11 +2428,14 @@ function renderImoveisTable() {
   const portalFiltro = $('#imoveisFiltroPortal')?.value || '';
   const nivelFiltro = $('#imoveisFiltroDestaque')?.value || '';
   const entregaFiltro = $('#imoveisFiltroEntrega')?.value || '';
+  const statusFiltro = $('#imoveisFiltroStatus')?.value || '';
   $$('.destaque-chip').forEach((btn) => btn.classList.toggle('is-ativo', nivelFiltro === btn.dataset.nivel));
+  atualizarContagemFiltroStatus();
 
   let filtrados = termo
     ? imoveisCache.filter((im) => bateBuscaPorPalavras(termo, [im.titulo, im.codigo, im.bairro, im.corretor?.nome].filter(Boolean).join(' ')))
     : imoveisCache;
+  if (statusFiltro) filtrados = filtrados.filter((im) => statusDoImovelParaFiltro(im.status) === statusFiltro);
   if (tipoFiltro) filtrados = filtrados.filter((im) => im.tipo === tipoFiltro);
   if (nivelFiltro) filtrados = filtrados.filter((im) => nivelParaFiltro(im, portalFiltro) === nivelFiltro);
   if (entregaFiltro === '__lancamentos__') filtrados = filtrados.filter((im) => im.situacao === 'lancamento');
@@ -2528,6 +2548,7 @@ function renderImoveisTable() {
 
 $('#imoveisSearch').addEventListener('input', () => { imoveisPagina = 1; renderImoveisTable(); });
 $('#imoveisFiltroTipo').addEventListener('change', () => { imoveisPagina = 1; renderImoveisTable(); });
+$('#imoveisFiltroStatus')?.addEventListener('change', () => { imoveisPagina = 1; renderImoveisTable(); });
 $('#imoveisFiltroDestaque').addEventListener('change', () => { imoveisPagina = 1; renderImoveisTable(); });
 $('#imoveisFiltroPortal').addEventListener('change', () => { imoveisPagina = 1; renderImoveisTable(); });
 $('#imoveisFiltroEntrega')?.addEventListener('change', () => { imoveisPagina = 1; renderImoveisTable(); });
@@ -2605,9 +2626,11 @@ document.addEventListener('change', (e) => {
 
 $('#imoveisXmlSelecionarTodos')?.addEventListener('click', () => {
   const termo = semAcento(($('#imoveisSearch')?.value || '').trim());
-  const filtrados = termo
+  const statusSel = $('#imoveisFiltroStatus')?.value || '';
+  let filtrados = termo
     ? imoveisCache.filter((im) => bateBuscaPorPalavras(termo, [im.titulo, im.codigo, im.bairro, im.corretor?.nome].filter(Boolean).join(' ')))
     : imoveisCache;
+  if (statusSel) filtrados = filtrados.filter((im) => statusDoImovelParaFiltro(im.status) === statusSel);
   filtrados.forEach((im) => imoveisSelecionadosXML.add(im.id));
   renderImoveisTable();
   toast(`${filtrados.length} imóvel(is) selecionado(s).`);
