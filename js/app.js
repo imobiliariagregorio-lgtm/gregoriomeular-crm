@@ -5854,18 +5854,17 @@ function calcularAjustes(ajustes) {
   let acrescimo = 0, descontoInquilino = 0, ajusteProprietario = 0, ajusteImobiliaria = 0;
   (ajustes || []).forEach((a) => {
     const valor = Number(a.valor) || 0;
-    // ajustes marcados "[NÃO RECEITA]" não entram no resultado da imobiliária (só no repasse/cobrança)
-    const naoReceita = /N[ÃA]O RECEITA/i.test(a.descricao || '');
     if (a.tipo === 'acrescimo') {
       acrescimo += valor;
       if (a.destino === 'proprietario') ajusteProprietario += valor;
-      if (a.destino === 'imobiliaria' && !naoReceita) ajusteImobiliaria += valor;
+      if (a.destino === 'imobiliaria') ajusteImobiliaria += valor;
     } else if (a.tipo === 'desconto') {
       if (a.destino === 'inquilino') descontoInquilino += valor;
       if (a.origem === 'proprietario') ajusteProprietario -= valor;
-      if (a.origem === 'imobiliaria' && !naoReceita) ajusteImobiliaria -= valor;
+      if (a.origem === 'imobiliaria') ajusteImobiliaria -= valor;
       if (a.destino === 'proprietario') ajusteProprietario += valor;
-      if (a.destino === 'imobiliaria' && !naoReceita) ajusteImobiliaria += valor;
+      if (a.destino === 'imobiliaria') ajusteImobiliaria += valor;
+      // destino 'terceiro': reduz só quem debita (ex.: repasse do proprietário); não é receita da imobiliária
     }
   });
   return { deltaInquilino: acrescimo - descontoInquilino, ajusteProprietario, ajusteImobiliaria };
@@ -6624,12 +6623,12 @@ async function loadPrevisao() {
 // AJUSTES DA COBRANÇA — desconto / acréscimo, com quem debita e quem credita
 // =====================================================================
 const AJUSTE_LABEL = {
-  inquilino: 'Inquilino', proprietario: 'Proprietário', imobiliaria: 'Imobiliária',
+  inquilino: 'Inquilino', proprietario: 'Proprietário', imobiliaria: 'Imobiliária', terceiro: 'Terceiro / compensação (não é receita)',
 };
 
 function ajusteDestinoOpcoes(tipo, origem) {
   if (tipo === 'acrescimo') return ['proprietario', 'imobiliaria'];
-  if (origem === 'proprietario') return ['inquilino', 'imobiliaria'];
+  if (origem === 'proprietario') return ['inquilino', 'imobiliaria', 'terceiro'];
   if (origem === 'imobiliaria') return ['inquilino', 'proprietario'];
   return [];
 }
