@@ -8464,6 +8464,7 @@ const MODELOS_DOC = [
       { tag: 'data_termino', rotulo: 'Data de término (calculada automaticamente = início + prazo em meses; não precisa preencher)', tipo: 'date' },
       { tag: 'mes_resilicao_sem_multa', rotulo: 'Rescisão sem multa a partir do mês', tipo: 'number', default: '13' },
       { tag: 'indice_reajuste', rotulo: 'Índice de reajuste anual', full: true, default: 'IGP-M/FGV, ou, na impossibilidade de utilização deste índice, o IPCA' },
+      { tag: 'taxa_emissao_boleto', rotulo: 'Taxa de emissão do boleto', default: 'R$ 2,50' },
       { tag: 'taxa_segunda_via_boleto', rotulo: 'Taxa de 2ª via do boleto', default: 'R$ 10,00' },
       { tag: 'multa_atraso_percentual', rotulo: 'Multa por atraso no aluguel (%)', tipo: 'number', default: '10' },
       { tag: 'juros_mora_percentual', rotulo: 'Juros de mora ao mês (%)', tipo: 'number', default: '1' },
