@@ -616,7 +616,7 @@
       labelPar('CORRETOR(A) DE IMÓVEIS:', '{imobiliaria_nome}, CNPJ {imobiliaria_cnpj}, CRECI {imobiliaria_creci}, com sede em {imobiliaria_endereco_completo}, representada por {corretor_nome}, CRECI {corretor_creci}, e-mail {imobiliaria_email}, telefone/WhatsApp {imobiliaria_telefone}.'),
       labelPar('IMÓVEL OBJETO DO CONTRATO:', '{imovel_tipo}, {imovel_descricao_detalhada}, localizado em {imovel_endereco_completo}{imovel_matricula_txt}.'),
       labelPar('FINALIDADE DO CONTRATO:', 'Venda{#exclusiva}, com exclusividade,{/exclusiva}{^exclusiva}, sem exclusividade,{/exclusiva} e administração da locação do imóvel.'),
-      labelPar('VALOR PRETENDIDO PARA A VENDA:', 'R$ {valor_venda_pretendido} ({valor_venda_pretendido_extenso}).'),
+      labelPar('VALOR PRETENDIDO PARA A VENDA:', 'R$ {valor_venda_pretendido} ({valor_venda_pretendido_extenso}).{#permuta} O(A) CONTRATANTE aceita permuta (troca) por {permuta_bens}, a ser avaliada e aprovada por ele(a) caso a caso.{/permuta}'),
       labelPar('VALOR PRETENDIDO PARA O ALUGUEL:', 'R$ {valor_aluguel_pretendido} ({valor_aluguel_pretendido_extenso}) por mês.'),
       labelPar('EXCLUSIVIDADE DA VENDA:', '{#exclusiva}Sim, com exclusividade. Início: {data_inicio_autorizacao}   Término: {data_termino_autorizacao}   Renovação automática: {renovacao_automatica}.{/exclusiva}{^exclusiva}Não. A venda é feita sem exclusividade, podendo o(a) CONTRATANTE autorizar outros corretores e negociar diretamente. Vigência da autorização: início {data_inicio_autorizacao}, término {data_termino_autorizacao}.{/exclusiva}'),
       labelPar('TIPOS DE PUBLICIDADE PERMITIDA:', '{tipos_publicidade_permitida}'),

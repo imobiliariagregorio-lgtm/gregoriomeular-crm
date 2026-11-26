@@ -8822,11 +8822,12 @@ const MODELOS_DOC = [
     imovel: true,
     nomeArquivoTag: 'proprietario_nome',
     paresValorExtenso: [['valor_venda_pretendido', 'valor_venda_pretendido_extenso'], ['valor_aluguel_pretendido', 'valor_aluguel_pretendido_extenso']],
-    computar(dados) { dados.tem_proprietario2 = !!(dados.proprietario2_nome && dados.proprietario2_nome.trim()); dados.exclusiva = !/^N[ãa]o/i.test(dados.exclusividade_venda || 'Sim'); },
+    computar(dados) { dados.tem_proprietario2 = !!(dados.proprietario2_nome && dados.proprietario2_nome.trim()); dados.exclusiva = !/^N[ãa]o/i.test(dados.exclusividade_venda || 'Sim'); dados.permuta = !!(dados.permuta_bens && dados.permuta_bens.trim()); },
     campos: [
       { tag: 'imovel_descricao_detalhada', rotulo: 'Imóvel — descrição detalhada', tipo: 'textarea', full: true, placeholder: 'Ex: com 3 dormitórios, sala, cozinha, 2 vagas de garagem' },
       { tag: 'valor_venda_pretendido', rotulo: 'Valor pretendido para venda (R$)', placeholder: 'Ex: 300.000,00' },
       { tag: 'valor_venda_pretendido_extenso', rotulo: 'Valor de venda por extenso (sugestão automática)', full: true },
+      { tag: 'permuta_bens', rotulo: 'Aceita permuta por (deixe vazio se não aceita)', full: true, obrigatorio: false, placeholder: 'Ex: outro imóvel ou veículo' },
       { tag: 'valor_aluguel_pretendido', rotulo: 'Valor pretendido para aluguel (R$)', placeholder: 'Ex: 2.000,00' },
       { tag: 'valor_aluguel_pretendido_extenso', rotulo: 'Valor do aluguel por extenso (sugestão automática)', full: true },
       { tag: 'exclusividade_venda', rotulo: 'A venda é com EXCLUSIVIDADE?', tipo: 'select', full: true, opcoes: ['Sim — com exclusividade', 'Não — sem exclusividade'], default: 'Sim — com exclusividade' },
