@@ -2542,7 +2542,7 @@ function renderImoveisTable() {
               ${im.status !== 'inativo' ? `<button class="btn btn-ghost btn-sm" data-action="imovel-copiar-link" data-id="${im.id}">🔗 Copiar link</button>` : ''}
               <button class="btn btn-ghost btn-sm" data-action="imovel-ficha-pdf" data-id="${im.id}">Ficha PDF</button>
               ${(im.fotos || []).length ? `<button class="btn btn-ghost btn-sm" data-action="imovel-baixar-fotos" data-id="${im.id}">Baixar fotos (.zip)</button>` : ''}
-              ${podeExcluir ? `<button class="btn btn-danger btn-sm" data-action="imovel-delete" data-id="${im.id}">Excluir</button>` : ''}
+              ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="imovel-delete" data-id="${im.id}">Excluir</button>` : ''}
             </div>
           </div>
         </div>
@@ -3493,7 +3493,7 @@ document.addEventListener('click', async (e) => {
     bindUploadDocumento('imovel', im.id);
   }
   if (e.target.dataset.action === 'imovel-delete') {
-    if (!podeExcluir) { toast('Você não tem permissão para excluir imóveis.', true); return; }
+    if (!souGerente) { toast('Você não tem permissão para excluir imóveis.', true); return; }
     if (!confirm('Tem certeza que deseja excluir este imóvel?')) return;
     // a regra de quem pode excluir é garantida pelo banco (RLS): só o corretor responsável, ou gerente/admin
     const { data: excluidos, error } = await supabase.from('imoveis').delete().eq('id', e.target.dataset.id).select('id');
@@ -4433,7 +4433,7 @@ function renderPessoasTable() {
           </div>
           <div class="imovel-card-actions">
             <button class="btn btn-ghost btn-sm" data-action="pessoa-edit" data-id="${p.id}">Editar</button>
-            ${podeExcluir ? `<button class="btn btn-danger btn-sm" data-action="pessoa-delete" data-id="${p.id}">Excluir</button>` : ''}
+            ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="pessoa-delete" data-id="${p.id}">Excluir</button>` : ''}
           </div>
         </div>
       </div>
@@ -4607,7 +4607,7 @@ document.addEventListener('click', async (e) => {
     bindUploadDocumento('pessoa', p.id);
   }
   if (e.target.dataset.action === 'pessoa-delete') {
-    if (!podeExcluir) { toast('Você não tem permissão para excluir pessoas.', true); return; }
+    if (!souGerente) { toast('Você não tem permissão para excluir pessoas.', true); return; }
     if (!confirm('Tem certeza que deseja excluir esta pessoa?')) return;
     const { error } = await supabase.from('pessoas').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -8264,7 +8264,7 @@ const TUTORIAL_TOPICOS = [
   { titulo: 'Como funcionam Contratos e Financeiro?', texto: 'Contratos registra vendas e locações fechadas. Financeiro mostra as cobranças mensais de aluguel. A multa e os juros por atraso NÃO são cobrados automaticamente: numa cobrança atrasada aparece o botão "Cobrar multa/juros" para você decidir aplicar ou não (os percentuais vêm do contrato). Essas duas telas só aparecem para gerente e administrador.' },
   { titulo: 'Como baixo um relatório?', texto: 'Vá em Relatórios (só gerente/admin) e clique no card do relatório desejado — financeiro, pessoas gerais, proprietários, locadores, locatários, compradores, vendedores, construtores ou construtoras/incorporadoras. O arquivo CSV baixa automaticamente e abre certinho no Excel.' },
   { titulo: 'Como faço backup da gestão locatícia?', texto: 'Em Relatórios, clique no card "Backup — Gestão Locatícia" (só gerente/admin). Ele baixa um arquivo JSON com todos os contratos de locação e cobranças, para guardar como cópia de segurança.' },
-  { titulo: 'Quem pode excluir um cadastro (imóvel, pessoa, integrante da equipe, etc.)?', texto: 'Gerente e corretores podem excluir registros do CRM (imóveis, pessoas, integrantes da equipe, depoimentos e fotos do site). Corretor não exclui gerente nem administrador da equipe. Administrador cria e edita normalmente, mas não exclui. A exclusão não tem como desfazer: confira antes de apagar.' },
+  { titulo: 'Quem pode excluir um cadastro (imóvel, pessoa, integrante da equipe, etc.)?', texto: 'Imóveis e pessoas (clientes) só o gerente exclui. Gerente e corretores podem excluir integrantes da equipe, depoimentos e fotos do site (corretor não exclui gerente nem administrador da equipe). Administrador cria e edita normalmente, mas não exclui. A exclusão não tem como desfazer: confira antes de apagar.' },
   { titulo: 'Como edito os textos e redes sociais do site?', texto: 'Em "Conteúdo do Site" (gerente, admin e corretor), dá pra editar o texto do "Sobre Nós", da página "Alugar ou vender meu imóvel", o rodapé e os links das redes sociais (Instagram, Facebook, WhatsApp, YouTube).' },
   { titulo: 'Como adiciono fotos que giram na home do site?', texto: 'Vá em "Fotos do Site" → "+ Nova foto", envie a imagem e escreva uma legenda opcional. Use o botão "Ativa no site" para escolher quais fotos aparecem no momento.' },
   { titulo: 'Como uso o bot de ajuda (❓)?', texto: 'Clique no botão redondo com "❓" no canto da tela e digite sua dúvida em texto normal, por exemplo "como cadastro um imóvel". O bot procura nesse mesmo tutorial e responde na hora.' },
