@@ -2403,7 +2403,7 @@ async function loadImoveis() {
     .select('*, corretor:usuarios!corretor_responsavel_id(id,nome)')
     .order('criado_em', { ascending: false });
   if (error) { wrap.innerHTML = `<p class="empty-state">Erro ao carregar imóveis.</p>`; console.error(error); return; }
-  imoveisCache = (data || []).slice().sort((a, b) => {
+  imoveisCache = (data || []).filter((im) => !(souCorretor && im.status === 'alugado')).slice().sort((a, b) => {
     const pa = IMOVEL_STATUS_PRIORIDADE[a.status] ?? 1.5;
     const pb = IMOVEL_STATUS_PRIORIDADE[b.status] ?? 1.5;
     if (pa !== pb) return pa - pb;
@@ -2497,7 +2497,7 @@ function renderImoveisTable() {
 
     const acoesStatus = (im.status === 'disponivel' || im.status === 'reservado') ? `
         ${im.finalidade !== 'locacao' ? `<button class="btn btn-ghost btn-sm" data-action="imovel-marcar-vendido" data-id="${im.id}">Marcar vendido</button>` : ''}
-        ${im.finalidade !== 'venda' ? `<button class="btn btn-ghost btn-sm" data-action="imovel-marcar-alugado" data-id="${im.id}">Marcar alugado</button>` : ''}
+        ${im.finalidade !== 'venda' && !souCorretor ? `<button class="btn btn-ghost btn-sm" data-action="imovel-marcar-alugado" data-id="${im.id}">Marcar alugado</button>` : ''}
       ` : '';
 
     return `
