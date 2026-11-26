@@ -4440,6 +4440,11 @@ $('#pessoasSearch').addEventListener('input', () => { pessoasPagina = 1; renderP
 async function pessoaForm(p = {}) {
   const papeis = p.papeis || [];
   const { data: corretores } = await supabase.from('usuarios').select('id,nome,ativo').order('nome');
+  let bancario = {};
+  if (podeVerFinanceiro && p.id) {
+    const { data: db } = await supabase.from('pessoas_dados_bancarios').select('*').eq('pessoa_id', p.id).maybeSingle();
+    bancario = db || {};
+  }
   return `
     <h2>${p.id ? 'Editar pessoa' : 'Nova pessoa'}</h2>
     <form class="modal-form" id="pessoaForm">
@@ -4481,6 +4486,26 @@ async function pessoaForm(p = {}) {
         `).join('')}
       </div>
       <div class="form-row full"><label>Observações</label><textarea id="p-obs" rows="2">${p.observacoes || ''}</textarea></div>
+      ${podeVerFinanceiro ? `
+      <div class="form-row full"><label><strong>Dados bancários e Pix (para repasses)</strong> — visível só para gerente/admin</label></div>
+      <div class="form-row"><label>Tipo da chave Pix</label>
+        <select id="p-pix-tipo">
+          <option value="">—</option>
+          ${[['cpf_cnpj', 'CPF/CNPJ'], ['telefone', 'Telefone'], ['email', 'E-mail'], ['aleatoria', 'Chave aleatória']].map(([v, l]) => `<option value="${v}" ${bancario.pix_tipo === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row"><label>Chave Pix</label><input id="p-pix-chave" value="${bancario.pix_chave || ''}"></div>
+      <div class="form-row"><label>Titular da conta / Pix</label><input id="p-banco-titular" value="${bancario.titular || ''}"></div>
+      <div class="form-row"><label>CPF/CNPJ do titular</label><input id="p-banco-titular-doc" value="${bancario.titular_documento || ''}"></div>
+      <div class="form-row"><label>Banco</label><input id="p-banco" value="${bancario.banco || ''}"></div>
+      <div class="form-row"><label>Agência</label><input id="p-banco-agencia" value="${bancario.agencia || ''}"></div>
+      <div class="form-row"><label>Conta</label><input id="p-banco-conta" value="${bancario.conta || ''}"></div>
+      <div class="form-row"><label>Tipo de conta</label>
+        <select id="p-banco-tipo-conta">
+          <option value="">—</option>
+          ${['Corrente', 'Poupança', 'Pagamento'].map((op) => `<option value="${op}" ${bancario.tipo_conta === op ? 'selected' : ''}>${op}</option>`).join('')}
+        </select>
+      </div>` : ''}
       ${podeVerFinanceiro && papeis.includes('proprietario') ? `
       <div class="form-row full" id="acessoPortalWrap">
         ${p.auth_user_id ? `
@@ -4724,9 +4749,33 @@ function bindPessoaForm() {
     };
     payload.corretor_responsavel_id = $('#p-corretor').value || (!id ? currentUsuario?.id : null) || null;
 
-    const { error } = id
-      ? await supabase.from('pessoas').update(payload).eq('id', id)
-      : await supabase.from('pessoas').insert(payload);
+    let pessoaIdSalva = id;
+    let error;
+    if (id) {
+      ({ error } = await supabase.from('pessoas').update(payload).eq('id', id));
+    } else {
+      const r = await supabase.from('pessoas').insert(payload).select('id').single();
+      error = r.error; pessoaIdSalva = r.data?.id || null;
+    }
+
+    // Dados bancários / Pix (só gerente/admin vê e salva — tabela separada com RLS)
+    if (!error && pessoaIdSalva && podeVerFinanceiro && $('#p-pix-chave')) {
+      const vazio = (v) => (v && v.trim() ? v.trim() : null);
+      const dadosBanco = {
+        pessoa_id: pessoaIdSalva,
+        pix_tipo: $('#p-pix-tipo').value || null,
+        pix_chave: vazio($('#p-pix-chave').value),
+        titular: vazio($('#p-banco-titular').value),
+        titular_documento: vazio($('#p-banco-titular-doc').value),
+        banco: vazio($('#p-banco').value),
+        agencia: vazio($('#p-banco-agencia').value),
+        conta: vazio($('#p-banco-conta').value),
+        tipo_conta: $('#p-banco-tipo-conta').value || null,
+        atualizado_em: new Date().toISOString(),
+      };
+      const { error: erroBanco } = await supabase.from('pessoas_dados_bancarios').upsert(dadosBanco, { onConflict: 'pessoa_id' });
+      if (erroBanco) { console.error(erroBanco); toast('Pessoa salva, mas deu erro nos dados bancários: ' + erroBanco.message, true); }
+    }
 
     btn.disabled = false; btn.textContent = 'Salvar';
 
