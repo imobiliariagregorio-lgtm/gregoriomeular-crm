@@ -150,6 +150,9 @@ async function iniciarRealtimeLeads() {
 // =====================================================================
 let currentUsuario = null;
 let podeVerFinanceiro = false;
+let souCorretor = false; // cargo === 'corretor' — recebe permissões ampliadas (excluir, ver todos os leads, aprovações, portais, histórico, site)
+let podeExcluir = false; // gerente ou corretor
+let podeVerTodosLeads = false; // admin/gerente/corretor
 let souGerente = false; // true apenas para cargo === 'gerente' — usado para autorizar exclusões
 let souGestaoPortais = false; // true para admin ou gerente — autoriza adicionar/editar portais externos (XML)
 let souAnalistaDoc = false; // true para cargo === 'analista_doc' — só enxerga a aba Aprovações
@@ -183,10 +186,18 @@ async function showApp(session) {
   const podeVerFinanceiro_local = currentUsuario && ['admin', 'gerente'].includes(currentUsuario.cargo);
   podeVerFinanceiro = podeVerFinanceiro_local;
   souGerente = !!(currentUsuario && currentUsuario.cargo === 'gerente');
-  souGestaoPortais = !!(currentUsuario && ['admin', 'gerente'].includes(currentUsuario.cargo));
+  souCorretor = currentUsuario?.cargo === 'corretor';
+  podeExcluir = souGerente || souCorretor;
+  podeVerTodosLeads = !!podeVerFinanceiro_local || souCorretor;
+  souGestaoPortais = !!(currentUsuario && ['admin', 'gerente', 'corretor'].includes(currentUsuario.cargo));
   souAnalistaDoc = currentUsuario?.cargo === 'analista_doc';
-  podeVerAprovacoes = podeVerFinanceiro_local || souAnalistaDoc;
+  podeVerAprovacoes = podeVerFinanceiro_local || souAnalistaDoc || souCorretor;
   $$('.nav-financeiro').forEach((btn) => { btn.hidden = !podeVerFinanceiro; });
+  if (souCorretor) {
+    // Corretor enxerga só estas duas telas do grupo de gestão (Histórico de Documentos e Conteúdo do Site).
+    $$('.topnav-group.nav-financeiro').forEach((g) => { g.hidden = false; });
+    $$('.nav-item[data-view="historico_docs"], .nav-item[data-view="site"]').forEach((b) => { b.hidden = false; });
+  }
   // Portais externos (filtro de portal/nível, resumo de destaques e toolbar de XML)
   // só para admin/gerente — corretor não gerencia portais.
   $$('.so-gestao-portais').forEach((el) => { el.hidden = !souGestaoPortais; });
@@ -1149,9 +1160,9 @@ async function loadLeads() {
   const filtro = $('#leadStatusFilter').value;
 
   const wrapFiltroCorretor = $('#leadsFiltroCorretorWrap');
-  if (wrapFiltroCorretor) wrapFiltroCorretor.hidden = !podeVerFinanceiro;
+  if (wrapFiltroCorretor) wrapFiltroCorretor.hidden = !podeVerTodosLeads;
 
-  if (podeVerFinanceiro && !leadsFiltroCorretoresCarregados) {
+  if (podeVerTodosLeads && !leadsFiltroCorretoresCarregados) {
     const { data: todosCorretores } = await supabase.from('usuarios').select('id,nome').order('nome');
     const selectFiltro = $('#leadsFiltroCorretor');
     (todosCorretores || []).forEach((c) => {
@@ -1167,7 +1178,7 @@ async function loadLeads() {
     .order('atualizado_em', { ascending: false, nullsFirst: false })
     .order('criado_em', { ascending: false });
   if (filtro) query = query.eq('status', filtro);
-  if (podeVerFinanceiro && leadsFiltroCorretorId) query = query.eq('corretor_id', leadsFiltroCorretorId);
+  if (podeVerTodosLeads && leadsFiltroCorretorId) query = query.eq('corretor_id', leadsFiltroCorretorId);
 
   const [{ data, error }, { data: corretores }] = await Promise.all([
     query,
@@ -1966,9 +1977,9 @@ let funilBusca = '';
 
 async function loadFunil() {
   const wrap = $('#funilFiltroCorretorWrap');
-  wrap.hidden = !podeVerFinanceiro;
+  wrap.hidden = !podeVerTodosLeads;
 
-  if (podeVerFinanceiro && !funilCorretoresCarregados) {
+  if (podeVerTodosLeads && !funilCorretoresCarregados) {
     const { data: corretores } = await supabase.from('usuarios').select('id,nome').order('nome');
     const select = $('#funilFiltroCorretor');
     (corretores || []).forEach((c) => {
@@ -1985,7 +1996,7 @@ async function loadFunil() {
     .not('interesse', 'in', `(${INTERESSES_CONSORCIO.join(',')})`)
     .order('atualizado_em', { ascending: false, nullsFirst: false })
     .order('criado_em', { ascending: false });
-  if (podeVerFinanceiro) {
+  if (podeVerTodosLeads) {
     if (funilCorretorFiltro) query = query.eq('corretor_id', funilCorretorFiltro);
   } else if (currentUsuario) {
     query = query.eq('corretor_id', currentUsuario.id);
@@ -2030,7 +2041,7 @@ function renderFunilBoard() {
               <small>${l.telefone || ''}</small>
               <small>${l.interesse ? interesseLabel(l.interesse) : 'interesse não informado'}</small>
               <small>${ultimaInteracaoHtml(l)}</small>
-              ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
+              ${podeVerTodosLeads ? `<span class="kanban-card-corretor">${l.usuarios?.nome || 'Sem corretor'}</span>` : ''}
               <button type="button" class="btn btn-ghost btn-sm kanban-card-historico" data-action="lead-view" data-id="${l.id}">💬 Ver histórico</button>
               <select class="status-select" data-id="${l.id}" data-action="lead-status">
                 ${LEAD_STATUSES.map((s) => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${LEAD_STATUS_LABELS[s]}</option>`).join('')}
@@ -2074,9 +2085,9 @@ let captacoesCache = [];
 
 async function loadCaptacao() {
   const wrap = $('#captacaoFiltroCorretorWrap');
-  wrap.hidden = !podeVerFinanceiro;
+  wrap.hidden = !podeVerTodosLeads;
 
-  if (podeVerFinanceiro && !captacaoCorretoresCarregados) {
+  if (podeVerTodosLeads && !captacaoCorretoresCarregados) {
     const { data: corretores } = await supabase.from('usuarios').select('id,nome').order('nome');
     const select = $('#captacaoFiltroCorretor');
     (corretores || []).forEach((c) => {
@@ -2089,7 +2100,7 @@ async function loadCaptacao() {
   }
 
   let query = supabase.from('captacoes').select('*, pessoas(nome,telefone), usuarios(id,nome)').order('criado_em', { ascending: false });
-  if (podeVerFinanceiro) {
+  if (podeVerTodosLeads) {
     if (captacaoCorretorFiltro) query = query.eq('corretor_responsavel_id', captacaoCorretorFiltro);
   } else if (currentUsuario) {
     query = query.eq('corretor_responsavel_id', currentUsuario.id);
@@ -2112,13 +2123,13 @@ async function loadCaptacao() {
               <small>${[c.bairro, c.cidade].filter(Boolean).join(', ') || 'sem endereço'}</small>
               <small>${CAPTACAO_FINALIDADES[c.finalidade] || c.finalidade}</small>
               <small>${CAPTACAO_PAPEIS[c.papel_contato] || c.papel_contato}: ${c.pessoas?.nome || '—'}${c.pessoas?.telefone ? ' · ' + c.pessoas.telefone : ''}</small>
-              ${podeVerFinanceiro ? `<span class="kanban-card-corretor">${c.usuarios?.nome || 'Sem corretor'}</span>` : ''}
+              ${podeVerTodosLeads ? `<span class="kanban-card-corretor">${c.usuarios?.nome || 'Sem corretor'}</span>` : ''}
               ${(c.estagio === 'fotos' || c.estagio === 'site') && !c.imovel_id ? `<button type="button" class="btn btn-primary btn-sm" data-action="captacao-criar-imovel" data-id="${c.id}">Cadastrar imóvel</button>` : ''}
               ${c.imovel_id ? '<span class="badge-oculto" style="background:rgba(22,167,102,.15);color:#16a766;">✅ Imóvel já cadastrado</span>' : ''}
               <select class="status-select" data-id="${c.id}" data-action="captacao-estagio">
                 ${CAPTACAO_ESTAGIOS.map((s) => `<option value="${s.estagio}" ${s.estagio === c.estagio ? 'selected' : ''}>${s.label}</option>`).join('')}
               </select>
-              ${souGerente ? `<button type="button" class="btn btn-danger btn-sm" data-action="captacao-delete" data-id="${c.id}">Excluir</button>` : ''}
+              ${podeExcluir ? `<button type="button" class="btn btn-danger btn-sm" data-action="captacao-delete" data-id="${c.id}">Excluir</button>` : ''}
             </div>
           `).join('') : '<p class="kanban-empty">Nenhuma captação aqui.</p>'}
         </div>
@@ -2244,7 +2255,7 @@ document.addEventListener('change', async (e) => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.dataset.action === 'captacao-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir captações.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir captações.', true); return; }
     if (!confirm('Excluir esta captação? Isso não afeta o contato nem um imóvel já cadastrado a partir dela.')) return;
     const { error } = await supabase.from('captacoes').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -2461,7 +2472,7 @@ function renderImoveisTable() {
   if (!filtrados.length) { wrap.innerHTML = `<p class="empty-state">${filtroImoveisSemFoto ? 'Nenhum imóvel sem foto — tudo corrigido! 🎉' : filtroImoveisFeed ? 'Nenhum imóvel com problema no feed — tudo corrigido! 🎉' : (imoveisCache.length ? 'Nenhum imóvel encontrado para esse filtro.' : 'Nenhum imóvel cadastrado ainda.')}</p>`; atualizarToolbarXML(); return; }
 
   const visiveis = filtrados.slice(0, imoveisPagina * TAMANHO_PAGINA);
-  const podeExcluir = souGerente; // exclusão restrita ao gerente (regra também garantida pelo banco via RLS)
+  const podeExcluirRegistro = podeExcluir; // exclusão restrita ao gerente (regra também garantida pelo banco via RLS)
 
   wrap.innerHTML = visiveis.map((im) => {
     const foto = firstFoto(im.fotos);
@@ -3482,7 +3493,7 @@ document.addEventListener('click', async (e) => {
     bindUploadDocumento('imovel', im.id);
   }
   if (e.target.dataset.action === 'imovel-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir imóveis.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir imóveis.', true); return; }
     if (!confirm('Tem certeza que deseja excluir este imóvel?')) return;
     // a regra de quem pode excluir é garantida pelo banco (RLS): só o corretor responsável, ou gerente/admin
     const { data: excluidos, error } = await supabase.from('imoveis').delete().eq('id', e.target.dataset.id).select('id');
@@ -4422,7 +4433,7 @@ function renderPessoasTable() {
           </div>
           <div class="imovel-card-actions">
             <button class="btn btn-ghost btn-sm" data-action="pessoa-edit" data-id="${p.id}">Editar</button>
-            ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="pessoa-delete" data-id="${p.id}">Excluir</button>` : ''}
+            ${podeExcluir ? `<button class="btn btn-danger btn-sm" data-action="pessoa-delete" data-id="${p.id}">Excluir</button>` : ''}
           </div>
         </div>
       </div>
@@ -4547,7 +4558,7 @@ async function carregarDocumentos(coluna, id) {
   wrap.innerHTML = data.map((d) => `
     <div class="documento-item">
       <a href="${d.url}" target="_blank" rel="noopener">📄 ${d.nome}</a>
-      ${souGerente ? `<button type="button" class="btn btn-ghost btn-sm" data-action="documento-delete" data-id="${d.id}" data-coluna="${coluna}" data-ref-id="${id}">Excluir</button>` : ''}
+      ${podeExcluir ? `<button type="button" class="btn btn-ghost btn-sm" data-action="documento-delete" data-id="${d.id}" data-coluna="${coluna}" data-ref-id="${id}">Excluir</button>` : ''}
     </div>
   `).join('');
 }
@@ -4575,7 +4586,7 @@ async function bindUploadDocumento(coluna, id) {
 
 document.addEventListener('click', async (e) => {
   if (e.target.dataset.action === 'documento-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir documentos.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir documentos.', true); return; }
     if (!confirm('Excluir este documento?')) return;
     const { error } = await supabase.from('documentos').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -4596,7 +4607,7 @@ document.addEventListener('click', async (e) => {
     bindUploadDocumento('pessoa', p.id);
   }
   if (e.target.dataset.action === 'pessoa-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir pessoas.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir pessoas.', true); return; }
     if (!confirm('Tem certeza que deseja excluir esta pessoa?')) return;
     const { error } = await supabase.from('pessoas').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -5150,7 +5161,7 @@ function atualizarBarraExcluirFotosVistoria(vistoriaId) {
 
 document.addEventListener('click', async (e) => {
   if (e.target.dataset.action === 'vistoria-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir vistorias.', true); return; }
+    if (!souGerente) { toast('Você não tem permissão para excluir vistorias.', true); return; }
     if (!confirm('Excluir esta vistoria e todo o checklist/fotos associados?')) return;
     const { error } = await supabase.from('vistorias').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -7381,15 +7392,15 @@ async function loadEquipe() {
       <td>${u.ativo ? '✅' : '—'}</td>
       <td>${u.recebe_leads === false ? '<span class="badge-oculto">Pausado</span>' : '✅'}${u.atende_consorcio ? ' <span class="badge-mini" title="Atende leads de consórcio">🏦</span>' : ''}</td>
       <td>${u.visivel_no_site === false ? '<span class="badge-oculto">Oculto do site</span>' : '—'}</td>
-      <td class="nav-financeiro" ${podeVerFinanceiro ? '' : 'hidden'}>
+      <td>
         ${u.auth_user_id
           ? '<span class="badge-oculto" style="background:rgba(22,167,102,.15);color:#16a766;">✅ Vinculado</span>'
-          : `<button class="btn btn-ghost btn-sm" data-action="usuario-criar-acesso" data-id="${u.id}" data-email="${u.email}">Criar acesso</button>`}
+          : (podeVerFinanceiro ? `<button class="btn btn-ghost btn-sm" data-action="usuario-criar-acesso" data-id="${u.id}" data-email="${u.email}">Criar acesso</button>` : '—')}
       </td>
-      <td class="nav-financeiro" ${podeVerFinanceiro ? '' : 'hidden'}>
-        <button class="btn btn-ghost btn-sm" data-action="usuario-edit" data-id="${u.id}">Editar</button>
-        ${u.auth_user_id ? `<button class="btn btn-ghost btn-sm" data-action="usuario-redefinir-senha" data-id="${u.id}" data-nome="${u.nome}">Redefinir senha</button>` : ''}
-        ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="usuario-delete" data-id="${u.id}">Excluir</button>` : ''}
+      <td>
+        ${podeVerFinanceiro ? `<button class="btn btn-ghost btn-sm" data-action="usuario-edit" data-id="${u.id}">Editar</button>` : ''}
+        ${podeVerFinanceiro && u.auth_user_id ? `<button class="btn btn-ghost btn-sm" data-action="usuario-redefinir-senha" data-id="${u.id}" data-nome="${u.nome}">Redefinir senha</button>` : ''}
+        ${podeExcluir && (souGerente || !['gerente', 'admin'].includes(u.cargo)) ? `<button class="btn btn-danger btn-sm" data-action="usuario-delete" data-id="${u.id}">Excluir</button>` : ''}
       </td>
     </tr>
   `).join('');
@@ -7443,7 +7454,7 @@ document.addEventListener('click', async (e) => {
     bindUsuarioForm();
   }
   if (e.target.dataset.action === 'usuario-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir integrantes da equipe.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir integrantes da equipe.', true); return; }
     if (!confirm('Remover este integrante da equipe? O login dele no Supabase Auth precisa ser removido separadamente, se quiser bloquear o acesso.')) return;
     const { error } = await supabase.from('usuarios').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -7567,7 +7578,7 @@ async function loadDepoimentos() {
       <td>${d.publicado ? '✅' : '—'}</td>
       <td>
         <button class="btn btn-ghost btn-sm" data-action="depoimento-edit" data-id="${d.id}">Editar</button>
-        ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="depoimento-delete" data-id="${d.id}">Excluir</button>` : ''}
+        ${podeExcluir ? `<button class="btn btn-danger btn-sm" data-action="depoimento-delete" data-id="${d.id}">Excluir</button>` : ''}
       </td>
     </tr>
   `).join('');
@@ -7605,7 +7616,7 @@ document.addEventListener('click', async (e) => {
     bindDepoimentoForm();
   }
   if (e.target.dataset.action === 'depoimento-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir depoimentos.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir depoimentos.', true); return; }
     if (!confirm('Excluir este depoimento?')) return;
     const { error } = await supabase.from('depoimentos').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -7678,7 +7689,7 @@ async function loadHero() {
       <div class="hero-gallery-thumb"><img src="${h.url}" alt="${h.legenda || ''}"></div>
       <div class="hero-gallery-body">
         <label class="check-row"><input type="checkbox" data-action="hero-toggle" data-id="${h.id}" ${h.ativo ? 'checked' : ''}> Ativa no site</label>
-        ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="hero-delete" data-id="${h.id}">Excluir</button>` : ''}
+        ${podeExcluir ? `<button class="btn btn-danger btn-sm" data-action="hero-delete" data-id="${h.id}">Excluir</button>` : ''}
       </div>
     </div>
   `).join('');
@@ -7746,7 +7757,7 @@ document.addEventListener('change', async (e) => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.dataset.action === 'hero-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir fotos do site.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir fotos do site.', true); return; }
     if (!confirm('Excluir esta foto do site?')) return;
     const { error } = await supabase.from('hero_imagens').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -7786,7 +7797,7 @@ function renderMomentosCRM() {
         <span class="badge-mini">${MOMENTO_TIPO_LABEL[m.tipo] || m.tipo}</span>
         <label class="check-row"><input type="checkbox" data-action="momento-toggle" data-id="${m.id}" ${m.publicado ? 'checked' : ''}> Publicada no site</label>
         <label class="momento-ordem">Ordem <input type="number" data-action="momento-ordem" data-id="${m.id}" value="${m.ordem ?? 0}"></label>
-        ${souGerente ? `<button class="btn btn-danger btn-sm" data-action="momento-delete" data-id="${m.id}">Excluir</button>` : ''}
+        ${podeExcluir ? `<button class="btn btn-danger btn-sm" data-action="momento-delete" data-id="${m.id}">Excluir</button>` : ''}
       </div>
     </div>
   `).join('');
@@ -7877,7 +7888,7 @@ document.addEventListener('change', async (e) => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.dataset.action === 'momento-delete') {
-    if (!souGerente) { toast('Somente o gerente pode excluir fotos.', true); return; }
+    if (!podeExcluir) { toast('Você não tem permissão para excluir fotos.', true); return; }
     if (!confirm('Excluir esta foto? Ela sai do site na hora.')) return;
     const { error } = await supabase.from('entregas_chaves').delete().eq('id', e.target.dataset.id);
     if (error) { toast('Não foi possível excluir.', true); return; }
@@ -11240,7 +11251,7 @@ document.addEventListener('click', async (e) => {
 
   const excluirInst = e.target.closest('[data-action="instituicao-excluir"]');
   if (excluirInst) {
-    if (!souGerente) { toast('Somente o gerente pode excluir instituições.', true); return; }
+    if (!souGerente) { toast('Você não tem permissão para excluir instituições.', true); return; }
     if (!confirm('Excluir esta instituição? Processos que já a usam ficam sem instituição definida.')) return;
     const { error } = await supabase.from('instituicoes').delete().eq('id', excluirInst.dataset.id);
     if (error) { toast('Erro ao excluir: ' + error.message, true); return; }
