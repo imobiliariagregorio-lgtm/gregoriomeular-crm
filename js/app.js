@@ -185,6 +185,10 @@ async function showApp(session) {
 
   const podeVerFinanceiro_local = currentUsuario && ['admin', 'gerente'].includes(currentUsuario.cargo);
   podeVerFinanceiro = podeVerFinanceiro_local;
+  // Registra o último acesso do usuário (ao abrir e a cada 10 min com a aba visível)
+  const registrarAcesso = () => { try { supabase.rpc('registrar_acesso').then(() => {}, () => {}); } catch (_) {} };
+  registrarAcesso();
+  setInterval(() => { if (document.visibilityState === 'visible') registrarAcesso(); }, 10 * 60 * 1000);
   souGerente = !!(currentUsuario && currentUsuario.cargo === 'gerente');
   souCorretor = currentUsuario?.cargo === 'corretor';
   podeExcluir = souGerente || souCorretor;
@@ -7379,14 +7383,18 @@ $('#abaConsorcioCartas')?.addEventListener('click', () => mostrarAbaConsorcio('c
 // =====================================================================
 async function loadEquipe() {
   const tbody = $('#equipeTable tbody');
-  const { data, error } = await supabase.from('usuarios').select('*').order('nome');
+  const [{ data, error }, { data: acessos }] = await Promise.all([
+    supabase.from('usuarios').select('*').order('nome'),
+    podeVerFinanceiro ? supabase.from('acessos_usuarios').select('usuario_id,ultimo_acesso') : Promise.resolve({ data: [] }),
+  ]);
+  const acessoPor = Object.fromEntries((acessos || []).map((x) => [x.usuario_id, x.ultimo_acesso]));
   if (error) { tbody.innerHTML = emptyRow(9, 'Erro ao carregar a equipe.'); console.error(error); return; }
   if (!data.length) { tbody.innerHTML = emptyRow(9, 'Nenhum integrante cadastrado ainda.'); return; }
 
   tbody.innerHTML = data.map((u) => `
     <tr>
       <td>${u.foto_url ? `<img class="table-avatar" src="${u.foto_url}">` : `<span class="table-avatar-placeholder">${(u.nome || '?').split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase()}</span>`}</td>
-      <td><strong>${u.nome}</strong></td>
+      <td><strong>${u.nome}</strong>${podeVerFinanceiro ? `<br><small style="opacity:.7">Último acesso: ${acessoPor[u.id] ? dateTime(acessoPor[u.id]) : 'nunca'}</small>` : ''}</td>
       <td>${u.cargo}</td>
       <td>${u.email}</td>
       <td>${u.ativo ? '✅' : '—'}</td>
